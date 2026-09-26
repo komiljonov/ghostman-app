@@ -90,15 +90,15 @@ func TestFolderAndRequestEndpoints(t *testing.T) {
 			want: []RequestSummary{{ID: "r1", ProjectID: "p1", Name: "R1", Method: "GET", CreatedAt: "x", UpdatedAt: "y"}},
 		},
 		{
-			name: "get request passes headers/body through", status: 200, resp: detail,
+			name: "get request decodes rows and body", status: 200, resp: detail,
 			call:       func(c *APIClient) (any, error) { return c.GetRequest(ctx, "r1") },
 			wantMethod: "GET", wantPath: "/api/v1/requests/r1",
 			want: Request{
 				RequestSummary: RequestSummary{ID: "r1", ProjectID: "p1", FolderID: strPtr("f1"), Name: "R1", Method: "POST",
 					URL: "https://x.io", CreatedAt: "x", UpdatedAt: "y"},
-				Headers:     []any{map[string]any{"key": "A", "value": "1", "enabled": true}},
-				QueryParams: []any{},
-				Body:        map[string]any{"type": "none"},
+				Headers:     []KeyValue{{Key: "A", Value: "1", Enabled: true}},
+				QueryParams: []KeyValue{},
+				Body:        RequestBody{Type: BodyNone, Fields: []KeyValue{}},
 			},
 		},
 		{

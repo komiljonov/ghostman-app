@@ -5,6 +5,7 @@ package engine
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -34,12 +35,29 @@ type Header struct {
 	Enabled bool   `json:"enabled"`
 }
 
-// RequestSpec describes a request to send.
+// Body types.
+const (
+	BodyNone = "none"
+	BodyRaw  = "raw"
+	BodyForm = "form"
+)
+
+// Body is what to send as the request body.
+type Body struct {
+	Type        string   `json:"type"` // none | raw | form
+	ContentType string   `json:"contentType"`
+	Content     string   `json:"content"`
+	Fields      []Header `json:"fields"` // form fields; only enabled rows with a key are sent
+}
+
+// RequestSpec describes a request to send. Only enabled headers/params/fields with
+// a non-empty key are used; query params are appended to any query already in URL.
 type RequestSpec struct {
-	Method  string   `json:"method"`
-	URL     string   `json:"url"`
-	Headers []Header `json:"headers"`
-	Body    string   `json:"body"`
+	Method      string   `json:"method"`
+	URL         string   `json:"url"`
+	Headers     []Header `json:"headers"`
+	QueryParams []Header `json:"queryParams"`
+	Body        Body     `json:"body"`
 }
 
 // Response is the result of a completed HTTP exchange (any status code).
@@ -50,9 +68,12 @@ type Response struct {
 	Headers    []Header `json:"headers"`
 	DurationMs int64    `json:"durationMs"`
 	// BodySize is the full (decoded) body size in bytes, even when Body is truncated.
-	BodySize  int64  `json:"bodySize"`
-	Body      string `json:"body"`
-	Truncated bool   `json:"truncated"`
+	BodySize    int64  `json:"bodySize"`
+	Body        string `json:"body"`
+	Truncated   bool   `json:"truncated"`
+	ContentType string `json:"contentType"`
+	// Formatted is true when Body was pretty-printed (valid, untruncated JSON).
+	Formatted bool `json:"formatted"`
 }
 
 // Engine sends requests. It is safe for concurrent use.
@@ -103,16 +124,42 @@ func (e *Engine) SendRequest(ctx context.Context, spec RequestSpec) (*Response, 
 		body = trimPartialRune(body)
 	}
 
+	contentType := resp.Header.Get("Content-Type")
+	formatted := false
+	if !truncated && isJSONContentType(contentType) {
+		if pretty, ok := prettyJSON(body); ok {
+			body, formatted = pretty, true
+		}
+	}
+
 	return &Response{
-		Status:     resp.StatusCode,
-		StatusText: http.StatusText(resp.StatusCode),
-		Proto:      resp.Proto,
-		Headers:    flattenHeaders(resp.Header),
-		DurationMs: duration.Milliseconds(),
-		BodySize:   n,
-		Body:       string(body),
-		Truncated:  truncated,
+		Status:      resp.StatusCode,
+		StatusText:  http.StatusText(resp.StatusCode),
+		Proto:       resp.Proto,
+		Headers:     flattenHeaders(resp.Header),
+		DurationMs:  duration.Milliseconds(),
+		BodySize:    n,
+		Body:        string(body),
+		Truncated:   truncated,
+		ContentType: contentType,
+		Formatted:   formatted,
 	}, nil
+}
+
+func isJSONContentType(ct string) bool {
+	ct = strings.ToLower(ct)
+	return strings.Contains(ct, "/json") || strings.Contains(ct, "+json")
+}
+
+// prettyJSON indents a JSON document. A truncated body is never passed in (it
+// would not parse), and output that would grow past twice the preview cap is
+// left unformatted so the bridge payload stays bounded.
+func prettyJSON(body []byte) ([]byte, bool) {
+	var out bytes.Buffer
+	if err := json.Indent(&out, body, "", "  "); err != nil || out.Len() > 2*MaxBodyPreview {
+		return nil, false
+	}
+	return out.Bytes(), true
 }
 
 func buildRequest(ctx context.Context, spec RequestSpec) (*http.Request, error) {
@@ -136,26 +183,75 @@ func buildRequest(ctx context.Context, spec RequestSpec) (*http.Request, error) 
 		return nil, fmt.Errorf("invalid URL %q: missing host", raw)
 	}
 
-	var body io.Reader
-	if spec.Body != "" {
-		body = strings.NewReader(spec.Body)
-	}
+	appendQuery(u, spec.QueryParams)
+
+	body, bodyContentType := encodeBody(spec.Body)
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), body)
 	if err != nil {
 		return nil, fmt.Errorf("invalid request: %w", err)
 	}
-	for _, h := range spec.Headers {
+	for _, h := range enabled(spec.Headers) {
 		key := strings.TrimSpace(h.Key)
-		if !h.Enabled || key == "" {
-			continue
-		}
 		if strings.EqualFold(key, "Host") {
 			req.Host = h.Value
 			continue
 		}
 		req.Header.Add(key, h.Value)
 	}
+	// The body's content type applies unless the user set Content-Type explicitly.
+	if bodyContentType != "" && req.Header.Get("Content-Type") == "" {
+		req.Header.Set("Content-Type", bodyContentType)
+	}
 	return req, nil
+}
+
+// enabled returns the rows that are enabled and have a key, in order.
+func enabled(rows []Header) []Header {
+	out := make([]Header, 0, len(rows))
+	for _, r := range rows {
+		if r.Enabled && strings.TrimSpace(r.Key) != "" {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// encodePairs percent-encodes rows as k=v&k=v, keeping order and duplicates.
+func encodePairs(rows []Header) string {
+	parts := make([]string, 0, len(rows))
+	for _, r := range rows {
+		parts = append(parts, url.QueryEscape(strings.TrimSpace(r.Key))+"="+url.QueryEscape(r.Value))
+	}
+	return strings.Join(parts, "&")
+}
+
+// appendQuery adds the enabled params after whatever query the URL already has
+// (which is kept exactly as typed).
+func appendQuery(u *url.URL, params []Header) {
+	extra := encodePairs(enabled(params))
+	switch {
+	case extra == "":
+	case u.RawQuery == "":
+		u.RawQuery = extra
+	default:
+		u.RawQuery += "&" + extra
+	}
+}
+
+// encodeBody returns the body reader and the content type it implies.
+func encodeBody(b Body) (io.Reader, string) {
+	switch b.Type {
+	case BodyRaw:
+		ct := strings.TrimSpace(b.ContentType)
+		if ct == "" {
+			ct = "text/plain"
+		}
+		return strings.NewReader(b.Content), ct
+	case BodyForm:
+		return strings.NewReader(encodePairs(enabled(b.Fields))), "application/x-www-form-urlencoded"
+	default:
+		return nil, ""
+	}
 }
 
 // describeError turns transport errors into messages a user can act on.

@@ -2,14 +2,12 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -19,10 +17,6 @@ import (
 	"ghostman/internal/store"
 	"ghostman/internal/workspace"
 )
-
-const historyLimit = 50
-
-var errNotLoggedIn = errors.New("log in to send requests")
 
 // App is bound to the frontend. Its exported methods are the whole Go<->TS API;
 // keep them thin and put logic in internal/.
@@ -36,6 +30,12 @@ type App struct {
 	startupErr error
 
 	workspace *workspace.Manager
+
+	sendsMu sync.Mutex
+	sends   map[string]*inflight // request id -> running send
+
+	quitMu   sync.Mutex
+	quitting bool
 
 	clientMu sync.Mutex
 	client   *api.APIClient // the session's current server client (token included)
@@ -54,6 +54,7 @@ func NewApp(eng *engine.Engine, defaultServerURL string) *App {
 		engine:    eng,
 		serverURL: defaultServerURL,
 		authReady: make(chan struct{}),
+		sends:     map[string]*inflight{},
 	}
 }
 
@@ -148,54 +149,6 @@ func (a *App) GetSettings() Settings {
 // Saving the current URL again acts as "retry".
 func (a *App) SetServerURL(url string) session.Result {
 	return a.session.SetServerURL(a.ctx, url)
-}
-
-// Send executes a request and records it in history. Transport failures reject
-// the JS promise with a human-readable message.
-func (a *App) Send(spec engine.RequestSpec) (*engine.Response, error) {
-	if !a.session.IsLoggedIn() {
-		return nil, errNotLoggedIn
-	}
-
-	start := time.Now()
-	resp, err := a.engine.SendRequest(a.ctx, spec)
-
-	entry := store.InsertHistoryParams{
-		Method:    strings.ToUpper(strings.TrimSpace(spec.Method)),
-		Url:       strings.TrimSpace(spec.URL),
-		CreatedAt: start.UnixMilli(),
-	}
-	if err != nil {
-		entry.DurationMs = time.Since(start).Milliseconds()
-		slog.Info("request failed", "method", entry.Method, "url", entry.Url, "err", err)
-	} else {
-		entry.Status = int64(resp.Status)
-		entry.DurationMs = resp.DurationMs
-		slog.Info("request sent", "method", entry.Method, "url", entry.Url, "status", resp.Status, "duration_ms", resp.DurationMs)
-	}
-	if entry.Url != "" {
-		// History is best-effort: a DB problem must not hide the response.
-		if herr := a.store.InsertHistory(a.ctx, entry); herr != nil {
-			slog.Error("record history", "err", herr)
-		}
-	}
-	return resp, err
-}
-
-// History returns the most recent requests, newest first.
-func (a *App) History() ([]store.History, error) {
-	if !a.session.IsLoggedIn() {
-		return nil, errNotLoggedIn
-	}
-	rows, err := a.store.ListHistory(a.ctx, historyLimit)
-	if err != nil {
-		slog.Error("list history", "err", err)
-		return nil, errors.New("could not load history")
-	}
-	if rows == nil {
-		rows = []store.History{}
-	}
-	return rows, nil
 }
 
 // databasePath returns the per-user DB location: %AppData%\Ghostman on Windows,

@@ -124,6 +124,22 @@ export namespace api {
 	        this.email = source["email"];
 	    }
 	}
+	export class KeyValue {
+	    key: string;
+	    value: string;
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new KeyValue(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.value = source["value"];
+	        this.enabled = source["enabled"];
+	    }
+	}
 	export class MemberAccess {
 	    user_id: string;
 	    all_projects: boolean;
@@ -297,6 +313,42 @@ export namespace api {
 	        this.created_at = source["created_at"];
 	    }
 	}
+	export class RequestBody {
+	    type: string;
+	    content_type: string;
+	    content: string;
+	    fields: KeyValue[];
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestBody(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.content_type = source["content_type"];
+	        this.content = source["content"];
+	        this.fields = this.convertValues(source["fields"], KeyValue);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Request {
 	    id: string;
 	    project_id: string;
@@ -307,9 +359,9 @@ export namespace api {
 	    sort_order: number;
 	    created_at: string;
 	    updated_at: string;
-	    headers: any;
-	    query_params: any;
-	    body: any;
+	    headers: KeyValue[];
+	    query_params: KeyValue[];
+	    body: RequestBody;
 	
 	    static createFrom(source: any = {}) {
 	        return new Request(source);
@@ -326,15 +378,75 @@ export namespace api {
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	        this.updated_at = source["updated_at"];
-	        this.headers = source["headers"];
-	        this.query_params = source["query_params"];
-	        this.body = source["body"];
+	        this.headers = this.convertValues(source["headers"], KeyValue);
+	        this.query_params = this.convertValues(source["query_params"], KeyValue);
+	        this.body = this.convertValues(source["body"], RequestBody);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class RequestDraft {
+	    method: string;
+	    url: string;
+	    headers: KeyValue[];
+	    query_params: KeyValue[];
+	    body: RequestBody;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestDraft(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.method = source["method"];
+	        this.url = source["url"];
+	        this.headers = this.convertValues(source["headers"], KeyValue);
+	        this.query_params = this.convertValues(source["query_params"], KeyValue);
+	        this.body = this.convertValues(source["body"], RequestBody);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class RequestPatch {
 	    name?: string;
 	    method?: string;
 	    url?: string;
+	    headers?: KeyValue[];
+	    query_params?: KeyValue[];
+	    body?: RequestBody;
 	
 	    static createFrom(source: any = {}) {
 	        return new RequestPatch(source);
@@ -345,7 +457,28 @@ export namespace api {
 	        this.name = source["name"];
 	        this.method = source["method"];
 	        this.url = source["url"];
+	        this.headers = this.convertValues(source["headers"], KeyValue);
+	        this.query_params = this.convertValues(source["query_params"], KeyValue);
+	        this.body = this.convertValues(source["body"], RequestBody);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class RequestSummary {
 	    id: string;
@@ -504,42 +637,6 @@ export namespace engine {
 	        this.enabled = source["enabled"];
 	    }
 	}
-	export class RequestSpec {
-	    method: string;
-	    url: string;
-	    headers: Header[];
-	    body: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new RequestSpec(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.method = source["method"];
-	        this.url = source["url"];
-	        this.headers = this.convertValues(source["headers"], Header);
-	        this.body = source["body"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
 	export class Response {
 	    status: number;
 	    statusText: string;
@@ -549,6 +646,8 @@ export namespace engine {
 	    bodySize: number;
 	    body: string;
 	    truncated: boolean;
+	    contentType: string;
+	    formatted: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Response(source);
@@ -564,6 +663,8 @@ export namespace engine {
 	        this.bodySize = source["bodySize"];
 	        this.body = source["body"];
 	        this.truncated = source["truncated"];
+	        this.contentType = source["contentType"];
+	        this.formatted = source["formatted"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1067,6 +1168,38 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class SendResult {
+	    data?: engine.Response;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new SendResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], engine.Response);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Settings {
 	    serverUrl: string;
 	
@@ -1077,6 +1210,20 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.serverUrl = source["serverUrl"];
+	    }
+	}
+	export class Tabs {
+	    open: string[];
+	    active: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Tabs(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.open = source["open"];
+	        this.active = source["active"];
 	    }
 	}
 	export class TeamInvitationListResult {
@@ -1329,33 +1476,6 @@ export namespace session {
 		    }
 		    return a;
 		}
-	}
-
-}
-
-export namespace store {
-	
-	export class History {
-	    id: number;
-	    method: string;
-	    url: string;
-	    status: number;
-	    durationMs: number;
-	    createdAt: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new History(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.method = source["method"];
-	        this.url = source["url"];
-	        this.status = source["status"];
-	        this.durationMs = source["durationMs"];
-	        this.createdAt = source["createdAt"];
-	    }
 	}
 
 }

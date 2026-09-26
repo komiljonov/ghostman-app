@@ -1,0 +1,38 @@
+import { createEffect, onCleanup, onMount, Show, createSignal } from "solid-js";
+import type { CodeEditorHandle } from "../codemirror";
+
+interface Props {
+  value: string;
+  json: boolean;
+  onChange: (text: string) => void;
+}
+
+// Raw body editor. CodeMirror is loaded on first use (dynamic import) and the
+// instance lives as long as this component; the document is owned by CodeMirror
+// after mount (typing flows out through onChange).
+export default function CodeEditor(props: Props) {
+  let host!: HTMLDivElement;
+  let editor: CodeEditorHandle | undefined;
+  const [ready, setReady] = createSignal(false);
+
+  onMount(async () => {
+    const { createCodeEditor } = await import("../codemirror");
+    if (!host.isConnected) return; // unmounted while loading
+    editor = createCodeEditor(host, props.value, props.json, (text) => props.onChange(text));
+    setReady(true);
+  });
+  createEffect(() => {
+    const on = props.json;
+    if (ready()) editor?.setJSON(on);
+  });
+  onCleanup(() => editor?.destroy());
+
+  // The host div must have no Solid-managed children: when the placeholder below
+  // unmounts, Solid would clear the whole parent — CodeMirror's DOM included.
+  return (
+    <div class="code-editor">
+      <Show when={!ready()}><p class="placeholder small code-loading">Loading editor…</p></Show>
+      <div class="code-editor-host" ref={host} />
+    </div>
+  );
+}
