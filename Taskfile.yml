@@ -1,0 +1,56 @@
+version: "3"
+
+vars:
+  GOOSE: go run github.com/pressly/goose/v3/cmd/goose@v3.28.0
+  MIGRATIONS_DIR: internal/store/migrations
+
+tasks:
+  dev:
+    desc: Run the app with hot reload (wails dev)
+    cmds:
+      - wails dev
+
+  build:
+    desc: Build a production binary into build/bin/
+    cmds:
+      - wails build
+
+  sqlc:
+    desc: Regenerate Go code from internal/store/queries (schema = migrations dir)
+    cmds:
+      - sqlc generate
+
+  migrate:create:
+    desc: "Create a new SQL migration: task migrate:create -- <name>"
+    requires:
+      vars: [CLI_ARGS]
+    cmds:
+      - "{{.GOOSE}} -s -dir {{.MIGRATIONS_DIR}} create {{.CLI_ARGS}} sql"
+
+  lint:
+    desc: Lint Go code with golangci-lint
+    cmds:
+      - golangci-lint run ./...
+
+  test:
+    desc: Run Go tests
+    cmds:
+      - go test ./...
+
+  frontend:install:
+    desc: Install frontend dependencies
+    dir: frontend
+    cmds:
+      - npm install
+    sources:
+      - package.json
+      - package-lock.json
+    generates:
+      - node_modules/.package-lock.json
+
+  frontend:check:
+    desc: Type-check the frontend (tsc --noEmit)
+    dir: frontend
+    deps: [frontend:install]
+    cmds:
+      - npx tsc --noEmit
