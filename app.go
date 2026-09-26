@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -32,6 +33,9 @@ type App struct {
 	session    *session.Manager
 	authReady  chan struct{} // closed once the startup auth check has finished
 	startupErr error
+
+	clientMu sync.Mutex
+	client   *api.APIClient // the session's current server client (token included)
 }
 
 // Settings is what the settings modal edits.
@@ -86,7 +90,11 @@ func (a *App) init(ctx context.Context) error {
 	slog.Info("database ready", "path", path)
 
 	a.session, err = session.NewManager(a.store, func(baseURL string) session.Client {
-		return api.New(baseURL)
+		c := api.New(baseURL)
+		a.clientMu.Lock()
+		a.client = c
+		a.clientMu.Unlock()
+		return c
 	}, a.serverURL)
 	return err
 }

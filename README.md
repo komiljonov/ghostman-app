@@ -7,8 +7,9 @@ Ghostman is an **online-only client** of the Ghostman server (separate repo): yo
 a server, and everything shared (teams, projects, requests, ...) lives there. Locally the app
 keeps only the session token, response history and similar local-only data.
 
-Current state: login/register/logout against the server, a Server URL setting, and the
-request workspace (send a request, see the response, browse recent history) behind login.
+Current state: login/register/logout against the server, a Server URL setting, teams
+(create, rename, delete, members, leave) and invitations (invite, revoke, accept, reject),
+plus a temporary "Scratch" view to send a request and browse recent history.
 
 ## Prerequisites
 

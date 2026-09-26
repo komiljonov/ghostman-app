@@ -1,5 +1,215 @@
 export namespace api {
 	
+	export class TeamRef {
+	    id: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TeamRef(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	    }
+	}
+	export class AcceptedInvitation {
+	    id: string;
+	    status: string;
+	    team: TeamRef;
+	
+	    static createFrom(source: any = {}) {
+	        return new AcceptedInvitation(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.status = source["status"];
+	        this.team = this.convertValues(source["team"], TeamRef);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Invitation {
+	    id: string;
+	    team_id: string;
+	    email: string;
+	    status: string;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Invitation(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.team_id = source["team_id"];
+	        this.email = source["email"];
+	        this.status = source["status"];
+	        this.created_at = source["created_at"];
+	    }
+	}
+	export class Inviter {
+	    name: string;
+	    email: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Inviter(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.email = source["email"];
+	    }
+	}
+	export class MyInvitation {
+	    id: string;
+	    team: TeamRef;
+	    invited_by: Inviter;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MyInvitation(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.team = this.convertValues(source["team"], TeamRef);
+	        this.invited_by = this.convertValues(source["invited_by"], Inviter);
+	        this.created_at = source["created_at"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class TeamMember {
+	    user_id: string;
+	    email: string;
+	    name: string;
+	    all_projects: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new TeamMember(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.user_id = source["user_id"];
+	        this.email = source["email"];
+	        this.name = source["name"];
+	        this.all_projects = source["all_projects"];
+	    }
+	}
+	export class Team {
+	    id: string;
+	    name: string;
+	    created_at: string;
+	    is_owner: boolean;
+	    members: TeamMember[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Team(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.created_at = source["created_at"];
+	        this.is_owner = source["is_owner"];
+	        this.members = this.convertValues(source["members"], TeamMember);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class TeamInvitation {
+	    id: string;
+	    email: string;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TeamInvitation(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.email = source["email"];
+	        this.created_at = source["created_at"];
+	    }
+	}
+	
+	
+	export class TeamSummary {
+	    id: string;
+	    name: string;
+	    member_count: number;
+	    is_owner: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new TeamSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.member_count = source["member_count"];
+	        this.is_owner = source["is_owner"];
+	    }
+	}
 	export class User {
 	    id: string;
 	    email: string;
@@ -122,6 +332,132 @@ export namespace engine {
 
 export namespace main {
 	
+	export class AcceptedInvitationResult {
+	    data?: api.AcceptedInvitation;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new AcceptedInvitationResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.AcceptedInvitation);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class EmptyResult {
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new EmptyResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class InvitationResult {
+	    data?: api.Invitation;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new InvitationResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.Invitation);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class MyInvitationListResult {
+	    data: api.MyInvitation[];
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new MyInvitationListResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.MyInvitation);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Settings {
 	    serverUrl: string;
 	
@@ -133,6 +469,134 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.serverUrl = source["serverUrl"];
 	    }
+	}
+	export class TeamInvitationListResult {
+	    data: api.TeamInvitation[];
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new TeamInvitationListResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.TeamInvitation);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class TeamListResult {
+	    data: api.TeamSummary[];
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new TeamListResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.TeamSummary);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class TeamRefResult {
+	    data?: api.TeamRef;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new TeamRefResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.TeamRef);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class TeamResult {
+	    data?: api.Team;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new TeamResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.Team);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }
