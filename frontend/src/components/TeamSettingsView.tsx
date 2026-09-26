@@ -7,22 +7,22 @@ import MemberRow from "./MemberRow";
 import InviteForm from "./InviteForm";
 import PendingInvitationRow from "./PendingInvitationRow";
 import ConfirmButton from "./ConfirmButton";
-import ProjectsSection from "./ProjectsSection";
 import MemberAccessModal from "./MemberAccessModal";
-import ProjectAccessModal from "./ProjectAccessModal";
 
 interface Props {
   teamId: string;
   refreshTick: number; // changes when the user asks for fresh data
   onTeamChanged: () => void; // name or member count changed: refresh the sidebar
-  onTeamGone: () => void; // deleted or left
-  onOpenProject: (id: string) => void;
+  onTeamGone: () => void; // deleted, left, or no longer reachable (404)
 }
 
-export default function TeamView(props: Props) {
+// Team settings (main pane): rename, members + access, invitations, delete / leave.
+export default function TeamSettingsView(props: Props) {
   const [team, { refetch: refetchTeam }] = createResource(() => ({ id: props.teamId, tick: props.refreshTick }), async (src) => {
     const result = await GetTeam(src.id);
     handleProblem(result.error);
+    // Removed from the team or it was deleted: let the shell fall back instead of showing a dead end.
+    if (result.error?.status === 404) props.onTeamGone();
     return result;
   });
   const isOwner = () => team()?.data?.is_owner ?? false;
@@ -38,13 +38,11 @@ export default function TeamView(props: Props) {
     },
   );
 
-  // Bumped after access changes so the projects list re-fetches along with the team.
-  const [projectsTick, setProjectsTick] = createSignal(0);
   const [accessMember, setAccessMember] = createSignal<api.TeamMember>();
-  const [accessProject, setAccessProject] = createSignal<api.ProjectSummary>();
+  // Access decides which projects members see, so the shell re-fetches the workspace too.
   const accessChanged = () => {
     void refetchTeam();
-    setProjectsTick((n) => n + 1);
+    props.onTeamChanged();
   };
 
   const membersChanged = () => {
@@ -57,20 +55,11 @@ export default function TeamView(props: Props) {
       <Show when={team()?.data} fallback={<p class="form-error">{team()?.error?.message}</p>}>
         {(t) => (
           <div class="team-view">
+            <div class="pane-kicker">Team settings</div>
             <TeamName team={t()} onRenamed={() => {
               void refetchTeam();
               props.onTeamChanged();
             }} />
-
-            <ProjectsSection
-              teamId={t().id}
-              me={me()}
-              isTeamOwner={t().is_owner}
-              canReorder={t().is_owner || (t().members.find((m) => m.user_id === me())?.all_projects ?? false)}
-              refreshTick={props.refreshTick + projectsTick()}
-              onOpenProject={props.onOpenProject}
-              onEditAccess={setAccessProject}
-            />
 
             <h3>Members</h3>
             <table class="table">
@@ -142,12 +131,6 @@ export default function TeamView(props: Props) {
               {(m) => (
                 <MemberAccessModal teamId={t().id} member={m()} onClose={() => setAccessMember(undefined)}
                   onSaved={accessChanged} />
-              )}
-            </Show>
-            <Show when={accessProject()}>
-              {(p) => (
-                <ProjectAccessModal project={p()} members={t().members.filter((m) => m.user_id !== me())}
-                  onClose={() => setAccessProject(undefined)} onSaved={accessChanged} />
               )}
             </Show>
           </div>

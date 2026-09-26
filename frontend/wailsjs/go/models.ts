@@ -927,6 +927,38 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class WorkspaceResult {
+	    data?: workspace.Workspace;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new WorkspaceResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], workspace.Workspace);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 
 }
 
@@ -1044,6 +1076,47 @@ export namespace store {
 	        this.durationMs = source["durationMs"];
 	        this.createdAt = source["createdAt"];
 	    }
+	}
+
+}
+
+export namespace workspace {
+	
+	export class Workspace {
+	    teams: api.TeamSummary[];
+	    team_id: string;
+	    projects: api.ProjectSummary[];
+	    project_id: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Workspace(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.teams = this.convertValues(source["teams"], api.TeamSummary);
+	        this.team_id = source["team_id"];
+	        this.projects = this.convertValues(source["projects"], api.ProjectSummary);
+	        this.project_id = source["project_id"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

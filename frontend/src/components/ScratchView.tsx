@@ -5,8 +5,8 @@ import RequestBar from "./RequestBar";
 import ResponsePane from "./ResponsePane";
 import HistoryList from "./HistoryList";
 
-// The request/response workspace (the walking skeleton), shown only when logged in.
-export default function Workspace() {
+// Scratch (dev): the walking-skeleton send UI, temporary home until the request editor lands.
+export default function ScratchView() {
   const [method, setMethod] = createSignal("GET");
   const [url, setUrl] = createSignal("");
   const [loading, setLoading] = createSignal(false);

@@ -10,8 +10,13 @@ keeps only the session token, response history and similar local-only data.
 Current state: login/register/logout against the server, a Server URL setting, teams
 (create, rename, delete, members, leave), invitations (invite, revoke, accept, reject),
 projects (create, rename, delete, reorder) with per-member and per-project access, plus a
-temporary "Scratch" view to send a request and browse recent history. Opening a project shows
-a placeholder until folders & requests land.
+temporary "Scratch" view to send a request and browse recent history.
+
+The window is laid out Postman-style: a top bar with team and project switchers (their menus
+also hold "+ New …" and the team/project settings) and a profile menu (invitations, settings,
+scratch, log out); a left sidebar reserved for the project's folders & requests (next step);
+and a main pane for whatever is open. The selected team and project are remembered across
+restarts.
 
 ## Prerequisites
 
