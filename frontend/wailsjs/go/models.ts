@@ -48,6 +48,48 @@ export namespace api {
 		    return a;
 		}
 	}
+	export class Folder {
+	    id: string;
+	    parent_id?: string;
+	    name: string;
+	    sort_order: number;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Folder(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.parent_id = source["parent_id"];
+	        this.name = source["name"];
+	        this.sort_order = source["sort_order"];
+	        this.created_at = source["created_at"];
+	    }
+	}
+	export class FolderDetail {
+	    id: string;
+	    project_id: string;
+	    parent_id?: string;
+	    name: string;
+	    sort_order: number;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FolderDetail(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.project_id = source["project_id"];
+	        this.parent_id = source["parent_id"];
+	        this.name = source["name"];
+	        this.sort_order = source["sort_order"];
+	        this.created_at = source["created_at"];
+	    }
+	}
 	export class Invitation {
 	    id: string;
 	    team_id: string;
@@ -253,6 +295,84 @@ export namespace api {
 	        this.owner_id = source["owner_id"];
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
+	    }
+	}
+	export class Request {
+	    id: string;
+	    project_id: string;
+	    folder_id?: string;
+	    name: string;
+	    method: string;
+	    url: string;
+	    sort_order: number;
+	    created_at: string;
+	    updated_at: string;
+	    headers: any;
+	    query_params: any;
+	    body: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Request(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.project_id = source["project_id"];
+	        this.folder_id = source["folder_id"];
+	        this.name = source["name"];
+	        this.method = source["method"];
+	        this.url = source["url"];
+	        this.sort_order = source["sort_order"];
+	        this.created_at = source["created_at"];
+	        this.updated_at = source["updated_at"];
+	        this.headers = source["headers"];
+	        this.query_params = source["query_params"];
+	        this.body = source["body"];
+	    }
+	}
+	export class RequestPatch {
+	    name?: string;
+	    method?: string;
+	    url?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestPatch(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.method = source["method"];
+	        this.url = source["url"];
+	    }
+	}
+	export class RequestSummary {
+	    id: string;
+	    project_id: string;
+	    folder_id?: string;
+	    name: string;
+	    method: string;
+	    url: string;
+	    sort_order: number;
+	    created_at: string;
+	    updated_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.project_id = source["project_id"];
+	        this.folder_id = source["folder_id"];
+	        this.name = source["name"];
+	        this.method = source["method"];
+	        this.url = source["url"];
+	        this.sort_order = source["sort_order"];
+	        this.created_at = source["created_at"];
+	        this.updated_at = source["updated_at"];
 	    }
 	}
 	export class TeamMember {
@@ -531,6 +651,70 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class FolderListResult {
+	    data: api.Folder[];
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new FolderListResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.Folder);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class FolderResult {
+	    data?: api.FolderDetail;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new FolderResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.FolderDetail);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class InvitationResult {
 	    data?: api.Invitation;
 	    error?: session.Problem;
@@ -766,6 +950,102 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = this.convertValues(source["data"], api.Project);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class RequestListResult {
+	    data: api.RequestSummary[];
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestListResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.RequestSummary);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class RequestResult {
+	    data?: api.Request;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.Request);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class RequestSummaryResult {
+	    data?: api.RequestSummary;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestSummaryResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.RequestSummary);
 	        this.error = this.convertValues(source["error"], session.Problem);
 	    }
 	

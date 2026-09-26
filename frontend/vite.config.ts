@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { writeFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
@@ -16,5 +17,9 @@ export default defineConfig({
   ],
   build: {
     target: "es2022",
+  },
+  // Unit tests cover pure logic (e.g. src/tree.ts); no DOM needed.
+  test: {
+    environment: "node",
   },
 });

@@ -830,3 +830,169 @@ button.danger-outline {
 .sidebar > .placeholder {
   padding: 8px;
 }
+
+/* ---- Project tree (sidebar) ---- */
+
+.tree-sidebar {
+  width: 280px;
+  padding: 8px 4px;
+  gap: 4px;
+}
+
+.tree-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 0 2px;
+}
+
+.tree-header .menu-heading {
+  padding-left: 4px;
+}
+
+.tree-note {
+  padding: 6px 8px;
+}
+
+.tree,
+.tree-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding-right: 2px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.tree-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tree-row.selected {
+  background: rgba(108, 140, 255, 0.16);
+}
+
+.chevron {
+  width: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.folder-icon {
+  color: var(--client);
+  font-size: 11px;
+}
+
+.tree-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-rename {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 6px;
+  background: var(--bg);
+}
+
+.tree-empty {
+  height: 24px;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
+.tree-error {
+  margin: 2px 8px 4px;
+  color: var(--server);
+  font-size: 12px;
+}
+
+.row-menu {
+  display: flex;
+}
+
+.row-menu-trigger {
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.tree-row:hover .row-menu-trigger,
+.row-menu-trigger[aria-expanded="true"],
+.row-menu-trigger:focus-visible,
+.row-menu-trigger.add {
+  opacity: 1;
+}
+
+.row-menu-trigger:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.row-menu-trigger.add {
+  font-size: 16px;
+}
+
+.row-menu .dropdown-menu {
+  min-width: 190px;
+}
+
+.danger-text {
+  color: var(--server);
+}
+
+.method-badge {
+  flex-shrink: 0;
+  width: 34px;
+  font: 700 10px/1 var(--mono);
+  text-align: left;
+}
+
+.method-GET { color: var(--ok); }
+.method-POST { color: var(--client); }
+.method-PUT { color: var(--redirect); }
+.method-PATCH { color: #b48cff; }
+.method-DELETE { color: var(--server); }
+.method-HEAD,
+.method-OPTIONS { color: var(--muted); }
+
+.request-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.request-line .method-badge {
+  width: auto;
+  font-size: 12px;
+}
+
+.request-url {
+  overflow-wrap: anywhere;
+}
+
+.move-targets .choice {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}

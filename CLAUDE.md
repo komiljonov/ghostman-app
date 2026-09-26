@@ -54,10 +54,14 @@ Postman-style shell, logged in:
   the current team in sort order, "+ New project", "Project settings") · refresh (↻) · on the
   right the **profile badge** (initials) whose menu holds user name/email, Invitations (count
   badge), Settings (server URL modal), Scratch (dev: the old send UI), Log out.
-- **Left sidebar**: only the current project's folders/requests tree (placeholder for now).
-  Never teams, invitations or other navigation.
-- **Main pane**: whatever is open — Team settings, Project settings, Invitations, Scratch, and
-  later requests. Empty state when nothing is open.
+- **Left sidebar**: only the current project's folders/requests tree (`ProjectTree`). Never
+  teams, invitations or other navigation. The tree is built client-side (`src/tree.ts`, unit
+  tested) from ONE ListFolders + ONE ListRequests call and rebuilt after every mutation;
+  rows are keyed by id and expansion is per-node state (persisted locally under
+  `ui_tree_state_<project_id>`), so expand/collapse never rebuilds the tree. Row actions live
+  in a ⋯ / right-click menu; "+" at the top creates at the project root.
+- **Main pane**: whatever is open — a request (read-only placeholder until the editor lands),
+  Team settings, Project settings, Invitations, Scratch. Empty state when nothing is open.
 - **Current team/project** live in Go (`internal/workspace`), persisted in settings
   (`current_team_id`, `current_project_id`) and validated against fresh server lists on every
   load: a vanished team falls back to the first team with no project, a vanished project to no
@@ -72,6 +76,7 @@ main.go, app.go          Wails bootstrap + the bound App struct (thin: delegates
 teams.go                 bound team/invitation methods: thin {data, error} wrappers over api
 projects.go              bound project/access methods (same pattern)
 workspace.go             bound current-team/project selection (LoadWorkspace, SelectTeam, SelectProject)
+tree.go                  bound folder/request methods + local tree state (GetTreeState/SetTreeState)
 internal/engine/         HTTP request engine (the product core)
 internal/api/            typed client for the Ghostman server API (/api/v1)
 internal/session/        server URL resolution, auth state machine, login/logout/settings
@@ -89,11 +94,14 @@ frontend/                Vite + Solid + TS
 - `task dev` / `task build` / `task test` / `task lint` / `task frontend:check`
 - After changing SQL in `migrations/` or `queries/`: `task sqlc` (never edit generated `*.sql.go`).
 - New migration: `task migrate:create -- <name>`.
+- Frontend unit tests (vitest, pure logic only, node environment): `task frontend:test`;
+  `task test` runs Go + frontend tests.
 - After changing bound Go method signatures or their structs, `wails dev`/`wails build`
   regenerate `frontend/wailsjs/` (or run `wails generate module`).
 
 ## Backlog (deliberately deferred)
 
-- **Drag-to-reorder** projects (and later folders/requests): projects use ↑/↓ buttons for
-  now; drag-and-drop lands with the folders tree. Reorder must send every team project, so
-  it is only offered to the team owner and all-projects members.
+- **Drag-and-drop** for the project list and the folders/requests tree: for now projects use
+  ↑/↓ in Project settings and tree rows use Move up / Move down / Move to… in their context
+  menu. Reorder endpoints need the full sibling set (projects: every team project, so only
+  the team owner and all-projects members get ↑/↓).
