@@ -3,7 +3,12 @@
 A lightweight, fast API client (Postman alternative). This repository is the desktop app,
 built with [Wails v2](https://wails.io) (Go backend + SolidJS/TypeScript frontend).
 
-Current state: walking skeleton — send a request, see the response, browse recent history.
+Ghostman is an **online-only client** of the Ghostman server (separate repo): you log in to
+a server, and everything shared (teams, projects, requests, ...) lives there. Locally the app
+keeps only the session token, response history and similar local-only data.
+
+Current state: login/register/logout against the server, a Server URL setting, and the
+request workspace (send a request, see the response, browse recent history) behind login.
 
 ## Prerequisites
 
@@ -48,6 +53,21 @@ task build            # production binary in build/bin/
 | `task migrate:create -- <name>` | new goose SQL migration in `internal/store/migrations/` |
 
 Migrations are embedded in the binary and applied automatically at startup.
+
+## Server connection
+
+The app needs a running Ghostman server. For development, start it from the server repo
+(`task dev`, which also starts its PostgreSQL); it listens on `http://localhost:8080`, the
+app's built-in default.
+
+- **Change the server** from the gear icon (top-right on the login, register and main
+  screens). The value is stored in the local database and survives restarts. Switching
+  servers logs you out.
+- **Release builds** can carry a different default: `task build SERVER_URL=https://...`
+  (sets `main.defaultServerURL` via `-ldflags`). Environment variables and `.env` files are
+  never used for this.
+- If the server cannot be reached, the app shows a "Cannot reach server" screen with the URL,
+  the reason, and an inline field to fix it; wrong credentials are shown under the login form.
 
 ## Data location
 

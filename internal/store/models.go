@@ -12,3 +12,8 @@ type History struct {
 	DurationMs int64  `json:"durationMs"`
 	CreatedAt  int64  `json:"createdAt"`
 }
+
+type Setting struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}

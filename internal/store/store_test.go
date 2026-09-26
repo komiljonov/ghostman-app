@@ -41,3 +41,43 @@ func TestOpenMigratesAndPersistsHistory(t *testing.T) {
 		t.Errorf("want newest-first limit 2, got %+v", rows)
 	}
 }
+
+func TestSettingsRoundtrip(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "ghostman.db")
+	s, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok, err := s.Setting(ctx, SettingSessionToken); ok || err != nil {
+		t.Fatalf("missing key: ok=%v err=%v", ok, err)
+	}
+	for _, v := range []string{"first", "second"} { // second write must upsert
+		if err := s.PutSetting(ctx, SettingSessionToken, v); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.PutSetting(ctx, SettingServerURL, "http://localhost:9999"); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.Close()
+
+	s, err = Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if v, ok, err := s.Setting(ctx, SettingSessionToken); v != "second" || !ok || err != nil {
+		t.Fatalf("token after reopen = %q ok=%v err=%v", v, ok, err)
+	}
+	if err := s.DeleteSetting(ctx, SettingSessionToken); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, _ := s.Setting(ctx, SettingSessionToken); ok {
+		t.Fatal("token still present after delete")
+	}
+	if v, _, _ := s.Setting(ctx, SettingServerURL); v != "http://localhost:9999" {
+		t.Fatalf("server_url = %q", v)
+	}
+}
