@@ -9,6 +9,7 @@
   --redirect: #5aa9e6;
   --client: #e6b450;
   --server: #f06a6a;
+  --danger: #d9534f;
   --mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, "DejaVu Sans Mono", monospace;
   color-scheme: dark;
 }
@@ -26,11 +27,38 @@ body {
   font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
 }
 
-.app {
+.main-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.user-name {
+  font-weight: 600;
+}
+
+.workspace {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) minmax(120px, 30%);
   gap: 12px;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   padding: 12px;
 }
 
@@ -207,4 +235,145 @@ button:focus-visible {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ---- Auth screens, settings modal ---- */
+
+.center-screen {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 16px;
+}
+
+.screen-corner {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.auth-card,
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(380px, 100%);
+  padding: 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.auth-card h1,
+.modal h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.auth-card p {
+  margin: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.field input {
+  background: var(--bg);
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0d1020;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+button.link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+button.link:hover {
+  text-decoration: underline;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.icon-button:hover {
+  color: var(--text);
+}
+
+.auth-switch {
+  color: var(--muted);
+  text-align: center;
+}
+
+.form-error {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--server);
+  background: rgba(240, 106, 106, 0.08);
+  color: var(--server);
+}
+
+.warning {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--client);
+  background: rgba(230, 180, 80, 0.08);
+}
+
+code {
+  font-family: var(--mono);
+  color: var(--text);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }

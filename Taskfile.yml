@@ -11,9 +11,9 @@ tasks:
       - wails dev
 
   build:
-    desc: Build a production binary into build/bin/
+    desc: "Build a production binary into build/bin/ (optional: task build SERVER_URL=https://...)"
     cmds:
-      - wails build
+      - wails build {{if .SERVER_URL}}-ldflags "-X main.defaultServerURL={{.SERVER_URL}}"{{end}}
 
   sqlc:
     desc: Regenerate Go code from internal/store/queries (schema = migrations dir)

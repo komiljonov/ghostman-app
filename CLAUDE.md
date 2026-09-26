@@ -1,7 +1,19 @@
 # Ghostman desktop app
 
 Ghostman is a lightweight, fast API client (Postman alternative). This repo is the
-Wails desktop app only. The Go sync server lives in a separate repo and is not used yet.
+Wails desktop app only. The Go server lives in a separate repo (`../ghostman`).
+
+## Architecture: online-only client
+
+Online-only client. Server API (Go, REST, /api/v1) is the source of truth for
+teams/projects/folders/requests/environments. SQLite holds ONLY local-only data: session
+token, secret variable values, active environment, response history, UI state. No server
+data is cached locally in v1.
+
+Server URL: compiled-in default (localhost:8080 in dev builds), user-overridable via the
+settings table (key server_url). Never .env for shipped behavior. The default lives in
+`main.defaultServerURL`; release builds override it with
+`task build SERVER_URL=https://...` (`-ldflags -X main.defaultServerURL=...`).
 
 ## Fixed decisions (do not revisit without the owner)
 
@@ -10,7 +22,7 @@ Wails desktop app only. The Go sync server lives in a separate repo and is not u
   and Linux without a C toolchain). **goose** migrations, plain SQL, embedded via `embed.FS`,
   run on app startup.
 - **sqlc** for queries (engine `sqlite`), schema derived from the migrations dir. **No ORM.**
-- **All app logic lives in Go** (`internal/...`): request engine, storage, later sync.
+- **All app logic lives in Go** (`internal/...`): request engine, storage, server client.
   The frontend is a thin view layer — it calls Wails-bound Go methods and renders.
   **No business logic in TS.**
 - **Heavy data stays on the Go side:** responses are stored in Go/SQLite; the frontend
@@ -20,14 +32,21 @@ Wails desktop app only. The Go sync server lives in a separate repo and is not u
   `frontend/src/components/`, one per file. Solid signals only — no external state lib.
 - `log/slog` for Go logging. **go-task** (`Taskfile.yml`) for commands. Everything must work
   identically on Windows and Linux.
-- Domain features (folders, environments, tabs, sync) are **not designed into code yet** —
-  do not invent them beyond what exists.
+- Domain features (teams, projects, folders, environments, tabs) are **not designed into
+  client code yet** — do not invent them beyond what exists.
+- **Errors reaching the UI are human messages**, never raw JSON or Go error dumps. Expected
+  failures (server errors, unreachable server, invalid input) are returned as a typed
+  `Problem{kind,status,code,message}` inside the bound method's result — not as a rejected
+  promise, because the Wails runtime flattens rejected values to `Error(string)`.
+- **Never log credentials**: no passwords, tokens or Authorization headers in slog output.
 
 ## Layout
 
 ```
 main.go, app.go          Wails bootstrap + the bound App struct (thin: delegates to internal/)
 internal/engine/         HTTP request engine (the product core)
+internal/api/            typed client for the Ghostman server API (/api/v1)
+internal/session/        server URL resolution, auth state machine, login/logout/settings
 internal/store/          SQLite open/migrate, sqlc output (*.sql.go, db.go, models.go)
   migrations/            goose SQL migrations (embedded, also the sqlc schema)
   queries/               sqlc query files
