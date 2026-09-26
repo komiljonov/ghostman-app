@@ -5,6 +5,7 @@ import { authState, handleProblem, setAuthState } from "../authStore";
 import GearButton from "./GearButton";
 import Sidebar, { Selection } from "./Sidebar";
 import TeamView from "./TeamView";
+import ProjectView from "./ProjectView";
 import InvitationsView from "./InvitationsView";
 import Workspace from "./Workspace";
 
@@ -97,6 +98,16 @@ export default function MainScreen(props: Props) {
                     setSelection({ kind: "none" });
                     await refreshTeams();
                   }}
+                  onOpenProject={(projectId) => setSelection({ kind: "project", teamId: id(), projectId })}
+                />
+              )}
+            </Match>
+            <Match when={selection().kind === "project" && (selection() as { teamId: string; projectId: string })}>
+              {(sel) => (
+                <ProjectView
+                  projectId={sel().projectId}
+                  refreshTick={refreshTick()}
+                  onBack={() => selectTeam(sel().teamId)}
                 />
               )}
             </Match>

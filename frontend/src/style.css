@@ -648,3 +648,71 @@ button.danger-outline {
 .pane .workspace {
   flex: 1;
 }
+
+/* ---- Projects + access ---- */
+
+.projects {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.project-row {
+  flex-wrap: wrap;
+}
+
+.project-row .confirm {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.project-row .confirm .warning {
+  flex-basis: 100%;
+}
+
+.project-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.inline-form.grow {
+  flex: 1;
+}
+
+.access-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.check-list.disabled {
+  opacity: 0.5;
+}
+
+.modal {
+  width: min(460px, 100%);
+}
+
+.back {
+  align-self: flex-start;
+}

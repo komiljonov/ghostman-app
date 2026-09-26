@@ -8,8 +8,10 @@ a server, and everything shared (teams, projects, requests, ...) lives there. Lo
 keeps only the session token, response history and similar local-only data.
 
 Current state: login/register/logout against the server, a Server URL setting, teams
-(create, rename, delete, members, leave) and invitations (invite, revoke, accept, reject),
-plus a temporary "Scratch" view to send a request and browse recent history.
+(create, rename, delete, members, leave), invitations (invite, revoke, accept, reject),
+projects (create, rename, delete, reorder) with per-member and per-project access, plus a
+temporary "Scratch" view to send a request and browse recent history. Opening a project shows
+a placeholder until folders & requests land.
 
 ## Prerequisites
 

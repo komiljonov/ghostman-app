@@ -9,6 +9,8 @@ interface Props {
   isMe: boolean;
   isOwnerRow: boolean;
   canRemove: boolean;
+  canEditAccess: boolean;
+  onEditAccess: () => void;
   onRemoved: () => void;
 }
 
@@ -28,7 +30,13 @@ export default function MemberRow(props: Props) {
         <Show when={props.isOwnerRow}> <span class="badge">owner</span></Show>
       </td>
       <td class="muted">{props.member.email}</td>
+      <td class="muted small">
+        <Show when={props.canEditAccess}>{props.member.all_projects ? "All projects" : "Selected projects"}</Show>
+      </td>
       <td class="cell-actions">
+        <Show when={props.canEditAccess}>
+          <button type="button" class="small-button" onClick={() => props.onEditAccess()}>Access</button>{" "}
+        </Show>
         <Show when={props.canRemove}>
           <button type="button" class="small-button" onClick={onRemove} disabled={remove.pending()}>
             {remove.pending() ? "Removing…" : "Remove"}

@@ -10,8 +10,16 @@ export function CreateInvitation(arg1, arg2) {
   return window['go']['main']['App']['CreateInvitation'](arg1, arg2);
 }
 
+export function CreateProject(arg1, arg2) {
+  return window['go']['main']['App']['CreateProject'](arg1, arg2);
+}
+
 export function CreateTeam(arg1) {
   return window['go']['main']['App']['CreateTeam'](arg1);
+}
+
+export function DeleteProject(arg1) {
+  return window['go']['main']['App']['DeleteProject'](arg1);
 }
 
 export function DeleteTeam(arg1) {
@@ -20,6 +28,18 @@ export function DeleteTeam(arg1) {
 
 export function GetAuthState() {
   return window['go']['main']['App']['GetAuthState']();
+}
+
+export function GetMemberAccess(arg1, arg2) {
+  return window['go']['main']['App']['GetMemberAccess'](arg1, arg2);
+}
+
+export function GetProject(arg1) {
+  return window['go']['main']['App']['GetProject'](arg1);
+}
+
+export function GetProjectAccess(arg1) {
+  return window['go']['main']['App']['GetProjectAccess'](arg1);
 }
 
 export function GetSettings() {
@@ -38,6 +58,10 @@ export function ListMyInvitations() {
   return window['go']['main']['App']['ListMyInvitations']();
 }
 
+export function ListProjects(arg1) {
+  return window['go']['main']['App']['ListProjects'](arg1);
+}
+
 export function ListTeamInvitations(arg1) {
   return window['go']['main']['App']['ListTeamInvitations'](arg1);
 }
@@ -54,6 +78,10 @@ export function Logout() {
   return window['go']['main']['App']['Logout']();
 }
 
+export function MoveProject(arg1, arg2, arg3) {
+  return window['go']['main']['App']['MoveProject'](arg1, arg2, arg3);
+}
+
 export function Register(arg1, arg2, arg3) {
   return window['go']['main']['App']['Register'](arg1, arg2, arg3);
 }
@@ -66,6 +94,10 @@ export function RemoveMember(arg1, arg2) {
   return window['go']['main']['App']['RemoveMember'](arg1, arg2);
 }
 
+export function ReorderProjects(arg1, arg2) {
+  return window['go']['main']['App']['ReorderProjects'](arg1, arg2);
+}
+
 export function RevokeInvitation(arg1) {
   return window['go']['main']['App']['RevokeInvitation'](arg1);
 }
@@ -74,8 +106,20 @@ export function Send(arg1) {
   return window['go']['main']['App']['Send'](arg1);
 }
 
+export function SetMemberAccess(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SetMemberAccess'](arg1, arg2, arg3, arg4);
+}
+
+export function SetProjectAccess(arg1, arg2) {
+  return window['go']['main']['App']['SetProjectAccess'](arg1, arg2);
+}
+
 export function SetServerURL(arg1) {
   return window['go']['main']['App']['SetServerURL'](arg1);
+}
+
+export function UpdateProjectName(arg1, arg2) {
+  return window['go']['main']['App']['UpdateProjectName'](arg1, arg2);
 }
 
 export function UpdateTeamName(arg1, arg2) {
