@@ -70,6 +70,10 @@ export function ListTeams() {
   return window['go']['main']['App']['ListTeams']();
 }
 
+export function LoadWorkspace() {
+  return window['go']['main']['App']['LoadWorkspace']();
+}
+
 export function Login(arg1, arg2) {
   return window['go']['main']['App']['Login'](arg1, arg2);
 }
@@ -100,6 +104,14 @@ export function ReorderProjects(arg1, arg2) {
 
 export function RevokeInvitation(arg1) {
   return window['go']['main']['App']['RevokeInvitation'](arg1);
+}
+
+export function SelectProject(arg1) {
+  return window['go']['main']['App']['SelectProject'](arg1);
+}
+
+export function SelectTeam(arg1) {
+  return window['go']['main']['App']['SelectTeam'](arg1);
 }
 
 export function Send(arg1) {

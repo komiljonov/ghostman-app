@@ -10,6 +10,9 @@ import (
 const (
 	SettingSessionToken = "session_token"
 	SettingServerURL    = "server_url"
+	// Last selected team/project, restored on startup (validated against the server).
+	SettingCurrentTeamID    = "current_team_id"
+	SettingCurrentProjectID = "current_project_id"
 )
 
 // Setting returns the value stored under key; ok is false when the key is absent.

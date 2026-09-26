@@ -17,6 +17,7 @@ import (
 	"ghostman/internal/engine"
 	"ghostman/internal/session"
 	"ghostman/internal/store"
+	"ghostman/internal/workspace"
 )
 
 const historyLimit = 50
@@ -33,6 +34,8 @@ type App struct {
 	session    *session.Manager
 	authReady  chan struct{} // closed once the startup auth check has finished
 	startupErr error
+
+	workspace *workspace.Manager
 
 	clientMu sync.Mutex
 	client   *api.APIClient // the session's current server client (token included)
@@ -88,6 +91,7 @@ func (a *App) init(ctx context.Context) error {
 		return fmt.Errorf("could not open the local database:\n%s\n\n%w", path, err)
 	}
 	slog.Info("database ready", "path", path)
+	a.workspace = workspace.New(a.store)
 
 	a.session, err = session.NewManager(a.store, func(baseURL string) session.Client {
 		c := api.New(baseURL)

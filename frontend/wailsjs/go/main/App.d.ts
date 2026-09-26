@@ -39,6 +39,8 @@ export function ListTeamInvitations(arg1:string):Promise<main.TeamInvitationList
 
 export function ListTeams():Promise<main.TeamListResult>;
 
+export function LoadWorkspace():Promise<main.WorkspaceResult>;
+
 export function Login(arg1:string,arg2:string):Promise<session.Result>;
 
 export function Logout():Promise<session.AuthState>;
@@ -54,6 +56,10 @@ export function RemoveMember(arg1:string,arg2:string):Promise<main.EmptyResult>;
 export function ReorderProjects(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
 
 export function RevokeInvitation(arg1:string):Promise<main.EmptyResult>;
+
+export function SelectProject(arg1:string):Promise<main.WorkspaceResult>;
+
+export function SelectTeam(arg1:string):Promise<main.WorkspaceResult>;
 
 export function Send(arg1:engine.RequestSpec):Promise<engine.Response>;
 

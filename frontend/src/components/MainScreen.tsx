@@ -1,34 +1,54 @@
-import { createSignal, Match, onMount, Switch } from "solid-js";
-import { ListMyInvitations, ListTeams, Logout } from "../../wailsjs/go/main/App";
-import { api } from "../../wailsjs/go/models";
-import { authState, handleProblem, setAuthState } from "../authStore";
-import GearButton from "./GearButton";
-import Sidebar, { Selection } from "./Sidebar";
-import TeamView from "./TeamView";
-import ProjectView from "./ProjectView";
+import { createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { ListMyInvitations, LoadWorkspace, Logout, SelectProject, SelectTeam } from "../../wailsjs/go/main/App";
+import { api, main, workspace } from "../../wailsjs/go/models";
+import { handleProblem, setAuthState } from "../authStore";
+import TeamSwitcher from "./TeamSwitcher";
+import ProjectSwitcher from "./ProjectSwitcher";
+import ProfileMenu from "./ProfileMenu";
+import ProjectSidebar from "./ProjectSidebar";
+import TeamSettingsView from "./TeamSettingsView";
+import ProjectSettingsView from "./ProjectSettingsView";
 import InvitationsView from "./InvitationsView";
-import Workspace from "./Workspace";
+import ScratchView from "./ScratchView";
 
 interface Props {
   onOpenSettings: () => void;
 }
 
-// App shell v1: sidebar (teams, invitations, scratch) + main pane. All data is
-// fetched from the server on demand and re-fetched after every mutation.
+type Pane = "none" | "team-settings" | "project-settings" | "invitations" | "scratch";
+
+// App shell (Postman-style): top bar with team/project switchers and profile menu,
+// left sidebar for the project tree, main pane for whatever is open. The Go side
+// owns the current team/project (persisted, validated on every load); this only
+// renders the snapshot it returns and re-fetches after every change.
 export default function MainScreen(props: Props) {
-  const [loggingOut, setLoggingOut] = createSignal(false);
-  const [selection, setSelection] = createSignal<Selection>({ kind: "none" });
-  const [teams, setTeams] = createSignal<api.TeamSummary[]>();
-  const [teamsError, setTeamsError] = createSignal<string>();
+  const [ws, setWs] = createSignal<workspace.Workspace>();
+  const [wsError, setWsError] = createSignal<string>();
+  const [pane, setPane] = createSignal<Pane>("none");
   const [invitations, setInvitations] = createSignal<api.MyInvitation[]>();
   const [invitationsError, setInvitationsError] = createSignal<string>();
+  const [loggingOut, setLoggingOut] = createSignal(false);
+  // Bumped on every refresh so open views re-fetch their own data too.
+  const [refreshTick, setRefreshTick] = createSignal(0);
 
-  const refreshTeams = async () => {
-    const result = await ListTeams();
+  const teamId = () => ws()?.team_id ?? "";
+  const projectId = () => ws()?.project_id ?? "";
+  const currentProject = () => ws()?.projects.find((p) => p.id === projectId());
+
+  // Views tied to a team/project close when that selection changes (switch or fallback).
+  const apply = (result: main.WorkspaceResult) => {
     handleProblem(result.error);
-    setTeamsError(result.error?.message);
-    if (!result.error) setTeams(result.data);
+    setWsError(result.error?.message);
+    if (!result.data) return;
+    const prev = ws();
+    if (prev && prev.team_id !== result.data.team_id && (pane() === "team-settings" || pane() === "project-settings")) {
+      setPane("none");
+    }
+    if (prev && prev.project_id !== result.data.project_id && pane() === "project-settings") setPane("none");
+    setWs(result.data);
   };
+
+  const reloadWorkspace = async () => apply(await LoadWorkspace());
 
   const refreshInvitations = async () => {
     const result = await ListMyInvitations();
@@ -37,14 +57,24 @@ export default function MainScreen(props: Props) {
     if (!result.error) setInvitations(result.data);
   };
 
-  // Bumped on every refresh so the open team view re-fetches too.
-  const [refreshTick, setRefreshTick] = createSignal(0);
-  const refreshAll = () => {
+  const refresh = async () => {
     setRefreshTick((n) => n + 1);
-    return Promise.all([refreshTeams(), refreshInvitations()]);
+    await Promise.all([reloadWorkspace(), refreshInvitations()]);
   };
 
-  onMount(refreshAll);
+  const selectTeam = async (id: string) => {
+    apply(await SelectTeam(id));
+    setPane("none");
+  };
+  const selectProject = async (id: string) => apply(await SelectProject(id));
+
+  // Coming back to the window is the natural "refresh" moment for an online-only client.
+  const onFocus = () => void refresh();
+  onMount(() => {
+    void refresh();
+    window.addEventListener("focus", onFocus);
+  });
+  onCleanup(() => window.removeEventListener("focus", onFocus));
 
   const logout = async () => {
     setLoggingOut(true);
@@ -55,75 +85,99 @@ export default function MainScreen(props: Props) {
     }
   };
 
-  const selectTeam = (id: string) => setSelection({ kind: "team", id });
+  const emptyText = () => {
+    if (ws() === undefined) return "Loading…";
+    if (!teamId()) return "Create a team to get started: Team ▾ → + New team.";
+    return "Nothing open. Requests will open here.";
+  };
 
   return (
     <div class="main-screen">
       <header class="topbar">
-        <strong class="brand">Ghostman</strong>
-        <div class="topbar-user">
-          <span class="user-name">{authState().user?.name || "(no name)"}</span>
-          <span class="muted">{authState().user?.email}</span>
-          <GearButton onClick={props.onOpenSettings} />
-          <button type="button" onClick={logout} disabled={loggingOut()}>
-            {loggingOut() ? "Logging out…" : "Log out"}
-          </button>
+        <div class="topbar-left">
+          <strong class="brand">Ghostman</strong>
+          <TeamSwitcher
+            teams={ws()?.teams ?? []}
+            currentId={teamId()}
+            onOpen={refresh}
+            onSelect={selectTeam}
+            onCreated={selectTeam}
+            onOpenSettings={() => setPane("team-settings")}
+          />
+          <span class="topbar-sep">/</span>
+          <ProjectSwitcher
+            teamId={teamId()}
+            projects={ws()?.projects ?? []}
+            currentId={projectId()}
+            onOpen={refresh}
+            onSelect={selectProject}
+            onCreated={selectProject}
+            onOpenSettings={() => setPane("project-settings")}
+          />
+          <button type="button" class="icon-button" title="Refresh from server" aria-label="Refresh"
+            onClick={() => void refresh()}>↻</button>
         </div>
-      </header>
-      <div class="shell">
-        <Sidebar
-          teams={teams()}
-          teamsError={teamsError()}
+        <ProfileMenu
           invitationCount={invitations()?.length ?? 0}
-          selection={selection()}
-          onSelect={(s) => {
-            setSelection(s);
-            void refreshAll();
+          loggingOut={loggingOut()}
+          onOpen={refreshInvitations}
+          onInvitations={() => {
+            setPane("invitations");
+            void refreshInvitations();
           }}
-          onRefresh={refreshAll}
-          onTeamCreated={async (id) => {
-            await refreshTeams();
-            selectTeam(id);
-          }}
+          onSettings={props.onOpenSettings}
+          onScratch={() => setPane("scratch")}
+          onLogout={logout}
         />
+      </header>
+      <Show when={wsError()}>
+        <p class="form-error banner">{wsError()}</p>
+      </Show>
+      <div class="shell">
+        <ProjectSidebar hasProject={!!currentProject()} />
         <section class="pane">
-          <Switch fallback={<p class="placeholder">Select a team, or create one.</p>}>
-            <Match when={selection().kind === "team" && (selection() as { id: string }).id}>
+          <Switch fallback={<div class="empty-pane"><p class="placeholder">{emptyText()}</p></div>}>
+            <Match when={pane() === "team-settings" && teamId()}>
               {(id) => (
-                <TeamView
+                <TeamSettingsView
                   teamId={id()}
                   refreshTick={refreshTick()}
-                  onTeamChanged={refreshTeams}
-                  onTeamGone={async () => {
-                    setSelection({ kind: "none" });
-                    await refreshTeams();
+                  onTeamChanged={() => void reloadWorkspace()}
+                  onTeamGone={() => {
+                    setPane("none");
+                    void refresh();
                   }}
-                  onOpenProject={(projectId) => setSelection({ kind: "project", teamId: id(), projectId })}
                 />
               )}
             </Match>
-            <Match when={selection().kind === "project" && (selection() as { teamId: string; projectId: string })}>
-              {(sel) => (
-                <ProjectView
-                  projectId={sel().projectId}
+            <Match when={pane() === "project-settings" && currentProject()}>
+              {(project) => (
+                <ProjectSettingsView
+                  teamId={teamId()}
+                  project={project()}
+                  projects={ws()?.projects ?? []}
                   refreshTick={refreshTick()}
-                  onBack={() => selectTeam(sel().teamId)}
+                  onChanged={() => void reloadWorkspace()}
+                  onDeleted={() => {
+                    setPane("none");
+                    void reloadWorkspace();
+                  }}
                 />
               )}
             </Match>
-            <Match when={selection().kind === "invitations"}>
+            <Match when={pane() === "invitations"}>
               <InvitationsView
                 invitations={invitations()}
                 error={invitationsError()}
                 onChanged={refreshInvitations}
-                onAccepted={async (teamId) => {
-                  await refreshAll();
-                  selectTeam(teamId);
+                onAccepted={async (id) => {
+                  await refreshInvitations();
+                  await selectTeam(id);
                 }}
               />
             </Match>
-            <Match when={selection().kind === "scratch"}>
-              <Workspace />
+            <Match when={pane() === "scratch"}>
+              <ScratchView />
             </Match>
           </Switch>
         </section>

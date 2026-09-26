@@ -45,15 +45,37 @@ settings table (key server_url). Never .env for shipped behavior. The default li
   snake_case JSON names end to end.
 - **Never log credentials**: no passwords, tokens or Authorization headers in slog output.
 
-## Layout
+## UI layout (the standard — new features must fit into it)
+
+Postman-style shell, logged in:
+
+- **Top bar**, left to right: "Ghostman" · **Team switcher** (my teams with owner badge and
+  member count, "+ New team", "Team settings") · **Project switcher** (accessible projects of
+  the current team in sort order, "+ New project", "Project settings") · refresh (↻) · on the
+  right the **profile badge** (initials) whose menu holds user name/email, Invitations (count
+  badge), Settings (server URL modal), Scratch (dev: the old send UI), Log out.
+- **Left sidebar**: only the current project's folders/requests tree (placeholder for now).
+  Never teams, invitations or other navigation.
+- **Main pane**: whatever is open — Team settings, Project settings, Invitations, Scratch, and
+  later requests. Empty state when nothing is open.
+- **Current team/project** live in Go (`internal/workspace`), persisted in settings
+  (`current_team_id`, `current_project_id`) and validated against fresh server lists on every
+  load: a vanished team falls back to the first team with no project, a vanished project to no
+  project; switching team selects its first project. Views tied to a team/project close when
+  the selection changes. The UI refreshes on window focus, when a switcher opens, and via ↻.
+- Dropdowns close on outside click and Escape. Destructive actions confirm inline.
+
+## Code layout
 
 ```
 main.go, app.go          Wails bootstrap + the bound App struct (thin: delegates to internal/)
 teams.go                 bound team/invitation methods: thin {data, error} wrappers over api
 projects.go              bound project/access methods (same pattern)
+workspace.go             bound current-team/project selection (LoadWorkspace, SelectTeam, SelectProject)
 internal/engine/         HTTP request engine (the product core)
 internal/api/            typed client for the Ghostman server API (/api/v1)
 internal/session/        server URL resolution, auth state machine, login/logout/settings
+internal/workspace/      current team/project selection: persist, validate, fall back
 internal/store/          SQLite open/migrate, sqlc output (*.sql.go, db.go, models.go)
   migrations/            goose SQL migrations (embedded, also the sqlc schema)
   queries/               sqlc query files
