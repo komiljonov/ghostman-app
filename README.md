@@ -10,18 +10,19 @@ keeps only the session token, response history and similar local-only data.
 Current state: login/register/logout against the server, a Server URL setting, teams
 (create, rename, delete, members, leave), invitations (invite, revoke, accept, reject),
 projects (create, rename, delete, reorder) with per-member and per-project access, plus a
-temporary "Scratch" view to send a request and browse recent history.
+request editor: method, URL, query params, headers and a raw (JSON/Text/XML/custom) or
+urlencoded form body; changes autosave; Send shows the response (pretty-printed JSON, headers)
+and can be cancelled.
 
 The window is laid out Postman-style: a top bar with team and project switchers (their menus
 also hold "+ New …" and the team/project settings) and a profile menu (invitations, settings,
-scratch, log out); a left sidebar with the project's folders & requests;
-and a main pane for whatever is open. The selected team and project are remembered across
-restarts.
+log out); a left sidebar with the project's folders & requests;
+and a main pane with the request editor tabs. The selected team and project, and each
+project's open tabs, are remembered across restarts.
 
 The sidebar shows the current project's folders and requests: create, rename inline, move
-(Move to…, Move up/down) and delete from each row's ⋯ / right-click menu. Opening a request
-shows it read-only until the request editor lands. Folder expand/collapse state is remembered
-per project.
+(Move to…, Move up/down) and delete from each row's ⋯ / right-click menu. Clicking a request
+opens it in a tab. Folder expand/collapse state is remembered per project.
 
 ## Prerequisites
 

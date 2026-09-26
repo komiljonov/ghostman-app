@@ -53,15 +53,27 @@ Postman-style shell, logged in:
   member count, "+ New team", "Team settings") · **Project switcher** (accessible projects of
   the current team in sort order, "+ New project", "Project settings") · refresh (↻) · on the
   right the **profile badge** (initials) whose menu holds user name/email, Invitations (count
-  badge), Settings (server URL modal), Scratch (dev: the old send UI), Log out.
+  badge), Settings (server URL modal), Log out.
 - **Left sidebar**: only the current project's folders/requests tree (`ProjectTree`). Never
   teams, invitations or other navigation. The tree is built client-side (`src/tree.ts`, unit
   tested) from ONE ListFolders + ONE ListRequests call and rebuilt after every mutation;
   rows are keyed by id and expansion is per-node state (persisted locally under
   `ui_tree_state_<project_id>`), so expand/collapse never rebuilds the tree. Row actions live
   in a ⋯ / right-click menu; "+" at the top creates at the project root.
-- **Main pane**: whatever is open — a request (read-only placeholder until the editor lands),
-  Team settings, Project settings, Invitations, Scratch. Empty state when nothing is open.
+- **Main pane**: the **request editor tabs** by default (tab bar; per tab: method, URL, Send /
+  Cancel, save indicator; Params | Headers | Body; response below a draggable divider), or
+  Team settings / Project settings / Invitations when opened. Empty state without tabs.
+- **Tabs** are per project, persisted as ids (`ui_tabs_<project_id>`) and restored on startup
+  (gone requests dropped silently). Tree renames relabel tabs; tree deletes close them.
+- **Autosave is the save model** (no dirty tabs, no Save button): 600 ms debounce per tab,
+  one PATCH with only the changed fields (built in Go: `api.BuildRequestPatch`, which drops
+  keyless rows), one save in flight per tab with last write winning, flushed on tab
+  close/switch, project switch, Send, and window close (Go's OnBeforeClose asks the UI to
+  flush, then `ConfirmQuit`). A failed save keeps the edits and shows "Not saved — retry".
+- **Sending** happens in Go (`internal/engine`): enabled rows only, query params appended to
+  any query already in the URL, raw/form body with its Content-Type unless a header sets one,
+  JSON responses pretty-printed in Go, 256 KB cap, cancellable per request. `{{vars}}` are
+  sent literally until environments land. Response state is per tab and never persisted.
 - **Current team/project** live in Go (`internal/workspace`), persisted in settings
   (`current_team_id`, `current_project_id`) and validated against fresh server lists on every
   load: a vanished team falls back to the first team with no project, a vanished project to no
@@ -77,6 +89,8 @@ teams.go                 bound team/invitation methods: thin {data, error} wrapp
 projects.go              bound project/access methods (same pattern)
 workspace.go             bound current-team/project selection (LoadWorkspace, SelectTeam, SelectProject)
 tree.go                  bound folder/request methods + local tree state (GetTreeState/SetTreeState)
+editor.go                bound editor methods: SaveRequest (autosave patch), SendRequest/CancelRequest,
+                         GetTabs/SetTabs, quit handshake (beforeClose/ConfirmQuit)
 internal/engine/         HTTP request engine (the product core)
 internal/api/            typed client for the Ghostman server API (/api/v1)
 internal/session/        server URL resolution, auth state machine, login/logout/settings
@@ -101,6 +115,8 @@ frontend/                Vite + Solid + TS
 
 ## Backlog (deliberately deferred)
 
+- **Environments** and `{{var}}` resolution; per-request auth; cookies; response history UI
+  (history rows are already written on every send); multipart/file bodies.
 - **Drag-and-drop** for the project list and the folders/requests tree: for now projects use
   ↑/↓ in Project settings and tree rows use Move up / Move down / Move to… in their context
   menu. Reorder endpoints need the full sibling set (projects: every team project, so only

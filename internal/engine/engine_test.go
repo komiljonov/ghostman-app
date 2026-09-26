@@ -31,7 +31,7 @@ func TestSendRequest_Basic(t *testing.T) {
 			{Key: "X-On", Value: "yes", Enabled: true},
 			{Key: "X-Off", Value: "no", Enabled: false},
 		},
-		Body: "hello",
+		Body: Body{Type: BodyRaw, ContentType: "text/plain", Content: "hello"},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

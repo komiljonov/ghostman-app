@@ -20,13 +20,12 @@ type RequestSummary struct {
 	UpdatedAt string  `json:"updated_at"`
 }
 
-// Request is a full saved request. Headers, query params and body are passed
-// through as the server's JSON (the editor that interprets them comes later).
+// Request is a full saved request.
 type Request struct {
 	RequestSummary
-	Headers     any `json:"headers"`
-	QueryParams any `json:"query_params"`
-	Body        any `json:"body"`
+	Headers     []KeyValue  `json:"headers"`
+	QueryParams []KeyValue  `json:"query_params"`
+	Body        RequestBody `json:"body"`
 }
 
 // NewRequest is the input of CreateRequest. Empty Method/URL let the server
@@ -38,11 +37,15 @@ type NewRequest struct {
 	URL      string
 }
 
-// RequestPatch is a partial update; nil fields are left unchanged.
+// RequestPatch is a partial update; nil fields are left unchanged. Headers,
+// query params and a body replace the stored value as a whole.
 type RequestPatch struct {
-	Name   *string `json:"name,omitempty"`
-	Method *string `json:"method,omitempty"`
-	URL    *string `json:"url,omitempty"`
+	Name        *string      `json:"name,omitempty"`
+	Method      *string      `json:"method,omitempty"`
+	URL         *string      `json:"url,omitempty"`
+	Headers     *[]KeyValue  `json:"headers,omitempty"`
+	QueryParams *[]KeyValue  `json:"query_params,omitempty"`
+	Body        *RequestBody `json:"body,omitempty"`
 }
 
 func requestPath(id string) string { return "/api/v1/requests/" + url.PathEscape(id) }
@@ -72,14 +75,30 @@ func (c *APIClient) ListRequests(ctx context.Context, projectID string) ([]Reque
 func (c *APIClient) GetRequest(ctx context.Context, id string) (Request, error) {
 	var out Request
 	err := c.do(ctx, http.MethodGet, requestPath(id), nil, &out)
-	return out, err
+	return out.withDefaults(), err
+}
+
+// withDefaults turns absent lists/body into empty ones so callers never see null.
+func (r Request) withDefaults() Request {
+	r.Headers = nonNilRows(r.Headers)
+	r.QueryParams = nonNilRows(r.QueryParams)
+	r.Body.Fields = nonNilRows(r.Body.Fields)
+	if r.Body.Type == "" {
+		r.Body.Type = BodyNone
+	}
+	return r
+}
+
+// Draft returns the editable part of the request.
+func (r Request) Draft() RequestDraft {
+	return RequestDraft{Method: r.Method, URL: r.URL, Headers: r.Headers, QueryParams: r.QueryParams, Body: r.Body}
 }
 
 // UpdateRequest applies a partial update (name / method / url).
 func (c *APIClient) UpdateRequest(ctx context.Context, id string, patch RequestPatch) (Request, error) {
 	var out Request
 	err := c.do(ctx, http.MethodPatch, requestPath(id), patch, &out)
-	return out, err
+	return out.withDefaults(), err
 }
 
 // MoveRequest moves a request into folderID (nil = project root), after its new siblings.

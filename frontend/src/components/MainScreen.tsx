@@ -1,23 +1,26 @@
-import { createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
-import { ListMyInvitations, LoadWorkspace, Logout, SelectProject, SelectTeam } from "../../wailsjs/go/main/App";
+import { createMemo, createSignal, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
+import { ConfirmQuit, ListMyInvitations, LoadWorkspace, Logout, SelectProject, SelectTeam } from "../../wailsjs/go/main/App";
+import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { api, main, workspace } from "../../wailsjs/go/models";
 import { handleProblem, setAuthState } from "../authStore";
+import { createTabsController } from "../tabsController";
 import TeamSwitcher from "./TeamSwitcher";
 import ProjectSwitcher from "./ProjectSwitcher";
 import ProfileMenu from "./ProfileMenu";
 import ProjectSidebar from "./ProjectSidebar";
 import ProjectTree from "./ProjectTree";
-import RequestPlaceholder from "./RequestPlaceholder";
 import TeamSettingsView from "./TeamSettingsView";
 import ProjectSettingsView from "./ProjectSettingsView";
 import InvitationsView from "./InvitationsView";
-import ScratchView from "./ScratchView";
+import TabBar from "./TabBar";
+import RequestEditor from "./RequestEditor";
 
 interface Props {
   onOpenSettings: () => void;
 }
 
-type Pane = "none" | "team-settings" | "project-settings" | "invitations" | "scratch" | "request";
+// "editor" shows the open request tabs (or the empty state when there are none).
+type Pane = "editor" | "team-settings" | "project-settings" | "invitations";
 
 // App shell (Postman-style): top bar with team/project switchers and profile menu,
 // left sidebar for the project tree, main pane for whatever is open. The Go side
@@ -26,17 +29,39 @@ type Pane = "none" | "team-settings" | "project-settings" | "invitations" | "scr
 export default function MainScreen(props: Props) {
   const [ws, setWs] = createSignal<workspace.Workspace>();
   const [wsError, setWsError] = createSignal<string>();
-  const [pane, setPane] = createSignal<Pane>("none");
+  const [pane, setPane] = createSignal<Pane>("editor");
   const [invitations, setInvitations] = createSignal<api.MyInvitation[]>();
   const [invitationsError, setInvitationsError] = createSignal<string>();
   const [loggingOut, setLoggingOut] = createSignal(false);
-  const [openRequestId, setOpenRequestId] = createSignal<string>();
   // Bumped on every refresh so open views re-fetch their own data too.
   const [refreshTick, setRefreshTick] = createSignal(0);
+  // Bumped when a save changed something the tree shows (method badge).
+  const [treeTick, setTreeTick] = createSignal(0);
 
   const teamId = () => ws()?.team_id ?? "";
-  const projectId = () => ws()?.project_id ?? "";
+  // A memo, so that refreshing the workspace (a new ws object with the same project)
+  // does not look like a project switch to what depends on it (the tabs controller).
+  const projectId = createMemo(() => ws()?.project_id ?? "");
   const currentProject = () => ws()?.projects.find((p) => p.id === projectId());
+
+  // One tabs controller per selected project. Switching project disposes the old
+  // one, which flushes its pending autosaves first.
+  const tabs = createMemo(on(projectId, (id) => {
+    if (!id) return undefined;
+    const controller = createTabsController(id, { onTreeStale: () => setTreeTick((n) => n + 1) });
+    void controller.restore();
+    onCleanup(() => controller.dispose());
+    return controller;
+  }));
+
+  // Closing the window: Go asks us to flush autosaves first, then we confirm.
+  onMount(() => {
+    const off = EventsOn("app:before-close", async () => {
+      await tabs()?.flushAll().catch(() => undefined);
+      void ConfirmQuit();
+    });
+    onCleanup(off);
+  });
 
   // Views tied to a team/project close when that selection changes (switch or fallback).
   const apply = (result: main.WorkspaceResult) => {
@@ -45,11 +70,9 @@ export default function MainScreen(props: Props) {
     if (!result.data) return;
     const prev = ws();
     if (prev && prev.team_id !== result.data.team_id && (pane() === "team-settings" || pane() === "project-settings")) {
-      setPane("none");
+      setPane("editor");
     }
-    if (prev && prev.project_id !== result.data.project_id && (pane() === "project-settings" || pane() === "request")) {
-      setPane("none");
-    }
+    if (prev && prev.project_id !== result.data.project_id && pane() === "project-settings") setPane("editor");
     setWs(result.data);
   };
 
@@ -69,7 +92,7 @@ export default function MainScreen(props: Props) {
 
   const selectTeam = async (id: string) => {
     apply(await SelectTeam(id));
-    setPane("none");
+    setPane("editor");
   };
   const selectProject = async (id: string) => apply(await SelectProject(id));
 
@@ -93,7 +116,7 @@ export default function MainScreen(props: Props) {
   const emptyText = () => {
     if (ws() === undefined) return "Loading…";
     if (!teamId()) return "Create a team to get started: Team ▾ → + New team.";
-    return "Nothing open. Requests will open here.";
+    return "Open a request from the sidebar.";
   };
 
   return (
@@ -131,7 +154,6 @@ export default function MainScreen(props: Props) {
             void refreshInvitations();
           }}
           onSettings={props.onOpenSettings}
-          onScratch={() => setPane("scratch")}
           onLogout={logout}
         />
       </header>
@@ -143,14 +165,14 @@ export default function MainScreen(props: Props) {
           {(project) => (
             <ProjectTree
               projectId={project().id}
-              refreshTick={refreshTick()}
-              selectedRequestId={pane() === "request" ? openRequestId() : undefined}
+              refreshTick={refreshTick() + treeTick()}
+              selectedRequestId={pane() === "editor" ? tabs()?.state.activeId : undefined}
               onOpenRequest={(id) => {
-                setOpenRequestId(id);
-                setPane("request");
+                tabs()?.open(id);
+                setPane("editor");
               }}
-              onRequestGone={() => {
-                if (pane() === "request") setPane("none");
+              onLoaded={(pid, requests) => {
+                if (pid === projectId()) tabs()?.syncWithTree(requests);
               }}
             />
           )}
@@ -164,7 +186,7 @@ export default function MainScreen(props: Props) {
                   refreshTick={refreshTick()}
                   onTeamChanged={() => void reloadWorkspace()}
                   onTeamGone={() => {
-                    setPane("none");
+                    setPane("editor");
                     void refresh();
                   }}
                 />
@@ -179,7 +201,7 @@ export default function MainScreen(props: Props) {
                   refreshTick={refreshTick()}
                   onChanged={() => void reloadWorkspace()}
                   onDeleted={() => {
-                    setPane("none");
+                    setPane("editor");
                     void reloadWorkspace();
                   }}
                 />
@@ -196,11 +218,15 @@ export default function MainScreen(props: Props) {
                 }}
               />
             </Match>
-            <Match when={pane() === "request" && openRequestId()}>
-              {(id) => <RequestPlaceholder requestId={id()} refreshTick={refreshTick()} />}
-            </Match>
-            <Match when={pane() === "scratch"}>
-              <ScratchView />
+            <Match when={pane() === "editor" && tabs() && tabs()!.state.tabs.length > 0 && tabs()}>
+              {(controller) => (
+                <div class="editor-area">
+                  <TabBar controller={controller()} />
+                  <Show when={controller().active()} keyed>
+                    {(tab) => <RequestEditor tab={tab} controller={controller()} />}
+                  </Show>
+                </div>
+              )}
             </Match>
           </Switch>
         </section>

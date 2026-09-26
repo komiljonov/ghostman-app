@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, on, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import {
   CreateFolder, CreateRequest, GetTreeState, ListFolders, ListRequests, SetTreeState,
@@ -17,7 +17,8 @@ interface Props {
   refreshTick: number;
   selectedRequestId: string | undefined;
   onOpenRequest: (id: string) => void;
-  onRequestGone: () => void; // the open request no longer exists (deleted, moved out of reach)
+  // After every successful load: lets open tabs follow renames and deletions.
+  onLoaded: (projectId: string, requests: Map<string, { name: string }>) => void;
 }
 
 // Left sidebar: the current project's folders & requests. One ListFolders + one
@@ -54,7 +55,7 @@ export default function ProjectTree(props: Props) {
       for (const id of stale) setExpanded(id, undefined!);
       persistExpanded();
     }
-    if (props.selectedRequestId && !tree.requests.has(props.selectedRequestId)) props.onRequestGone();
+    props.onLoaded(projectId, tree.requests);
   };
 
   const persistExpanded = () => {
@@ -63,7 +64,9 @@ export default function ProjectTree(props: Props) {
   };
 
   // New project: restore its expanded folders (local UI state), then load the tree.
-  createEffect(on(() => props.projectId, async (projectId) => {
+  // Memo: only a real project change (not a refreshed but equal id) resets the tree.
+  const projectId = createMemo(() => props.projectId);
+  createEffect(on(projectId, async (projectId) => {
     setLoaded(false);
     setRenamingId(undefined);
     setView("root", []);

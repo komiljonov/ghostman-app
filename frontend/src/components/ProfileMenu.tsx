@@ -8,7 +8,6 @@ interface Props {
   onOpen: () => void;
   onInvitations: () => void;
   onSettings: () => void;
-  onScratch: () => void;
   onLogout: () => void;
 }
 
@@ -52,9 +51,6 @@ export default function ProfileMenu(props: Props) {
               <Show when={props.invitationCount > 0}><span class="badge count">{props.invitationCount}</span></Show>
             </button>
             <button type="button" role="menuitem" class="menu-item" onClick={item(props.onSettings)}>Settings</button>
-            <button type="button" role="menuitem" class="menu-item" onClick={item(props.onScratch)}>
-              <span class="nav-label">Scratch</span><span class="muted small">dev</span>
-            </button>
             <div class="menu-divider" />
             <button type="button" role="menuitem" class="menu-item" disabled={props.loggingOut}
               onClick={item(props.onLogout)}>

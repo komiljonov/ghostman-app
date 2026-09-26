@@ -6,6 +6,14 @@ export function AcceptInvitation(arg1) {
   return window['go']['main']['App']['AcceptInvitation'](arg1);
 }
 
+export function CancelRequest(arg1) {
+  return window['go']['main']['App']['CancelRequest'](arg1);
+}
+
+export function ConfirmQuit() {
+  return window['go']['main']['App']['ConfirmQuit']();
+}
+
 export function CreateFolder(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateFolder'](arg1, arg2, arg3);
 }
@@ -66,16 +74,16 @@ export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }
 
+export function GetTabs(arg1) {
+  return window['go']['main']['App']['GetTabs'](arg1);
+}
+
 export function GetTeam(arg1) {
   return window['go']['main']['App']['GetTeam'](arg1);
 }
 
 export function GetTreeState(arg1) {
   return window['go']['main']['App']['GetTreeState'](arg1);
-}
-
-export function History() {
-  return window['go']['main']['App']['History']();
 }
 
 export function ListFolders(arg1) {
@@ -158,6 +166,10 @@ export function RevokeInvitation(arg1) {
   return window['go']['main']['App']['RevokeInvitation'](arg1);
 }
 
+export function SaveRequest(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveRequest'](arg1, arg2, arg3);
+}
+
 export function SelectProject(arg1) {
   return window['go']['main']['App']['SelectProject'](arg1);
 }
@@ -166,8 +178,8 @@ export function SelectTeam(arg1) {
   return window['go']['main']['App']['SelectTeam'](arg1);
 }
 
-export function Send(arg1) {
-  return window['go']['main']['App']['Send'](arg1);
+export function SendRequest(arg1, arg2) {
+  return window['go']['main']['App']['SendRequest'](arg1, arg2);
 }
 
 export function SetMemberAccess(arg1, arg2, arg3, arg4) {
@@ -180,6 +192,10 @@ export function SetProjectAccess(arg1, arg2) {
 
 export function SetServerURL(arg1) {
   return window['go']['main']['App']['SetServerURL'](arg1);
+}
+
+export function SetTabs(arg1, arg2) {
+  return window['go']['main']['App']['SetTabs'](arg1, arg2);
 }
 
 export function SetTreeState(arg1, arg2) {

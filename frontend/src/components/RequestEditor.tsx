@@ -1,0 +1,125 @@
+import { For, Match, Show, Switch } from "solid-js";
+import { Row } from "../rows";
+import { TabsController, TabState } from "../tabsController";
+import BodyEditor from "./BodyEditor";
+import KeyValueTable from "./KeyValueTable";
+import ResponseView from "./ResponseView";
+import SaveIndicator from "./SaveIndicator";
+
+interface Props {
+  tab: TabState;
+  controller: TabsController;
+}
+
+const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+
+const countRows = (rows: Row[]) => rows.filter((r) => r.key.trim() !== "").length;
+
+// One tab's editor: method/URL/Send, Params | Headers | Body, and the response
+// below a draggable divider. Every edit autosaves (see tabsController).
+export default function RequestEditor(props: Props) {
+  let split!: HTMLDivElement;
+  const id = () => props.tab.id;
+  const edit = (fn: Parameters<TabsController["edit"]>[1]) => props.controller.edit(id(), fn);
+  const view = (fn: (t: TabState) => void) => props.controller.view(id(), fn);
+
+  const startDrag = (e: PointerEvent) => {
+    e.preventDefault();
+    const rect = split.getBoundingClientRect();
+    const move = (ev: PointerEvent) => {
+      const share = (rect.bottom - ev.clientY) / rect.height;
+      view((t) => (t.responseShare = Math.min(0.85, Math.max(0.15, share))));
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
+  const sections = [
+    { id: "params" as const, label: "Params", count: () => countRows(props.tab.draft.query_params) },
+    { id: "headers" as const, label: "Headers", count: () => countRows(props.tab.draft.headers) },
+    { id: "body" as const, label: "Body", count: () => 0 },
+  ];
+
+  return (
+    <Switch>
+      <Match when={props.tab.status === "loading"}>
+        <p class="placeholder editor-note">Loading request…</p>
+      </Match>
+      <Match when={props.tab.status === "error"}>
+        <p class="form-error editor-note">{props.tab.loadError ?? "Could not load this request."}</p>
+      </Match>
+      <Match when={props.tab.status === "ready"}>
+        <div class="request-editor">
+          <form class="url-bar" onSubmit={(e) => {
+            e.preventDefault();
+            if (!props.tab.sending) void props.controller.send(id());
+          }}>
+            <select class={`method-select method-${props.tab.draft.method}`} aria-label="HTTP method"
+              value={props.tab.draft.method}
+              onChange={(e) => {
+                const m = e.currentTarget.value;
+                edit((d) => (d.method = m));
+              }}>
+              <For each={METHODS}>{(m) => <option value={m}>{m}</option>}</For>
+            </select>
+            <input class="url" type="text" spellcheck={false} autocomplete="off" aria-label="URL"
+              placeholder="https://api.example.com/resource" value={props.tab.draft.url}
+              onInput={(e) => {
+                const v = e.currentTarget.value;
+                edit((d) => (d.url = v));
+              }} />
+            <Show when={props.tab.sending} fallback={<button class="send" type="submit">Send</button>}>
+              <button class="send cancel" type="button" onClick={() => props.controller.cancel(id())}>Cancel</button>
+            </Show>
+            <SaveIndicator state={props.tab.save} error={props.tab.saveError}
+              onRetry={() => void props.controller.retrySave(id())} />
+          </form>
+
+          <div class="editor-split" ref={split}>
+            <div class="editor-config" style={{ flex: `${1 - props.tab.responseShare} 1 0` }}>
+              <div class="section-tabs" role="tablist">
+                <For each={sections}>
+                  {(s) => (
+                    <button type="button" role="tab" aria-selected={props.tab.section === s.id}
+                      classList={{ active: props.tab.section === s.id }}
+                      onClick={() => view((t) => (t.section = s.id))}>
+                      {s.label}
+                      <Show when={s.count() > 0}><span class="muted"> {s.count()}</span></Show>
+                      <Show when={s.id === "body" && props.tab.draft.body.type !== "none"}>
+                        <span class="muted"> {props.tab.draft.body.type}</span>
+                      </Show>
+                    </button>
+                  )}
+                </For>
+              </div>
+              <div class="section-content">
+                <Switch>
+                  <Match when={props.tab.section === "params"}>
+                    <KeyValueTable rows={props.tab.draft.query_params}
+                      onChange={(rows) => edit((d) => (d.query_params = rows))} />
+                  </Match>
+                  <Match when={props.tab.section === "headers"}>
+                    <KeyValueTable rows={props.tab.draft.headers} keyPlaceholder="Header"
+                      onChange={(rows) => edit((d) => (d.headers = rows))} />
+                  </Match>
+                  <Match when={props.tab.section === "body"}>
+                    <BodyEditor body={props.tab.draft.body} onChange={(fn) => edit((d) => fn(d.body))} />
+                  </Match>
+                </Switch>
+              </div>
+            </div>
+            <div class="split-divider" role="separator" aria-orientation="horizontal" aria-label="Resize response"
+              onPointerDown={startDrag} />
+            <div class="editor-response" style={{ flex: `${props.tab.responseShare} 1 0` }}>
+              <ResponseView tab={props.tab} onView={view} />
+            </div>
+          </div>
+        </div>
+      </Match>
+    </Switch>
+  );
+}
