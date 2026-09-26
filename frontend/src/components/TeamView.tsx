@@ -1,17 +1,22 @@
-import { createResource, For, Show } from "solid-js";
+import { createResource, createSignal, For, Show } from "solid-js";
 import { DeleteTeam, GetTeam, ListTeamInvitations, RemoveMember } from "../../wailsjs/go/main/App";
+import { api } from "../../wailsjs/go/models";
 import { authState, handleProblem } from "../authStore";
 import TeamName from "./TeamName";
 import MemberRow from "./MemberRow";
 import InviteForm from "./InviteForm";
 import PendingInvitationRow from "./PendingInvitationRow";
 import ConfirmButton from "./ConfirmButton";
+import ProjectsSection from "./ProjectsSection";
+import MemberAccessModal from "./MemberAccessModal";
+import ProjectAccessModal from "./ProjectAccessModal";
 
 interface Props {
   teamId: string;
   refreshTick: number; // changes when the user asks for fresh data
   onTeamChanged: () => void; // name or member count changed: refresh the sidebar
   onTeamGone: () => void; // deleted or left
+  onOpenProject: (id: string) => void;
 }
 
 export default function TeamView(props: Props) {
@@ -33,6 +38,15 @@ export default function TeamView(props: Props) {
     },
   );
 
+  // Bumped after access changes so the projects list re-fetches along with the team.
+  const [projectsTick, setProjectsTick] = createSignal(0);
+  const [accessMember, setAccessMember] = createSignal<api.TeamMember>();
+  const [accessProject, setAccessProject] = createSignal<api.ProjectSummary>();
+  const accessChanged = () => {
+    void refetchTeam();
+    setProjectsTick((n) => n + 1);
+  };
+
   const membersChanged = () => {
     void refetchTeam();
     props.onTeamChanged();
@@ -48,10 +62,20 @@ export default function TeamView(props: Props) {
               props.onTeamChanged();
             }} />
 
+            <ProjectsSection
+              teamId={t().id}
+              me={me()}
+              isTeamOwner={t().is_owner}
+              canReorder={t().is_owner || (t().members.find((m) => m.user_id === me())?.all_projects ?? false)}
+              refreshTick={props.refreshTick + projectsTick()}
+              onOpenProject={props.onOpenProject}
+              onEditAccess={setAccessProject}
+            />
+
             <h3>Members</h3>
             <table class="table">
               <thead>
-                <tr><th>Name</th><th>Email</th><th /></tr>
+                <tr><th>Name</th><th>Email</th><th>Access</th><th /></tr>
               </thead>
               <tbody>
                 <For each={t().members}>
@@ -63,6 +87,8 @@ export default function TeamView(props: Props) {
                       // The owner is the caller when is_owner; nobody may remove the owner.
                       isOwnerRow={t().is_owner && member.user_id === me()}
                       canRemove={t().is_owner && member.user_id !== me()}
+                      canEditAccess={t().is_owner && member.user_id !== me()}
+                      onEditAccess={() => setAccessMember(member)}
                       onRemoved={membersChanged}
                     />
                   )}
@@ -110,6 +136,19 @@ export default function TeamView(props: Props) {
                   onDone={props.onTeamGone}
                 />
               </div>
+            </Show>
+
+            <Show when={accessMember()}>
+              {(m) => (
+                <MemberAccessModal teamId={t().id} member={m()} onClose={() => setAccessMember(undefined)}
+                  onSaved={accessChanged} />
+              )}
+            </Show>
+            <Show when={accessProject()}>
+              {(p) => (
+                <ProjectAccessModal project={p()} members={t().members.filter((m) => m.user_id !== me())}
+                  onClose={() => setAccessProject(undefined)} onSaved={accessChanged} />
+              )}
             </Show>
           </div>
         )}

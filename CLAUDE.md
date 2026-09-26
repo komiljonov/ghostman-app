@@ -50,6 +50,7 @@ settings table (key server_url). Never .env for shipped behavior. The default li
 ```
 main.go, app.go          Wails bootstrap + the bound App struct (thin: delegates to internal/)
 teams.go                 bound team/invitation methods: thin {data, error} wrappers over api
+projects.go              bound project/access methods (same pattern)
 internal/engine/         HTTP request engine (the product core)
 internal/api/            typed client for the Ghostman server API (/api/v1)
 internal/session/        server URL resolution, auth state machine, login/logout/settings
@@ -68,3 +69,9 @@ frontend/                Vite + Solid + TS
 - New migration: `task migrate:create -- <name>`.
 - After changing bound Go method signatures or their structs, `wails dev`/`wails build`
   regenerate `frontend/wailsjs/` (or run `wails generate module`).
+
+## Backlog (deliberately deferred)
+
+- **Drag-to-reorder** projects (and later folders/requests): projects use ↑/↓ buttons for
+  now; drag-and-drop lands with the folders tree. Reorder must send every team project, so
+  it is only offered to the team owner and all-projects members.

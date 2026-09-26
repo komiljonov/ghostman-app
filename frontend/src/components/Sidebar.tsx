@@ -5,6 +5,7 @@ import NewTeamForm from "./NewTeamForm";
 export type Selection =
   | { kind: "none" }
   | { kind: "team"; id: string }
+  | { kind: "project"; teamId: string; projectId: string }
   | { kind: "invitations" }
   | { kind: "scratch" };
 
@@ -19,7 +20,9 @@ interface Props {
 }
 
 export default function Sidebar(props: Props) {
-  const isTeam = (id: string) => props.selection.kind === "team" && props.selection.id === id;
+  const isTeam = (id: string) =>
+    (props.selection.kind === "team" && props.selection.id === id) ||
+    (props.selection.kind === "project" && props.selection.teamId === id);
 
   return (
     <nav class="sidebar">

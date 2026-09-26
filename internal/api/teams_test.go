@@ -15,6 +15,7 @@ import (
 type recorded struct {
 	method, path, auth string
 	body               map[string]string
+	raw                string
 }
 
 // replayServer answers every request with status/body and records it.
@@ -24,6 +25,7 @@ func replayServer(t *testing.T, status int, body string) (*APIClient, *recorded)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rec.method, rec.path, rec.auth = r.Method, r.URL.EscapedPath(), r.Header.Get("Authorization")
 		raw, _ := io.ReadAll(r.Body)
+		rec.raw = string(raw)
 		rec.body = nil
 		if len(raw) > 0 {
 			_ = json.Unmarshal(raw, &rec.body)
@@ -204,4 +206,22 @@ func TestTeamEndpointErrors(t *testing.T) {
 			}
 		})
 	}
+}
+
+// routeServer answers "METHOD /path" keys with 200 and the given JSON body; anything else is 404.
+func routeServer(t *testing.T, routes map[string]string) (*APIClient, *httptest.Server) {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, ok := routes[r.Method+" "+r.URL.Path]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":{"code":"not_found","message":"the requested resource was not found"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(body))
+	}))
+	t.Cleanup(srv.Close)
+	c := New(srv.URL)
+	c.SetToken("tok")
+	return c, srv
 }
