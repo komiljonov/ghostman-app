@@ -13,3 +13,9 @@ export { authState, setAuthState };
 export async function loadAuthState() {
   setAuthState(await GetAuthState());
 }
+
+// A 401 from any server call means the session ended; the Go side has already
+// re-checked it, so reloading the state shows the login screen.
+export function handleProblem(problem: session.Problem | undefined) {
+  if (problem?.kind === "server" && problem.status === 401) void loadAuthState();
+}

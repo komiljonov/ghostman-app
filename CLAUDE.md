@@ -38,12 +38,18 @@ settings table (key server_url). Never .env for shipped behavior. The default li
   failures (server errors, unreachable server, invalid input) are returned as a typed
   `Problem{kind,status,code,message}` inside the bound method's result — not as a rejected
   promise, because the Wails runtime flattens rejected values to `Error(string)`.
+  Server-backed bound methods return `{data, error}` (one concrete result type per shape —
+  Wails v2 cannot bind generics); a 401 re-checks the session so the UI drops to login.
+- **Server data is never patched locally:** after a successful mutation the UI re-fetches
+  the affected list/view from the server. Server-shaped structs keep the server's
+  snake_case JSON names end to end.
 - **Never log credentials**: no passwords, tokens or Authorization headers in slog output.
 
 ## Layout
 
 ```
 main.go, app.go          Wails bootstrap + the bound App struct (thin: delegates to internal/)
+teams.go                 bound team/invitation methods: thin {data, error} wrappers over api
 internal/engine/         HTTP request engine (the product core)
 internal/api/            typed client for the Ghostman server API (/api/v1)
 internal/session/        server URL resolution, auth state machine, login/logout/settings
