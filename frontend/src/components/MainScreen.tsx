@@ -6,6 +6,8 @@ import TeamSwitcher from "./TeamSwitcher";
 import ProjectSwitcher from "./ProjectSwitcher";
 import ProfileMenu from "./ProfileMenu";
 import ProjectSidebar from "./ProjectSidebar";
+import ProjectTree from "./ProjectTree";
+import RequestPlaceholder from "./RequestPlaceholder";
 import TeamSettingsView from "./TeamSettingsView";
 import ProjectSettingsView from "./ProjectSettingsView";
 import InvitationsView from "./InvitationsView";
@@ -15,7 +17,7 @@ interface Props {
   onOpenSettings: () => void;
 }
 
-type Pane = "none" | "team-settings" | "project-settings" | "invitations" | "scratch";
+type Pane = "none" | "team-settings" | "project-settings" | "invitations" | "scratch" | "request";
 
 // App shell (Postman-style): top bar with team/project switchers and profile menu,
 // left sidebar for the project tree, main pane for whatever is open. The Go side
@@ -28,6 +30,7 @@ export default function MainScreen(props: Props) {
   const [invitations, setInvitations] = createSignal<api.MyInvitation[]>();
   const [invitationsError, setInvitationsError] = createSignal<string>();
   const [loggingOut, setLoggingOut] = createSignal(false);
+  const [openRequestId, setOpenRequestId] = createSignal<string>();
   // Bumped on every refresh so open views re-fetch their own data too.
   const [refreshTick, setRefreshTick] = createSignal(0);
 
@@ -44,7 +47,9 @@ export default function MainScreen(props: Props) {
     if (prev && prev.team_id !== result.data.team_id && (pane() === "team-settings" || pane() === "project-settings")) {
       setPane("none");
     }
-    if (prev && prev.project_id !== result.data.project_id && pane() === "project-settings") setPane("none");
+    if (prev && prev.project_id !== result.data.project_id && (pane() === "project-settings" || pane() === "request")) {
+      setPane("none");
+    }
     setWs(result.data);
   };
 
@@ -134,7 +139,22 @@ export default function MainScreen(props: Props) {
         <p class="form-error banner">{wsError()}</p>
       </Show>
       <div class="shell">
-        <ProjectSidebar hasProject={!!currentProject()} />
+        <Show when={currentProject()} fallback={<ProjectSidebar />}>
+          {(project) => (
+            <ProjectTree
+              projectId={project().id}
+              refreshTick={refreshTick()}
+              selectedRequestId={pane() === "request" ? openRequestId() : undefined}
+              onOpenRequest={(id) => {
+                setOpenRequestId(id);
+                setPane("request");
+              }}
+              onRequestGone={() => {
+                if (pane() === "request") setPane("none");
+              }}
+            />
+          )}
+        </Show>
         <section class="pane">
           <Switch fallback={<div class="empty-pane"><p class="placeholder">{emptyText()}</p></div>}>
             <Match when={pane() === "team-settings" && teamId()}>
@@ -175,6 +195,9 @@ export default function MainScreen(props: Props) {
                   await selectTeam(id);
                 }}
               />
+            </Match>
+            <Match when={pane() === "request" && openRequestId()}>
+              {(id) => <RequestPlaceholder requestId={id()} refreshTick={refreshTick()} />}
             </Match>
             <Match when={pane() === "scratch"}>
               <ScratchView />

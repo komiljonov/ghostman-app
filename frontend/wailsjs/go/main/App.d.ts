@@ -4,16 +4,25 @@ import {main} from '../models';
 import {session} from '../models';
 import {store} from '../models';
 import {engine} from '../models';
+import {api} from '../models';
 
 export function AcceptInvitation(arg1:string):Promise<main.AcceptedInvitationResult>;
+
+export function CreateFolder(arg1:string,arg2:string,arg3:string):Promise<main.FolderResult>;
 
 export function CreateInvitation(arg1:string,arg2:string):Promise<main.InvitationResult>;
 
 export function CreateProject(arg1:string,arg2:string):Promise<main.ProjectResult>;
 
+export function CreateRequest(arg1:string,arg2:string,arg3:string):Promise<main.RequestSummaryResult>;
+
 export function CreateTeam(arg1:string):Promise<main.TeamRefResult>;
 
+export function DeleteFolder(arg1:string):Promise<main.EmptyResult>;
+
 export function DeleteProject(arg1:string):Promise<main.EmptyResult>;
+
+export function DeleteRequest(arg1:string):Promise<main.EmptyResult>;
 
 export function DeleteTeam(arg1:string):Promise<main.EmptyResult>;
 
@@ -25,15 +34,23 @@ export function GetProject(arg1:string):Promise<main.ProjectResult>;
 
 export function GetProjectAccess(arg1:string):Promise<main.ProjectAccessUserListResult>;
 
+export function GetRequest(arg1:string):Promise<main.RequestResult>;
+
 export function GetSettings():Promise<main.Settings>;
 
 export function GetTeam(arg1:string):Promise<main.TeamResult>;
 
+export function GetTreeState(arg1:string):Promise<Array<string>>;
+
 export function History():Promise<Array<store.History>>;
+
+export function ListFolders(arg1:string):Promise<main.FolderListResult>;
 
 export function ListMyInvitations():Promise<main.MyInvitationListResult>;
 
 export function ListProjects(arg1:string):Promise<main.ProjectListResult>;
+
+export function ListRequests(arg1:string):Promise<main.RequestListResult>;
 
 export function ListTeamInvitations(arg1:string):Promise<main.TeamInvitationListResult>;
 
@@ -45,7 +62,11 @@ export function Login(arg1:string,arg2:string):Promise<session.Result>;
 
 export function Logout():Promise<session.AuthState>;
 
+export function MoveFolder(arg1:string,arg2:string):Promise<main.FolderResult>;
+
 export function MoveProject(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
+
+export function MoveRequest(arg1:string,arg2:string):Promise<main.RequestSummaryResult>;
 
 export function Register(arg1:string,arg2:string,arg3:string):Promise<session.Result>;
 
@@ -53,7 +74,13 @@ export function RejectInvitation(arg1:string):Promise<main.EmptyResult>;
 
 export function RemoveMember(arg1:string,arg2:string):Promise<main.EmptyResult>;
 
+export function RenameFolder(arg1:string,arg2:string):Promise<main.FolderResult>;
+
+export function ReorderFolders(arg1:string,arg2:string,arg3:Array<string>):Promise<main.EmptyResult>;
+
 export function ReorderProjects(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
+
+export function ReorderRequests(arg1:string,arg2:string,arg3:Array<string>):Promise<main.EmptyResult>;
 
 export function RevokeInvitation(arg1:string):Promise<main.EmptyResult>;
 
@@ -69,6 +96,10 @@ export function SetProjectAccess(arg1:string,arg2:Array<string>):Promise<main.Pr
 
 export function SetServerURL(arg1:string):Promise<session.Result>;
 
+export function SetTreeState(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
+
 export function UpdateProjectName(arg1:string,arg2:string):Promise<main.ProjectResult>;
+
+export function UpdateRequest(arg1:string,arg2:api.RequestPatch):Promise<main.RequestResult>;
 
 export function UpdateTeamName(arg1:string,arg2:string):Promise<main.TeamResult>;

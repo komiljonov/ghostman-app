@@ -33,9 +33,10 @@ tasks:
       - golangci-lint run ./...
 
   test:
-    desc: Run Go tests
+    desc: Run all tests (Go + frontend unit tests)
     cmds:
       - go test ./...
+      - task: frontend:test
 
   frontend:install:
     desc: Install frontend dependencies
@@ -47,6 +48,13 @@ tasks:
       - package-lock.json
     generates:
       - node_modules/.package-lock.json
+
+  frontend:test:
+    desc: Run frontend unit tests (vitest)
+    dir: frontend
+    deps: [frontend:install]
+    cmds:
+      - npx vitest run
 
   frontend:check:
     desc: Type-check the frontend (tsc --noEmit)

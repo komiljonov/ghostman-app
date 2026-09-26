@@ -14,9 +14,14 @@ temporary "Scratch" view to send a request and browse recent history.
 
 The window is laid out Postman-style: a top bar with team and project switchers (their menus
 also hold "+ New …" and the team/project settings) and a profile menu (invitations, settings,
-scratch, log out); a left sidebar reserved for the project's folders & requests (next step);
+scratch, log out); a left sidebar with the project's folders & requests;
 and a main pane for whatever is open. The selected team and project are remembered across
 restarts.
+
+The sidebar shows the current project's folders and requests: create, rename inline, move
+(Move to…, Move up/down) and delete from each row's ⋯ / right-click menu. Opening a request
+shows it read-only until the request editor lands. Folder expand/collapse state is remembered
+per project.
 
 ## Prerequisites
 
@@ -54,7 +59,7 @@ task build            # production binary in build/bin/
 | --- | --- |
 | `task dev` | `wails dev` |
 | `task build` | `wails build` |
-| `task test` | `go test ./...` |
+| `task test` | `go test ./...` + frontend unit tests (vitest) |
 | `task lint` | `golangci-lint run ./...` |
 | `task frontend:check` | `tsc --noEmit` in `frontend/` (installs deps first if needed) |
 | `task sqlc` | regenerate Go from `internal/store/queries/*.sql` (schema = migrations dir) |
