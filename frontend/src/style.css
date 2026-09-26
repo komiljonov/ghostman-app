@@ -689,15 +689,15 @@ button.danger-outline {
 }
 
 .dropdown-menu {
-  position: absolute;
-  top: calc(100% + 4px);
+  /* Rendered in a portal; Dropdown.tsx sets top/left/max-height. */
+  position: fixed;
+  top: 0;
   left: 0;
-  z-index: 20;
+  z-index: 50;
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 260px;
-  max-height: 70vh;
   overflow-y: auto;
   padding: 6px;
   background: var(--panel);
@@ -706,10 +706,6 @@ button.danger-outline {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
-.dropdown-menu.right {
-  left: auto;
-  right: 0;
-}
 
 .menu-heading {
   padding: 4px 8px;
@@ -950,9 +946,6 @@ button.danger-outline {
   font-size: 16px;
 }
 
-.row-menu .dropdown-menu {
-  min-width: 190px;
-}
 
 .danger-text {
   color: var(--server);
