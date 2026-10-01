@@ -29,6 +29,12 @@ func newTestApp(t *testing.T, loggedIn bool, routes map[string]http.HandlerFunc)
 	for pattern, h := range routes {
 		mux.HandleFunc(pattern, h)
 	}
+	// Sending reads the active environment first; default to "no environments".
+	if _, ok := routes["GET /api/v1/projects/{project_id}/environments"]; !ok {
+		mux.HandleFunc("GET /api/v1/projects/{project_id}/environments", func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`[]`))
+		})
+	}
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 

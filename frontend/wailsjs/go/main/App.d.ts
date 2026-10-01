@@ -10,6 +10,8 @@ export function CancelRequest(arg1:string):Promise<void>;
 
 export function ConfirmQuit():Promise<void>;
 
+export function CreateEnvironment(arg1:string,arg2:string):Promise<main.EnvironmentResult>;
+
 export function CreateFolder(arg1:string,arg2:string,arg3:string):Promise<main.FolderResult>;
 
 export function CreateInvitation(arg1:string,arg2:string):Promise<main.InvitationResult>;
@@ -20,15 +22,25 @@ export function CreateRequest(arg1:string,arg2:string,arg3:string):Promise<main.
 
 export function CreateTeam(arg1:string):Promise<main.TeamRefResult>;
 
+export function CreateVariable(arg1:string,arg2:string,arg3:string):Promise<main.VariableResult>;
+
+export function DeleteEnvironment(arg1:string,arg2:string):Promise<main.EmptyResult>;
+
 export function DeleteFolder(arg1:string):Promise<main.EmptyResult>;
 
 export function DeleteProject(arg1:string):Promise<main.EmptyResult>;
 
 export function DeleteRequest(arg1:string):Promise<main.EmptyResult>;
 
+export function DeleteSecretValue(arg1:string,arg2:string):Promise<main.EmptyResult>;
+
 export function DeleteTeam(arg1:string):Promise<main.EmptyResult>;
 
+export function DeleteVariable(arg1:string):Promise<main.EmptyResult>;
+
 export function GetAuthState():Promise<session.AuthState>;
+
+export function GetEnvContext(arg1:string):Promise<main.EnvContextResult>;
 
 export function GetMemberAccess(arg1:string,arg2:string):Promise<main.MemberAccessViewResult>;
 
@@ -37,6 +49,10 @@ export function GetProject(arg1:string):Promise<main.ProjectResult>;
 export function GetProjectAccess(arg1:string):Promise<main.ProjectAccessUserListResult>;
 
 export function GetRequest(arg1:string):Promise<main.RequestResult>;
+
+export function GetSecretValue(arg1:string,arg2:string):Promise<string>;
+
+export function GetSecretValues(arg1:string):Promise<Record<string, string>>;
 
 export function GetSettings():Promise<main.Settings>;
 
@@ -58,11 +74,15 @@ export function ListTeamInvitations(arg1:string):Promise<main.TeamInvitationList
 
 export function ListTeams():Promise<main.TeamListResult>;
 
+export function ListVariables(arg1:string):Promise<main.VariableViewListResult>;
+
 export function LoadWorkspace():Promise<main.WorkspaceResult>;
 
 export function Login(arg1:string,arg2:string):Promise<session.Result>;
 
 export function Logout():Promise<session.AuthState>;
+
+export function MoveEnvironment(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
 
 export function MoveFolder(arg1:string,arg2:string):Promise<main.FolderResult>;
 
@@ -70,11 +90,15 @@ export function MoveProject(arg1:string,arg2:string,arg3:number):Promise<main.Em
 
 export function MoveRequest(arg1:string,arg2:string):Promise<main.RequestSummaryResult>;
 
+export function MoveVariable(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
+
 export function Register(arg1:string,arg2:string,arg3:string):Promise<session.Result>;
 
 export function RejectInvitation(arg1:string):Promise<main.EmptyResult>;
 
 export function RemoveMember(arg1:string,arg2:string):Promise<main.EmptyResult>;
+
+export function RenameEnvironment(arg1:string,arg2:string):Promise<main.EnvironmentResult>;
 
 export function RenameFolder(arg1:string,arg2:string):Promise<main.FolderResult>;
 
@@ -92,17 +116,27 @@ export function SelectProject(arg1:string):Promise<main.WorkspaceResult>;
 
 export function SelectTeam(arg1:string):Promise<main.WorkspaceResult>;
 
-export function SendRequest(arg1:string,arg2:api.RequestDraft):Promise<main.SendResult>;
+export function SendRequest(arg1:string,arg2:string,arg3:api.RequestDraft):Promise<main.SendResult>;
+
+export function SetActiveEnvironment(arg1:string,arg2:string):Promise<main.EnvContextResult>;
 
 export function SetMemberAccess(arg1:string,arg2:string,arg3:boolean,arg4:Array<string>):Promise<main.MemberAccessResult>;
 
 export function SetProjectAccess(arg1:string,arg2:Array<string>):Promise<main.ProjectAccessResult>;
+
+export function SetSecretValue(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
 
 export function SetServerURL(arg1:string):Promise<session.Result>;
 
 export function SetTabs(arg1:string,arg2:main.Tabs):Promise<main.EmptyResult>;
 
 export function SetTreeState(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
+
+export function SetVariableKey(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
+
+export function SetVariableType(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
+
+export function SetVariableValue(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
 
 export function UpdateProjectName(arg1:string,arg2:string):Promise<main.ProjectResult>;
 

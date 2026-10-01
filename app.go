@@ -13,6 +13,7 @@ import (
 
 	"ghostman/internal/api"
 	"ghostman/internal/engine"
+	"ghostman/internal/envs"
 	"ghostman/internal/session"
 	"ghostman/internal/store"
 	"ghostman/internal/workspace"
@@ -30,6 +31,7 @@ type App struct {
 	startupErr error
 
 	workspace *workspace.Manager
+	envs      *envs.Manager
 
 	sendsMu sync.Mutex
 	sends   map[string]*inflight // request id -> running send
@@ -93,6 +95,7 @@ func (a *App) init(ctx context.Context) error {
 	}
 	slog.Info("database ready", "path", path)
 	a.workspace = workspace.New(a.store)
+	a.envs = envs.New(a.store)
 
 	a.session, err = session.NewManager(a.store, func(baseURL string) session.Client {
 		c := api.New(baseURL)

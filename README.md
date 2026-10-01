@@ -12,7 +12,9 @@ Current state: login/register/logout against the server, a Server URL setting, t
 projects (create, rename, delete, reorder) with per-member and per-project access, plus a
 request editor: method, URL, query params, headers and a raw (JSON/Text/XML/custom) or
 urlencoded form body; changes autosave; Send shows the response (pretty-printed JSON, headers)
-and can be cancelled.
+and can be cancelled. Environments hold variables used as `{{KEY}}` anywhere in a request;
+the active environment is picked in the top bar. **Secret** variables keep their values on
+this machine only — they are never sent to the server.
 
 The window is laid out Postman-style: a top bar with team and project switchers (their menus
 also hold "+ New …" and the team/project settings) and a profile menu (invitations, settings,

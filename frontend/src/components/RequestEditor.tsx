@@ -5,6 +5,7 @@ import BodyEditor from "./BodyEditor";
 import KeyValueTable from "./KeyValueTable";
 import ResponseView from "./ResponseView";
 import SaveIndicator from "./SaveIndicator";
+import UrlEditor from "./UrlEditor";
 
 interface Props {
   tab: TabState;
@@ -66,11 +67,10 @@ export default function RequestEditor(props: Props) {
               }}>
               <For each={METHODS}>{(m) => <option value={m}>{m}</option>}</For>
             </select>
-            <input class="url" type="text" spellcheck={false} autocomplete="off" aria-label="URL"
-              placeholder="https://api.example.com/resource" value={props.tab.draft.url}
-              onInput={(e) => {
-                const v = e.currentTarget.value;
-                edit((d) => (d.url = v));
+            <UrlEditor value={props.tab.draft.url}
+              onChange={(v) => edit((d) => (d.url = v))}
+              onEnter={() => {
+                if (!props.tab.sending) void props.controller.send(id());
               }} />
             <Show when={props.tab.sending} fallback={<button class="send" type="submit">Send</button>}>
               <button class="send cancel" type="button" onClick={() => props.controller.cancel(id())}>Cancel</button>

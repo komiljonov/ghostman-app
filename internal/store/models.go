@@ -13,6 +13,12 @@ type History struct {
 	CreatedAt  int64  `json:"createdAt"`
 }
 
+type SecretValue struct {
+	EnvironmentID string `json:"environmentId"`
+	Key           string `json:"key"`
+	Value         string `json:"value"`
+}
+
 type Setting struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`

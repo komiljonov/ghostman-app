@@ -53,7 +53,7 @@ func TestSendRequestUsesDraftAndRecordsHistory(t *testing.T) {
 	defer target.Close()
 
 	a := newTestApp(t, true, nil)
-	res := a.SendRequest("r1", api.RequestDraft{
+	res := a.SendRequest("p1", "r1", api.RequestDraft{
 		Method:      "GET",
 		URL:         target.URL + "/x?a=1",
 		Headers:     []api.KeyValue{{Key: "X-On", Value: "1", Enabled: true}, {Key: "X-Off", Value: "1"}},
@@ -71,7 +71,7 @@ func TestSendRequestUsesDraftAndRecordsHistory(t *testing.T) {
 		t.Errorf("history = %+v, %v", rows, err)
 	}
 
-	bad := a.SendRequest("r1", api.RequestDraft{URL: "not a url"})
+	bad := a.SendRequest("p1", "r1", api.RequestDraft{URL: "not a url"})
 	if bad.Error == nil || bad.Error.Kind != KindRequest || bad.Data != nil {
 		t.Errorf("bad url = %s", toJSON(t, bad))
 	}
@@ -95,18 +95,18 @@ func TestCancelRequest(t *testing.T) {
 		}
 		a.CancelRequest("r1")
 	}()
-	res := a.SendRequest("r1", api.RequestDraft{Method: "GET", URL: slow.URL})
+	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: slow.URL})
 	if res.Error == nil || res.Error.Message != "request cancelled" {
 		t.Fatalf("cancelled send = %s", toJSON(t, res))
 	}
 
 	// A second send of the same request cancels the first.
 	done := make(chan SendResult)
-	go func() { done <- a.SendRequest("r2", api.RequestDraft{Method: "GET", URL: slow.URL}) }()
+	go func() { done <- a.SendRequest("p1", "r2", api.RequestDraft{Method: "GET", URL: slow.URL}) }()
 	for started.Load() < 2 {
 		time.Sleep(10 * time.Millisecond)
 	}
-	go a.SendRequest("r2", api.RequestDraft{Method: "GET", URL: "not a url"})
+	go a.SendRequest("p1", "r2", api.RequestDraft{Method: "GET", URL: "not a url"})
 	if first := <-done; first.Error == nil || first.Error.Message != "request cancelled" {
 		t.Fatalf("superseded send = %s", toJSON(t, first))
 	}
@@ -129,5 +129,63 @@ func TestTabsRoundtrip(t *testing.T) {
 	}
 	if got := toJSON(t, a.GetTabs("p1")); got != `{"open":[],"active":""}` {
 		t.Fatalf("corrupt = %s", got)
+	}
+}
+
+func TestSendResolvesActiveEnvironmentWithLocalSecrets(t *testing.T) {
+	var gotPath, gotAuth, gotQuery string
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath, gotAuth, gotQuery = r.URL.Path, r.Header.Get("Authorization"), r.URL.RawQuery
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer target.Close()
+
+	a := newTestApp(t, true, map[string]http.HandlerFunc{
+		"GET /api/v1/projects/{project_id}/environments": func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`[{"id":"dev","name":"dev","sort_order":0,"created_at":"x"}]`))
+		},
+		"GET /api/v1/environments/{env_id}/variables": func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`[
+				{"id":"v1","key":"BASE_URL","type":"regular","value":"` + target.URL + `","sort_order":0},
+				{"id":"v2","key":"API_TOKEN","type":"secret","value":null,"sort_order":1},
+				{"id":"v3","key":"OTHER_SECRET","type":"secret","value":null,"sort_order":2}]`))
+		},
+	})
+	if err := a.store.PutSecret(a.ctx, "dev", "API_TOKEN", "local-token-123"); err != nil {
+		t.Fatal(err)
+	}
+	draft := api.RequestDraft{
+		Method:      "GET",
+		URL:         "{{BASE_URL}}/anything",
+		Headers:     []api.KeyValue{{Key: "Authorization", Value: "Bearer {{API_TOKEN}}", Enabled: true}},
+		QueryParams: []api.KeyValue{{Key: "s", Value: "{{OTHER_SECRET}}", Enabled: true}, {Key: "m", Value: "{{missing}}", Enabled: true}},
+		Body:        api.RequestBody{Type: "none"},
+	}
+
+	// No active environment: everything literal and reported unresolved.
+	res := a.SendRequest("p1", "r1", draft)
+	if res.Error == nil || toJSON(t, res.Unresolved) != `["BASE_URL","API_TOKEN","OTHER_SECRET","missing"]` || res.Environment != "" {
+		t.Fatalf("without env = %s", toJSON(t, res))
+	}
+
+	if r := a.SetActiveEnvironment("p1", "dev"); r.Error != nil {
+		t.Fatal(r.Error.Message)
+	}
+	res = a.SendRequest("p1", "r1", draft)
+	if res.Error != nil || res.Data.Status != http.StatusNoContent {
+		t.Fatalf("send = %s", toJSON(t, res))
+	}
+	if gotPath != "/anything" || gotAuth != "Bearer local-token-123" {
+		t.Errorf("target saw path=%q auth=%q", gotPath, gotAuth)
+	}
+	// A secret without a local value and an undefined key stay literal and are reported.
+	if gotQuery != "s=%7B%7BOTHER_SECRET%7D%7D&m=%7B%7Bmissing%7D%7D" ||
+		toJSON(t, res.Unresolved) != `["OTHER_SECRET","missing"]` || res.Environment != "dev" {
+		t.Errorf("query=%q unresolved=%v env=%q", gotQuery, res.Unresolved, res.Environment)
+	}
+	// History keeps the template, never resolved values.
+	rows, err := a.store.ListHistory(context.Background(), 10)
+	if err != nil || len(rows) == 0 || rows[0].Url != "{{BASE_URL}}/anything" {
+		t.Errorf("history = %+v %v", rows, err)
 	}
 }

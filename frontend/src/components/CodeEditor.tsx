@@ -1,5 +1,6 @@
 import { createEffect, onCleanup, onMount, Show, createSignal } from "solid-js";
 import type { CodeEditorHandle } from "../codemirror";
+import { envDisplay } from "../envStore";
 
 interface Props {
   value: string;
@@ -18,12 +19,17 @@ export default function CodeEditor(props: Props) {
   onMount(async () => {
     const { createCodeEditor } = await import("../codemirror");
     if (!host.isConnected) return; // unmounted while loading
-    editor = createCodeEditor(host, props.value, props.json, (text) => props.onChange(text));
+    editor = createCodeEditor(host, props.value, props.json, (text) => props.onChange(text), envDisplay);
     setReady(true);
   });
   createEffect(() => {
     const on = props.json;
     if (ready()) editor?.setJSON(on);
+  });
+  // Re-highlight {{vars}} when the active environment or its variables change.
+  createEffect(() => {
+    envDisplay();
+    if (ready()) editor?.refreshVars();
   });
   onCleanup(() => editor?.destroy());
 

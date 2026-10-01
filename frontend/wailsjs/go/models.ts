@@ -48,6 +48,44 @@ export namespace api {
 		    return a;
 		}
 	}
+	export class Environment {
+	    id: string;
+	    name: string;
+	    sort_order: number;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Environment(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.sort_order = source["sort_order"];
+	        this.created_at = source["created_at"];
+	    }
+	}
+	export class EnvironmentDetail {
+	    id: string;
+	    project_id: string;
+	    name: string;
+	    sort_order: number;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new EnvironmentDetail(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.project_id = source["project_id"];
+	        this.name = source["name"];
+	        this.sort_order = source["sort_order"];
+	        this.created_at = source["created_at"];
+	    }
+	}
 	export class Folder {
 	    id: string;
 	    parent_id?: string;
@@ -616,6 +654,26 @@ export namespace api {
 	        this.name = source["name"];
 	    }
 	}
+	export class Variable {
+	    id: string;
+	    key: string;
+	    type: string;
+	    value?: string;
+	    sort_order: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Variable(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.key = source["key"];
+	        this.type = source["type"];
+	        this.value = source["value"];
+	        this.sort_order = source["sort_order"];
+	    }
+	}
 
 }
 
@@ -688,6 +746,69 @@ export namespace engine {
 
 }
 
+export namespace envs {
+	
+	export class VariableView {
+	    id: string;
+	    key: string;
+	    type: string;
+	    value: string;
+	    has_value: boolean;
+	    sort_order: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new VariableView(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.key = source["key"];
+	        this.type = source["type"];
+	        this.value = source["value"];
+	        this.has_value = source["has_value"];
+	        this.sort_order = source["sort_order"];
+	    }
+	}
+	export class EnvContext {
+	    environments: api.Environment[];
+	    active_id: string;
+	    active_name: string;
+	    variables: VariableView[];
+	
+	    static createFrom(source: any = {}) {
+	        return new EnvContext(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.environments = this.convertValues(source["environments"], api.Environment);
+	        this.active_id = source["active_id"];
+	        this.active_name = source["active_name"];
+	        this.variables = this.convertValues(source["variables"], VariableView);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace main {
 	
 	export class AcceptedInvitationResult {
@@ -731,6 +852,70 @@ export namespace main {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class EnvContextResult {
+	    data?: envs.EnvContext;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new EnvContextResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], envs.EnvContext);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class EnvironmentResult {
+	    data?: api.EnvironmentDetail;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new EnvironmentResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.EnvironmentDetail);
 	        this.error = this.convertValues(source["error"], session.Problem);
 	    }
 	
@@ -1171,6 +1356,8 @@ export namespace main {
 	export class SendResult {
 	    data?: engine.Response;
 	    error?: session.Problem;
+	    unresolved: string[];
+	    environment: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SendResult(source);
@@ -1180,6 +1367,8 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = this.convertValues(source["data"], engine.Response);
 	        this.error = this.convertValues(source["error"], session.Problem);
+	        this.unresolved = source["unresolved"];
+	        this.environment = source["environment"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1333,6 +1522,70 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = this.convertValues(source["data"], api.Team);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class VariableResult {
+	    data?: api.Variable;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new VariableResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.Variable);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class VariableViewListResult {
+	    data: envs.VariableView[];
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new VariableViewListResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], envs.VariableView);
 	        this.error = this.convertValues(source["error"], session.Problem);
 	    }
 	
