@@ -1,9 +1,10 @@
-import { createMemo, createSignal, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
+import { createEffect, createMemo, createSignal, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
 import { ConfirmQuit, ListMyInvitations, LoadWorkspace, Logout, SelectProject, SelectTeam } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { api, main, workspace } from "../../wailsjs/go/models";
 import { handleProblem, setAuthState } from "../authStore";
 import { createTabsController } from "../tabsController";
+import { loadEnvContext, refreshEnvContext } from "../envStore";
 import TeamSwitcher from "./TeamSwitcher";
 import ProjectSwitcher from "./ProjectSwitcher";
 import ProfileMenu from "./ProfileMenu";
@@ -13,6 +14,8 @@ import TeamSettingsView from "./TeamSettingsView";
 import ProjectSettingsView from "./ProjectSettingsView";
 import InvitationsView from "./InvitationsView";
 import TabBar from "./TabBar";
+import EnvSwitcher from "./EnvSwitcher";
+import ManageEnvironmentsView from "./ManageEnvironmentsView";
 import RequestEditor from "./RequestEditor";
 
 interface Props {
@@ -20,7 +23,7 @@ interface Props {
 }
 
 // "editor" shows the open request tabs (or the empty state when there are none).
-type Pane = "editor" | "team-settings" | "project-settings" | "invitations";
+type Pane = "editor" | "team-settings" | "project-settings" | "invitations" | "environments";
 
 // App shell (Postman-style): top bar with team/project switchers and profile menu,
 // left sidebar for the project tree, main pane for whatever is open. The Go side
@@ -54,6 +57,9 @@ export default function MainScreen(props: Props) {
     return controller;
   }));
 
+  // The env switcher / highlighting follow the selected project.
+  createEffect(on(projectId, (id) => void loadEnvContext(id)));
+
   // Closing the window: Go asks us to flush autosaves first, then we confirm.
   onMount(() => {
     const off = EventsOn("app:before-close", async () => {
@@ -72,7 +78,9 @@ export default function MainScreen(props: Props) {
     if (prev && prev.team_id !== result.data.team_id && (pane() === "team-settings" || pane() === "project-settings")) {
       setPane("editor");
     }
-    if (prev && prev.project_id !== result.data.project_id && pane() === "project-settings") setPane("editor");
+    if (prev && prev.project_id !== result.data.project_id && (pane() === "project-settings" || pane() === "environments")) {
+      setPane("editor");
+    }
     setWs(result.data);
   };
 
@@ -87,7 +95,7 @@ export default function MainScreen(props: Props) {
 
   const refresh = async () => {
     setRefreshTick((n) => n + 1);
-    await Promise.all([reloadWorkspace(), refreshInvitations()]);
+    await Promise.all([reloadWorkspace(), refreshInvitations(), refreshEnvContext()]);
   };
 
   const selectTeam = async (id: string) => {
@@ -142,6 +150,8 @@ export default function MainScreen(props: Props) {
             onCreated={selectProject}
             onOpenSettings={() => setPane("project-settings")}
           />
+          <span class="topbar-sep">·</span>
+          <EnvSwitcher disabled={!projectId()} onManage={() => setPane("environments")} />
           <button type="button" class="icon-button" title="Refresh from server" aria-label="Refresh"
             onClick={() => void refresh()}>↻</button>
         </div>
@@ -206,6 +216,9 @@ export default function MainScreen(props: Props) {
                   }}
                 />
               )}
+            </Match>
+            <Match when={pane() === "environments" && projectId()}>
+              {(pid) => <ManageEnvironmentsView projectId={pid()} />}
             </Match>
             <Match when={pane() === "invitations"}>
               <InvitationsView

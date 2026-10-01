@@ -35,6 +35,8 @@ export interface TabState {
   sending: boolean;
   response?: engine.Response;
   responseError?: string;
+  // {{keys}} the last send could not resolve (sent literally).
+  unresolved: string[];
   // View state (not saved anywhere).
   section: "params" | "headers" | "body";
   responseSection: "body" | "headers";
@@ -92,7 +94,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
   const addLoadingTab = (id: string) => {
     if (tab(id)) return;
     setState("tabs", (tabs) => [...tabs, {
-      id, name: "", status: "loading", draft: emptyDraft(), save: "idle", sending: false,
+      id, name: "", status: "loading", draft: emptyDraft(), save: "idle", sending: false, unresolved: [],
       section: "params", responseSection: "body", wrap: true, responseShare: 0.45,
     } satisfies TabState]);
   };
@@ -226,12 +228,13 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       });
       await savers.get(id)?.flush(); // send what is saved
       const snapshot = clone(unwrap(tab(id)!.draft));
-      const result = await SendRequest(id, api.RequestDraft.createFrom(snapshot));
+      const result = await SendRequest(projectId, id, api.RequestDraft.createFrom(snapshot));
       handleProblem(result.error);
       update(id, (t) => {
         t.sending = false;
         t.response = result.data ?? undefined;
         t.responseError = result.error?.message;
+        t.unresolved = result.unresolved ?? [];
       });
     },
 

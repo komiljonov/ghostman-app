@@ -1365,3 +1365,313 @@ button.danger-outline {
 .code-editor-host .cm-editor {
   height: 100%;
 }
+
+/* ---- {{var}} highlighting + hover ---- */
+
+.cm-var {
+  border-radius: 3px;
+  padding: 0 1px;
+}
+
+.cm-var-resolved {
+  background: rgba(76, 195, 138, 0.18);
+  color: var(--ok) !important;
+  box-shadow: inset 0 0 0 1px rgba(76, 195, 138, 0.45);
+}
+
+.cm-var-resolved * {
+  color: var(--ok) !important;
+}
+
+.cm-var-unresolved {
+  background: transparent;
+  color: var(--client) !important;
+  box-shadow: inset 0 0 0 1px rgba(230, 180, 80, 0.7);
+}
+
+.cm-var-unresolved * {
+  color: var(--client) !important;
+}
+
+.cm-tooltip.cm-tooltip-hover {
+  border: none;
+  background: transparent;
+}
+
+.var-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+  max-width: 420px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  color: var(--text);
+  font: 12px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+}
+
+.var-tooltip-key {
+  font: 600 12px var(--mono);
+}
+
+.var-tooltip.is-resolved .var-tooltip-key {
+  color: var(--ok);
+}
+
+.var-tooltip.is-unresolved .var-tooltip-key {
+  color: var(--client);
+}
+
+.var-tooltip-tag {
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font: 10px system-ui, sans-serif;
+}
+
+.var-tooltip-value {
+  font-family: var(--mono);
+  word-break: break-all;
+}
+
+.var-tooltip.is-unresolved .var-tooltip-value {
+  color: var(--muted);
+  font-family: inherit;
+}
+
+.var-tooltip-reveal {
+  align-self: flex-start;
+  padding: 1px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.var-tooltip-source {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* ---- URL editor (single-line CodeMirror styled like the input) ---- */
+
+.url-editor {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.url-editor > .url {
+  flex: 1;
+}
+
+.url-editor-host {
+  flex: 1;
+  min-width: 0;
+}
+
+.url-editor-host .cm-editor {
+  height: 100%;
+  padding: 0 10px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.url-editor-host .cm-editor.cm-focused {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.url-editor-host .cm-scroller {
+  font: 14px/1.45 var(--mono);
+  overflow: hidden;
+  align-items: center;
+}
+
+.url-editor-host .cm-content {
+  padding: 8px 0;
+  caret-color: var(--text);
+}
+
+.url-editor-host .cm-line {
+  padding: 0;
+}
+
+.url-editor-host .cm-cursor {
+  border-left-color: var(--text);
+}
+
+.url-editor-host .cm-selectionBackground,
+.url-editor-host .cm-editor.cm-focused .cm-selectionBackground {
+  background: rgba(108, 140, 255, 0.35) !important;
+}
+
+.url-editor-host .cm-placeholder {
+  color: var(--muted);
+}
+
+.unresolved-banner {
+  border-left-color: var(--client);
+}
+
+/* ---- Manage environments ---- */
+
+.env-manage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px;
+  min-height: 0;
+}
+
+.env-layout {
+  display: flex;
+  gap: 20px;
+  min-height: 0;
+}
+
+.env-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 240px;
+  flex-shrink: 0;
+}
+
+.env-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.env-list .menu-form {
+  padding: 0;
+}
+
+.env-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.env-item.selected {
+  background: rgba(108, 140, 255, 0.16);
+}
+
+.env-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 4px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.env-rename {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+}
+
+.env-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0.25;
+}
+
+.env-item:hover .env-actions,
+.env-item.selected .env-actions {
+  opacity: 1;
+}
+
+.env-actions .small-button {
+  padding: 2px 6px;
+}
+
+.env-vars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.env-vars h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.var-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.var-table th {
+  padding: 4px 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.var-table td {
+  padding: 2px 3px;
+  vertical-align: top;
+}
+
+.var-table .var-type {
+  width: 120px;
+}
+
+.var-table .var-actions {
+  width: 130px;
+  white-space: nowrap;
+}
+
+.var-table input[type="text"],
+.var-table input[type="password"],
+.var-table select {
+  width: 100%;
+  padding: 5px 8px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.var-table select {
+  font-family: inherit;
+}
+
+.var-row.ghost input {
+  background: transparent;
+}
+
+.secret-input {
+  display: flex;
+  gap: 2px;
+}
+
+.secret-input input {
+  flex: 1;
+  min-width: 0;
+}
+
+.var-save-state {
+  display: block;
+  min-height: 14px;
+  font-size: 11px;
+}

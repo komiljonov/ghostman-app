@@ -32,6 +32,11 @@ type inflight struct {
 type SendResult struct {
 	Data  *engine.Response `json:"data"`
 	Error *session.Problem `json:"error,omitempty"`
+	// Unresolved lists {{keys}} that were sent literally (not in the active
+	// environment, or secrets without a value on this machine).
+	Unresolved []string `json:"unresolved"`
+	// Environment is the active environment's name ("" = none).
+	Environment string `json:"environment"`
 }
 
 // Tabs is a project's open request tabs (ids only) and the active one.
@@ -53,12 +58,29 @@ func (a *App) SaveRequest(id string, base, draft api.RequestDraft) RequestResult
 	return RequestResult{Data: ptr(v, p), Error: p}
 }
 
-// SendRequest executes a tab's current draft. A send already running for the
-// same request is cancelled first. Every send is recorded in local history.
-func (a *App) SendRequest(requestID string, draft api.RequestDraft) SendResult {
+// SendRequest executes a tab's current draft with {{vars}} resolved from the
+// project's active environment (local secret values included). A send already
+// running for the same request is cancelled first. Every send is recorded in local
+// history — with the unresolved template URL, so secrets never land in history or logs.
+func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft) SendResult {
 	if !a.session.IsLoggedIn() {
-		return SendResult{Error: problemNotLoggedIn}
+		return SendResult{Error: problemNotLoggedIn, Unresolved: []string{}}
 	}
+	// Variables are read fresh from the server for every send (online-only), with
+	// this machine's secret values overlaid.
+	type resolved struct {
+		vars map[string]string
+		env  string
+	}
+	rv, p := call(a, func(ctx context.Context, c *api.APIClient) (resolved, error) {
+		m, ec, err := a.envs.VarMap(ctx, c, projectID)
+		return resolved{m, ec.ActiveName}, err
+	})
+	if p != nil {
+		p.Message = "could not load environment variables: " + p.Message
+		return SendResult{Error: p, Unresolved: []string{}}
+	}
+
 	ctx, cancel := context.WithCancel(a.ctx)
 	mine := &inflight{cancel: cancel}
 	a.sendsMu.Lock()
@@ -77,14 +99,18 @@ func (a *App) SendRequest(requestID string, draft api.RequestDraft) SendResult {
 		a.sendsMu.Unlock()
 	}()
 
-	spec := specFromDraft(draft)
+	template := specFromDraft(draft)
+	spec, unresolved := engine.ResolveSpec(template, rv.vars)
+	if unresolved == nil {
+		unresolved = []string{}
+	}
 	start := time.Now()
 	resp, err := a.engine.SendRequest(ctx, spec)
-	a.recordHistory(spec, resp, err, start)
+	a.recordHistory(template, resp, err, start)
 	if err != nil {
-		return SendResult{Error: &session.Problem{Kind: KindRequest, Message: err.Error()}}
+		return SendResult{Error: &session.Problem{Kind: KindRequest, Message: err.Error()}, Unresolved: unresolved, Environment: rv.env}
 	}
-	return SendResult{Data: resp}
+	return SendResult{Data: resp, Unresolved: unresolved, Environment: rv.env}
 }
 
 // CancelRequest cancels the in-flight send of a request, if any.

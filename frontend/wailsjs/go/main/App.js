@@ -14,6 +14,10 @@ export function ConfirmQuit() {
   return window['go']['main']['App']['ConfirmQuit']();
 }
 
+export function CreateEnvironment(arg1, arg2) {
+  return window['go']['main']['App']['CreateEnvironment'](arg1, arg2);
+}
+
 export function CreateFolder(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateFolder'](arg1, arg2, arg3);
 }
@@ -34,6 +38,14 @@ export function CreateTeam(arg1) {
   return window['go']['main']['App']['CreateTeam'](arg1);
 }
 
+export function CreateVariable(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CreateVariable'](arg1, arg2, arg3);
+}
+
+export function DeleteEnvironment(arg1, arg2) {
+  return window['go']['main']['App']['DeleteEnvironment'](arg1, arg2);
+}
+
 export function DeleteFolder(arg1) {
   return window['go']['main']['App']['DeleteFolder'](arg1);
 }
@@ -46,12 +58,24 @@ export function DeleteRequest(arg1) {
   return window['go']['main']['App']['DeleteRequest'](arg1);
 }
 
+export function DeleteSecretValue(arg1, arg2) {
+  return window['go']['main']['App']['DeleteSecretValue'](arg1, arg2);
+}
+
 export function DeleteTeam(arg1) {
   return window['go']['main']['App']['DeleteTeam'](arg1);
 }
 
+export function DeleteVariable(arg1) {
+  return window['go']['main']['App']['DeleteVariable'](arg1);
+}
+
 export function GetAuthState() {
   return window['go']['main']['App']['GetAuthState']();
+}
+
+export function GetEnvContext(arg1) {
+  return window['go']['main']['App']['GetEnvContext'](arg1);
 }
 
 export function GetMemberAccess(arg1, arg2) {
@@ -68,6 +92,14 @@ export function GetProjectAccess(arg1) {
 
 export function GetRequest(arg1) {
   return window['go']['main']['App']['GetRequest'](arg1);
+}
+
+export function GetSecretValue(arg1, arg2) {
+  return window['go']['main']['App']['GetSecretValue'](arg1, arg2);
+}
+
+export function GetSecretValues(arg1) {
+  return window['go']['main']['App']['GetSecretValues'](arg1);
 }
 
 export function GetSettings() {
@@ -110,6 +142,10 @@ export function ListTeams() {
   return window['go']['main']['App']['ListTeams']();
 }
 
+export function ListVariables(arg1) {
+  return window['go']['main']['App']['ListVariables'](arg1);
+}
+
 export function LoadWorkspace() {
   return window['go']['main']['App']['LoadWorkspace']();
 }
@@ -120,6 +156,10 @@ export function Login(arg1, arg2) {
 
 export function Logout() {
   return window['go']['main']['App']['Logout']();
+}
+
+export function MoveEnvironment(arg1, arg2, arg3) {
+  return window['go']['main']['App']['MoveEnvironment'](arg1, arg2, arg3);
 }
 
 export function MoveFolder(arg1, arg2) {
@@ -134,6 +174,10 @@ export function MoveRequest(arg1, arg2) {
   return window['go']['main']['App']['MoveRequest'](arg1, arg2);
 }
 
+export function MoveVariable(arg1, arg2, arg3) {
+  return window['go']['main']['App']['MoveVariable'](arg1, arg2, arg3);
+}
+
 export function Register(arg1, arg2, arg3) {
   return window['go']['main']['App']['Register'](arg1, arg2, arg3);
 }
@@ -144,6 +188,10 @@ export function RejectInvitation(arg1) {
 
 export function RemoveMember(arg1, arg2) {
   return window['go']['main']['App']['RemoveMember'](arg1, arg2);
+}
+
+export function RenameEnvironment(arg1, arg2) {
+  return window['go']['main']['App']['RenameEnvironment'](arg1, arg2);
 }
 
 export function RenameFolder(arg1, arg2) {
@@ -178,8 +226,12 @@ export function SelectTeam(arg1) {
   return window['go']['main']['App']['SelectTeam'](arg1);
 }
 
-export function SendRequest(arg1, arg2) {
-  return window['go']['main']['App']['SendRequest'](arg1, arg2);
+export function SendRequest(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SendRequest'](arg1, arg2, arg3);
+}
+
+export function SetActiveEnvironment(arg1, arg2) {
+  return window['go']['main']['App']['SetActiveEnvironment'](arg1, arg2);
 }
 
 export function SetMemberAccess(arg1, arg2, arg3, arg4) {
@@ -188,6 +240,10 @@ export function SetMemberAccess(arg1, arg2, arg3, arg4) {
 
 export function SetProjectAccess(arg1, arg2) {
   return window['go']['main']['App']['SetProjectAccess'](arg1, arg2);
+}
+
+export function SetSecretValue(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetSecretValue'](arg1, arg2, arg3);
 }
 
 export function SetServerURL(arg1) {
@@ -200,6 +256,18 @@ export function SetTabs(arg1, arg2) {
 
 export function SetTreeState(arg1, arg2) {
   return window['go']['main']['App']['SetTreeState'](arg1, arg2);
+}
+
+export function SetVariableKey(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetVariableKey'](arg1, arg2, arg3);
+}
+
+export function SetVariableType(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetVariableType'](arg1, arg2, arg3);
+}
+
+export function SetVariableValue(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetVariableValue'](arg1, arg2, arg3);
 }
 
 export function UpdateProjectName(arg1, arg2) {

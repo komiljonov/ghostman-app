@@ -17,6 +17,11 @@ function formatBytes(n: number): string {
 export default function ResponseView(props: Props) {
   return (
     <section class="response-view" aria-label="Response">
+      <Show when={!props.tab.sending && props.tab.unresolved.length > 0}>
+        <p class="notice unresolved-banner" role="status">
+          Unresolved variables: {props.tab.unresolved.join(", ")} <span class="muted">(sent literally)</span>
+        </p>
+      </Show>
       <Switch fallback={<p class="placeholder response-empty">Send the request to see the response.</p>}>
         <Match when={props.tab.sending}>
           <p class="placeholder response-empty">Sending…</p>
