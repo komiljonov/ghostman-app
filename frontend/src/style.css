@@ -1675,3 +1675,83 @@ button.danger-outline {
   min-height: 14px;
   font-size: 11px;
 }
+
+/* ---- Refinements: right-side env switcher, typed tabs, tab dragging ---- */
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.env-menu-row {
+  cursor: pointer;
+}
+
+.env-edit {
+  padding: 0 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.env-menu-row:hover .env-edit,
+.env-edit:focus-visible {
+  opacity: 1;
+}
+
+.env-edit:hover {
+  color: var(--text);
+}
+
+.env-chip {
+  flex-shrink: 0;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--accent);
+  font: 700 9px/15px var(--mono);
+  letter-spacing: 0.04em;
+}
+
+.tab {
+  position: relative;
+  touch-action: none;
+}
+
+.tab.dragging {
+  z-index: 2;
+  opacity: 1;
+  outline: 1px solid var(--accent);
+  background: var(--panel);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  cursor: grabbing;
+  transition: none;
+}
+
+.tab.drop-before::before,
+.drop-end {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: -2px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  z-index: 3; /* above the dragged tab */
+}
+
+.drop-end {
+  position: relative;
+  left: 0;
+  align-self: stretch;
+  flex-shrink: 0;
+  margin: 4px 0;
+}
+
+.env-list.wide {
+  width: min(520px, 100%);
+}

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { editRow, newRow, removeRow, Row, toggleRow } from "./rows";
 import { createAutosaver, SaveState } from "./autosave";
-import { restoreTabs, saveTabs, SavedTabs, TabStorage } from "./tabPersistence";
+import { restoreTabs, saveTabs, TabStorage } from "./tabPersistence";
 
 describe("row table", () => {
   const rows: Row[] = [newRow({ key: "a", value: "1" }), newRow({ key: "b", value: "2", enabled: false })];
@@ -126,40 +126,50 @@ describe("autosave", () => {
 });
 
 describe("tab persistence", () => {
-  function memoryStorage(initial: Record<string, SavedTabs> = {}) {
-    const data = { ...initial };
+  const req = (id: string) => ({ kind: "request" as const, id });
+  const env = (id: string) => ({ kind: "env" as const, id });
+
+  function memoryStorage(initial: Record<string, unknown> = {}) {
+    const data: Record<string, unknown> = { ...initial };
     const storage: TabStorage = {
-      get: async (p) => data[p] ?? { open: [], active: "" },
-      set: vi.fn(async (p: string, t: SavedTabs) => {
+      get: async (p) => data[p] ?? { open: [], active: { kind: "", id: "" } },
+      set: vi.fn(async (p: string, t: unknown) => {
         data[p] = t;
       }),
     };
     return { storage, data };
   }
 
-  it("round-trips open tabs and the active tab per project", async () => {
+  it("round-trips mixed request/env tabs in order with the active tab, per project", async () => {
     const { storage } = memoryStorage();
-    await saveTabs(storage, "p1", ["r1", "r2"], "r2");
-    await saveTabs(storage, "p2", ["x"], "x");
-    expect(await restoreTabs(storage, "p1", async () => true)).toEqual({ open: ["r1", "r2"], active: "r2" });
-    expect(await restoreTabs(storage, "p2", async () => true)).toEqual({ open: ["x"], active: "x" });
+    await saveTabs(storage, "p1", [req("r1"), env("e1"), req("r2")], env("e1"));
+    await saveTabs(storage, "p2", [req("x")], req("x"));
+    expect(await restoreTabs(storage, "p1", async () => true)).toEqual({ open: [req("r1"), env("e1"), req("r2")], active: env("e1") });
+    expect(await restoreTabs(storage, "p2", async () => true)).toEqual({ open: [req("x")], active: req("x") });
   });
 
-  it("an active id that is not open is not stored", async () => {
+  it("an active tab that is not open is not stored", async () => {
     const { storage, data } = memoryStorage();
-    await saveTabs(storage, "p1", ["r1"], "gone");
-    expect(data.p1).toEqual({ open: ["r1"], active: "" });
+    await saveTabs(storage, "p1", [req("r1")], req("gone"));
+    expect(data.p1).toEqual({ open: [req("r1")], active: { kind: "", id: "" } });
   });
 
-  it("silently drops requests that no longer exist and writes the cleaned list back", async () => {
-    const { storage, data } = memoryStorage({ p1: { open: ["r1", "deleted", "r3"], active: "deleted" } });
-    const restored = await restoreTabs(storage, "p1", async (id) => id !== "deleted");
-    expect(restored).toEqual({ open: ["r1", "r3"], active: "r3" });
-    expect(data.p1).toEqual({ open: ["r1", "r3"], active: "r3" });
+  it("silently drops tabs whose target is gone and writes the cleaned list back", async () => {
+    const { storage, data } = memoryStorage({ p1: { open: [req("r1"), req("deleted"), env("e9"), req("r3")], active: req("deleted") } });
+    const restored = await restoreTabs(storage, "p1", async (ref) => ref.id !== "deleted" && ref.id !== "e9");
+    expect(restored).toEqual({ open: [req("r1"), req("r3")], active: req("r3") });
+    expect(data.p1).toEqual({ open: [req("r1"), req("r3")], active: req("r3") });
+  });
+
+  it("restores the pre-typed format (bare ids) as request tabs and rewrites it typed", async () => {
+    const { storage, data } = memoryStorage({ p1: { open: ["r1", "r2"], active: "r1" } });
+    const restored = await restoreTabs(storage, "p1", async () => true);
+    expect(restored).toEqual({ open: [req("r1"), req("r2")], active: req("r1") });
+    expect(data.p1).toEqual({ open: [req("r1"), req("r2")], active: req("r1") });
   });
 
   it("a failing load counts as gone", async () => {
-    const { storage } = memoryStorage({ p1: { open: ["r1"], active: "r1" } });
-    expect(await restoreTabs(storage, "p1", async () => Promise.reject(new Error("x")))).toEqual({ open: [], active: "" });
+    const { storage } = memoryStorage({ p1: { open: [req("r1")], active: req("r1") } });
+    expect(await restoreTabs(storage, "p1", async () => Promise.reject(new Error("x")))).toEqual({ open: [], active: undefined });
   });
 });

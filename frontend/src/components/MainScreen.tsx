@@ -4,7 +4,9 @@ import { EventsOn } from "../../wailsjs/runtime/runtime";
 import { api, main, workspace } from "../../wailsjs/go/models";
 import { handleProblem, setAuthState } from "../authStore";
 import { createTabsController } from "../tabsController";
-import { loadEnvContext, refreshEnvContext } from "../envStore";
+import { envContext, loadEnvContext, refreshEnvContext } from "../envStore";
+import { canSendShortcut, isSendShortcut } from "../tabModel";
+import { setSendShortcutHandler, triggerSend } from "../shortcuts";
 import TeamSwitcher from "./TeamSwitcher";
 import ProjectSwitcher from "./ProjectSwitcher";
 import ProfileMenu from "./ProfileMenu";
@@ -15,15 +17,16 @@ import ProjectSettingsView from "./ProjectSettingsView";
 import InvitationsView from "./InvitationsView";
 import TabBar from "./TabBar";
 import EnvSwitcher from "./EnvSwitcher";
-import ManageEnvironmentsView from "./ManageEnvironmentsView";
+import EnvListView from "./EnvListView";
+import EnvVariablesView from "./EnvVariablesView";
 import RequestEditor from "./RequestEditor";
 
 interface Props {
   onOpenSettings: () => void;
 }
 
-// "editor" shows the open request tabs (or the empty state when there are none).
-type Pane = "editor" | "team-settings" | "project-settings" | "invitations" | "environments";
+// "editor" shows the open tabs — requests and environments — or the empty state.
+type Pane = "editor" | "team-settings" | "project-settings" | "invitations";
 
 // App shell (Postman-style): top bar with team/project switchers and profile menu,
 // left sidebar for the project tree, main pane for whatever is open. The Go side
@@ -60,6 +63,47 @@ export default function MainScreen(props: Props) {
   // The env switcher / highlighting follow the selected project.
   createEffect(on(projectId, (id) => void loadEnvContext(id)));
 
+  // Env tabs follow the environment list: renames relabel, deletes close.
+  createEffect(() => {
+    const ctx = envContext();
+    const t = tabs();
+    if (ctx && t && t.state.restored) t.syncWithEnvs(ctx.environments);
+  });
+
+  const openEnvTab = (id: string, name: string) => {
+    tabs()?.openEnv(id, name);
+    setPane("editor");
+  };
+  const openEnvList = () => {
+    tabs()?.openEnvList();
+    setPane("editor");
+  };
+
+  // Ctrl/Cmd+Enter sends the active request tab from anywhere. One window-level
+  // handler; CodeMirror has its own highest-precedence binding to the same action
+  // (and marks the event handled, so it is not sent twice).
+  setSendShortcutHandler(() => {
+    const t = tabs();
+    const active = t?.active();
+    const modalOpen = !!document.querySelector(".modal-backdrop");
+    if (!t || !active) return;
+    if (pane() !== "editor") return;
+    if (!canSendShortcut({ activeKind: active.kind, modalOpen, sending: active.sending })) return;
+    void t.send(active.id);
+  });
+  onMount(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || !isSendShortcut(e)) return;
+      e.preventDefault();
+      triggerSend();
+    };
+    window.addEventListener("keydown", onKey);
+    onCleanup(() => {
+      window.removeEventListener("keydown", onKey);
+      setSendShortcutHandler(undefined);
+    });
+  });
+
   // Closing the window: Go asks us to flush autosaves first, then we confirm.
   onMount(() => {
     const off = EventsOn("app:before-close", async () => {
@@ -78,9 +122,7 @@ export default function MainScreen(props: Props) {
     if (prev && prev.team_id !== result.data.team_id && (pane() === "team-settings" || pane() === "project-settings")) {
       setPane("editor");
     }
-    if (prev && prev.project_id !== result.data.project_id && (pane() === "project-settings" || pane() === "environments")) {
-      setPane("editor");
-    }
+    if (prev && prev.project_id !== result.data.project_id && pane() === "project-settings") setPane("editor");
     setWs(result.data);
   };
 
@@ -150,11 +192,12 @@ export default function MainScreen(props: Props) {
             onCreated={selectProject}
             onOpenSettings={() => setPane("project-settings")}
           />
-          <span class="topbar-sep">·</span>
-          <EnvSwitcher disabled={!projectId()} onManage={() => setPane("environments")} />
+
           <button type="button" class="icon-button" title="Refresh from server" aria-label="Refresh"
             onClick={() => void refresh()}>↻</button>
         </div>
+        <div class="topbar-right">
+        <EnvSwitcher disabled={!projectId()} onEdit={openEnvTab} onManage={openEnvList} />
         <ProfileMenu
           invitationCount={invitations()?.length ?? 0}
           loggingOut={loggingOut()}
@@ -166,6 +209,7 @@ export default function MainScreen(props: Props) {
           onSettings={props.onOpenSettings}
           onLogout={logout}
         />
+        </div>
       </header>
       <Show when={wsError()}>
         <p class="form-error banner">{wsError()}</p>
@@ -176,7 +220,7 @@ export default function MainScreen(props: Props) {
             <ProjectTree
               projectId={project().id}
               refreshTick={refreshTick() + treeTick()}
-              selectedRequestId={pane() === "editor" ? tabs()?.state.activeId : undefined}
+              selectedRequestId={pane() === "editor" ? tabs()?.activeRequestId() : undefined}
               onOpenRequest={(id) => {
                 tabs()?.open(id);
                 setPane("editor");
@@ -217,9 +261,6 @@ export default function MainScreen(props: Props) {
                 />
               )}
             </Match>
-            <Match when={pane() === "environments" && projectId()}>
-              {(pid) => <ManageEnvironmentsView projectId={pid()} />}
-            </Match>
             <Match when={pane() === "invitations"}>
               <InvitationsView
                 invitations={invitations()}
@@ -236,7 +277,19 @@ export default function MainScreen(props: Props) {
                 <div class="editor-area">
                   <TabBar controller={controller()} />
                   <Show when={controller().active()} keyed>
-                    {(tab) => <RequestEditor tab={tab} controller={controller()} />}
+                    {(tab) => (
+                      <Switch>
+                        <Match when={tab.kind === "request"}>
+                          <RequestEditor tab={tab} controller={controller()} />
+                        </Match>
+                        <Match when={tab.kind === "env"}>
+                          <EnvVariablesView envId={tab.id} />
+                        </Match>
+                        <Match when={tab.kind === "env_list"}>
+                          <EnvListView projectId={projectId()} onOpenEnv={openEnvTab} />
+                        </Match>
+                      </Switch>
+                    )}
                   </Show>
                 </div>
               )}

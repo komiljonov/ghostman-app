@@ -1,10 +1,11 @@
 import { createStore, produce, unwrap } from "solid-js/store";
 import { CancelRequest, GetRequest, GetTabs, SaveRequest, SendRequest, SetTabs } from "../wailsjs/go/main/App";
-import { api, engine } from "../wailsjs/go/models";
+import { api, engine, main } from "../wailsjs/go/models";
 import { handleProblem } from "./authStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
 import { Row } from "./rows";
 import { restoreTabs, saveTabs, TabStorage } from "./tabPersistence";
+import { ENV_LIST, reorder, sameTab, syncEnvTabs, TabKind, TabRef, tabKey } from "./tabModel";
 
 export const AUTOSAVE_DELAY_MS = 600;
 
@@ -25,7 +26,9 @@ export interface Draft {
 }
 
 export interface TabState {
-  id: string; // the request id (one tab per request)
+  kind: TabKind;
+  id: string; // request id, environment id, or "" for the environment list
+  key: string; // tabKey({kind, id}): unique within the tab bar
   name: string;
   status: "loading" | "ready" | "error";
   loadError?: string;
@@ -67,7 +70,7 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 const storage: TabStorage = {
   get: (projectId) => GetTabs(projectId),
-  set: (projectId, tabs) => SetTabs(projectId, tabs),
+  set: (projectId, tabs) => SetTabs(projectId, main.Tabs.createFrom(tabs)),
 };
 
 export interface TabsHooks {
@@ -80,24 +83,34 @@ export type TabsController = ReturnType<typeof createTabsController>;
 // Tabs of one project. Created when the project is selected, disposed (after
 // flushing pending saves) when another project is selected.
 export function createTabsController(projectId: string, hooks: TabsHooks) {
-  const [state, setState] = createStore<{ tabs: TabState[]; activeId?: string; restored: boolean }>({ tabs: [], restored: false });
+  // activeKey: the active tab's key. Savers/bases are keyed by request id (request tabs only).
+  const [state, setState] = createStore<{ tabs: TabState[]; activeKey?: string; restored: boolean }>({ tabs: [], restored: false });
   const savers = new Map<string, Autosaver>();
   const bases = new Map<string, Draft>(); // last saved state per tab
   const closing = new Map<string, Draft>(); // drafts of closed tabs whose final save is still pending
   let disposed = false;
 
-  const tab = (id: string) => state.tabs.find((t) => t.id === id);
+  // Request-tab helpers take the request id; tab-bar operations take the tab key.
+  const tab = (id: string) => state.tabs.find((t) => t.kind === "request" && t.id === id);
+  const byKey = (key: string) => state.tabs.find((t) => t.key === key);
   const update = (id: string, fn: (t: TabState) => void) =>
-    setState("tabs", (t) => t.id === id, produce(fn));
-  const persist = () => void saveTabs(storage, projectId, state.tabs.map((t) => t.id), state.activeId);
-
-  const addLoadingTab = (id: string) => {
-    if (tab(id)) return;
-    setState("tabs", (tabs) => [...tabs, {
-      id, name: "", status: "loading", draft: emptyDraft(), save: "idle", sending: false, unresolved: [],
-      section: "params", responseSection: "body", wrap: true, responseShare: 0.45,
-    } satisfies TabState]);
+    setState("tabs", (t) => t.kind === "request" && t.id === id, produce(fn));
+  const updateKey = (key: string, fn: (t: TabState) => void) => setState("tabs", (t) => t.key === key, produce(fn));
+  const refOf = (t: TabState): TabRef => ({ kind: t.kind, id: t.id });
+  const persist = () => {
+    const active = state.activeKey ? byKey(state.activeKey) : undefined;
+    void saveTabs(storage, projectId, state.tabs.map(refOf), active ? refOf(active) : undefined);
   };
+
+  const newTab = (ref: TabRef, name: string, status: TabState["status"]): TabState => ({
+    kind: ref.kind, id: ref.id, key: tabKey(ref), name, status, draft: emptyDraft(), save: "idle", sending: false,
+    unresolved: [], section: "params", responseSection: "body", wrap: true, responseShare: 0.45,
+  });
+  const addTab = (ref: TabRef, name: string, status: TabState["status"]) => {
+    if (byKey(tabKey(ref))) return;
+    setState("tabs", (tabs) => [...tabs, newTab(ref, name, status)]);
+  };
+  const addLoadingTab = (id: string) => addTab({ kind: "request", id }, "", "loading");
 
   const makeSaver = (id: string) =>
     createAutosaver({
@@ -148,61 +161,112 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     return true;
   };
 
-  const removeTab = (id: string) => {
-    const index = state.tabs.findIndex((t) => t.id === id);
+  const removeTab = (key: string) => {
+    const index = state.tabs.findIndex((t) => t.key === key);
     if (index < 0) return;
-    const wasActive = state.activeId === id;
-    setState("tabs", (tabs) => tabs.filter((t) => t.id !== id));
+    const wasActive = state.activeKey === key;
+    setState("tabs", (tabs) => tabs.filter((t) => t.key !== key));
     if (wasActive) {
       const next = state.tabs[Math.min(index, state.tabs.length - 1)];
-      setState("activeId", next?.id);
+      setState("activeKey", next?.key);
     }
   };
+  const requestKey = (id: string) => tabKey({ kind: "request", id });
+  const ENV_LIST_NAME = "Environments";
 
   const controller = {
     state,
-    active: () => (state.activeId ? tab(state.activeId) : undefined),
+    active: () => (state.activeKey ? byKey(state.activeKey) : undefined),
+    activeKind: (): TabKind | undefined => (state.activeKey ? byKey(state.activeKey)?.kind : undefined),
+    // The active request tab's id (for the tree's selection highlight).
+    activeRequestId: () => {
+      const t = state.activeKey ? byKey(state.activeKey) : undefined;
+      return t?.kind === "request" ? t.id : undefined;
+    },
+    isActive: (ref: TabRef) => {
+      const t = state.activeKey ? byKey(state.activeKey) : undefined;
+      return !!t && sameTab(refOf(t), ref);
+    },
 
     async restore() {
-      const saved = await restoreTabs(storage, projectId, async (id) => {
-        addLoadingTab(id);
-        const ok = await load(id);
+      const saved = await restoreTabs(storage, projectId, async (ref) => {
+        if (ref.kind !== "request") {
+          // Env tabs are checked against the environment list by syncWithEnvs.
+          addTab(ref, ref.kind === "env_list" ? ENV_LIST_NAME : "", "ready");
+          return true;
+        }
+        addLoadingTab(ref.id);
+        const ok = await load(ref.id);
         // A disposed controller must not report tabs as gone (that would erase them).
         return disposed || ok;
       });
       if (disposed) return;
-      for (const t of [...state.tabs]) if (!saved.open.includes(t.id)) removeTab(t.id);
-      setState("activeId", saved.active || state.tabs[state.tabs.length - 1]?.id);
+      const keep = new Set(saved.open.map(tabKey));
+      for (const t of [...state.tabs]) if (!keep.has(t.key)) removeTab(t.key);
+      // Loads finish in any order: put the tabs back in their saved order.
+      const order = saved.open.map(tabKey);
+      setState("tabs", (tabs) => [...tabs].sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key)));
+      setState("activeKey", saved.active ? tabKey(saved.active) : state.tabs[state.tabs.length - 1]?.key);
       setState("restored", true);
     },
 
+    // Opens (or focuses) a request tab.
     open(id: string) {
       if (!tab(id)) {
         addLoadingTab(id);
         void load(id);
       }
-      controller.activate(id);
+      controller.activate(requestKey(id));
     },
 
-    activate(id: string) {
-      const previous = state.activeId;
-      if (previous && previous !== id) void savers.get(previous)?.flush(); // flush on tab switch
-      setState("activeId", id);
+    openEnv(id: string, name: string) {
+      addTab({ kind: "env", id }, name, "ready");
+      controller.activate(tabKey({ kind: "env", id }));
+    },
+
+    openEnvList() {
+      addTab(ENV_LIST, ENV_LIST_NAME, "ready");
+      controller.activate(tabKey(ENV_LIST));
+    },
+
+    activate(key: string) {
+      const previous = state.activeKey ? byKey(state.activeKey) : undefined;
+      if (previous && previous.key !== key && previous.kind === "request") {
+        void savers.get(previous.id)?.flush(); // flush on tab switch
+      }
+      // (Env tabs flush their variable edits when their view unmounts.)
+      setState("activeKey", key);
       persist();
     },
 
-    async close(id: string) {
-      const current = tab(id);
+    async close(key: string) {
+      const target = byKey(key);
+      if (!target) return;
+      if (target.kind !== "request") {
+        removeTab(key); // the env view unmounts and flushes its pending edits
+        persist();
+        return;
+      }
+      const id = target.id;
       const saver = savers.get(id);
       savers.delete(id);
-      if (current) closing.set(id, clone(unwrap(current.draft)));
+      closing.set(id, clone(unwrap(target.draft)));
       void CancelRequest(id);
-      removeTab(id);
+      removeTab(key);
       persist();
       await saver?.flush(); // pending edits still reach the server
       saver?.dispose();
       closing.delete(id);
       bases.delete(id);
+    },
+
+    // Drag & drop: move the tab at `from` to insertion slot `drop` (see tabModel.reorder).
+    moveTab(from: number, drop: number) {
+      const current = [...state.tabs];
+      const next = reorder(current, from, drop);
+      if (next === current) return;
+      setState("tabs", next);
+      persist();
     },
 
     // Applies an edit to a tab's draft and schedules an autosave.
@@ -244,16 +308,27 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     syncWithTree(requests: Map<string, { name: string }>) {
       if (!state.restored) return;
       for (const t of [...state.tabs]) {
+        if (t.kind !== "request") continue;
         const node = requests.get(t.id);
         if (!node) {
           savers.get(t.id)?.dispose(); // the request is gone: nothing to save into
           savers.delete(t.id);
-          removeTab(t.id);
+          removeTab(t.key);
           persist();
         } else if (node.name !== t.name && t.status === "ready") {
           update(t.id, (x) => (x.name = node.name));
         }
       }
+    },
+
+    // Keeps env tabs in line with the project's environments: renames relabel,
+    // deleted environments close.
+    syncWithEnvs(envs: { id: string; name: string }[]) {
+      if (!state.restored) return;
+      const { rename, close } = syncEnvTabs(state.tabs.map((t) => ({ ref: refOf(t), name: t.name })), envs);
+      for (const r of rename) updateKey(tabKey(r.ref), (t) => (t.name = r.name));
+      for (const ref of close) removeTab(tabKey(ref));
+      if (close.length > 0) persist();
     },
 
     async flushAll() {

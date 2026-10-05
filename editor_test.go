@@ -114,21 +114,48 @@ func TestCancelRequest(t *testing.T) {
 
 func TestTabsRoundtrip(t *testing.T) {
 	a := newTestApp(t, true, nil)
-	if got := toJSON(t, a.GetTabs("p1")); got != `{"open":[],"active":""}` {
+	empty := `{"open":[],"active":{"kind":"","id":""}}`
+	if got := toJSON(t, a.GetTabs("p1")); got != empty {
 		t.Fatalf("empty = %s", got)
 	}
-	a.SetTabs("p1", Tabs{Open: []string{"r1", "r2"}, Active: "r2"})
-	if got := toJSON(t, a.GetTabs("p1")); got != `{"open":["r1","r2"],"active":"r2"}` {
-		t.Fatalf("tabs = %s", got)
+	a.SetTabs("p1", Tabs{
+		Open:   []TabRef{{TabRequest, "r1"}, {TabEnv, "e1"}, {TabEnvList, ""}, {TabRequest, "r1"}, {"bogus", "x"}, {TabEnv, ""}},
+		Active: TabRef{TabEnv, "e1"},
+	})
+	want := `{"open":[{"kind":"request","id":"r1"},{"kind":"env","id":"e1"},{"kind":"env_list","id":""}],"active":{"kind":"env","id":"e1"}}`
+	if got := toJSON(t, a.GetTabs("p1")); got != want {
+		t.Fatalf("tabs = %s\nwant %s", got, want)
 	}
-	if got := toJSON(t, a.GetTabs("p2")); got != `{"open":[],"active":""}` {
+	if got := toJSON(t, a.GetTabs("p2")); got != empty {
 		t.Fatalf("per project = %s", got)
 	}
 	if err := a.store.PutSetting(a.ctx, tabsKey("p1"), "garbage"); err != nil {
 		t.Fatal(err)
 	}
-	if got := toJSON(t, a.GetTabs("p1")); got != `{"open":[],"active":""}` {
+	if got := toJSON(t, a.GetTabs("p1")); got != empty {
 		t.Fatalf("corrupt = %s", got)
+	}
+}
+
+func TestTabsLegacyFormatMigrates(t *testing.T) {
+	a := newTestApp(t, true, nil)
+	// What step 5 stored: bare request ids.
+	if err := a.store.PutSetting(a.ctx, tabsKey("p1"), `{"open":["r1","r2"],"active":"r2"}`); err != nil {
+		t.Fatal(err)
+	}
+	want := `{"open":[{"kind":"request","id":"r1"},{"kind":"request","id":"r2"}],"active":{"kind":"request","id":"r2"}}`
+	if got := toJSON(t, a.GetTabs("p1")); got != want {
+		t.Fatalf("migrated = %s\nwant %s", got, want)
+	}
+	// The stored value was rewritten in the typed format.
+	if raw, _, _ := a.store.Setting(a.ctx, tabsKey("p1")); raw != want {
+		t.Fatalf("stored after migration = %s", raw)
+	}
+	if err := a.store.PutSetting(a.ctx, tabsKey("p1"), `{"open":["r1"],"active":""}`); err != nil {
+		t.Fatal(err)
+	}
+	if got := toJSON(t, a.GetTabs("p1")); got != `{"open":[{"kind":"request","id":"r1"}],"active":{"kind":"","id":""}}` {
+		t.Fatalf("legacy without active = %s", got)
 	}
 }
 

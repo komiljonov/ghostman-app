@@ -58,22 +58,33 @@ Postman-style shell, logged in:
 - **Top bar**, left to right: "Ghostman" · **Team switcher** (my teams with owner badge and
   member count, "+ New team", "Team settings") · **Project switcher** (accessible projects of
   the current team in sort order, "+ New project", "Project settings") · refresh (↻) · on the
-  right the **profile badge** (initials) whose menu holds user name/email, Invitations (count
-  badge), Settings (server URL modal), Log out.
+  right the **env switcher** and then the **profile badge** (initials) whose menu holds user
+  name/email, Invitations (count badge), Settings (server URL modal), Log out.
 - **Left sidebar**: only the current project's folders/requests tree (`ProjectTree`). Never
   teams, invitations or other navigation. The tree is built client-side (`src/tree.ts`, unit
   tested) from ONE ListFolders + ONE ListRequests call and rebuilt after every mutation;
   rows are keyed by id and expansion is per-node state (persisted locally under
   `ui_tree_state_<project_id>`), so expand/collapse never rebuilds the tree. Row actions live
   in a ⋯ / right-click menu; "+" at the top creates at the project root.
-- **Env switcher** (top bar, after the project switcher): "No environment", the project's
-  environments, "Manage environments…" (main-pane view: environments + variables tables).
-  The active environment is per project (`active_env_<project_id>`), validated on load.
-- **Main pane**: the **request editor tabs** by default (tab bar; per tab: method, URL, Send /
-  Cancel, save indicator; Params | Headers | Body; response below a draggable divider), or
-  Team settings / Project settings / Invitations when opened. Empty state without tabs.
-- **Tabs** are per project, persisted as ids (`ui_tabs_<project_id>`) and restored on startup
-  (gone requests dropped silently). Tree renames relabel tabs; tree deletes close them.
+- **Env switcher** (top bar, right side, left of the profile badge): "No environment", the
+  project's environments (a pencil on each opens it in an env tab), "Manage environments…"
+  (opens the environments list tab). The active environment is per project
+  (`active_env_<project_id>`), validated on load.
+- **Main pane**: the **tabs** by default, or Team settings / Project settings / Invitations
+  when opened. Empty state without tabs. Tabs are typed (`src/tabModel.ts`):
+  `request` (method, URL, Send / Cancel, save indicator; Params | Headers | Body; response
+  below a draggable divider), `env` (that environment's variables table) and `env_list`
+  (create / rename / reorder / delete environments). There is no separate environments page.
+- **Tabs** are per project, persisted as typed refs in tab-bar order (`ui_tabs_<project_id>`;
+  the old bare-id format is read as request tabs and rewritten) and restored on startup (gone
+  targets dropped silently). Tree renames/deletes relabel/close request tabs; environment
+  renames/deletes relabel/close env tabs. Tabs reorder by dragging (pointer events, 5 px
+  threshold so clicks stay clicks; drop indicator; ghost clamped to the bar); middle-click or ×
+  closes.
+- **Ctrl/Cmd+Enter** sends the active request tab from anywhere: one window keydown handler
+  plus a highest-precedence CodeMirror binding, both calling `shortcuts.triggerSend()` (the
+  window handler skips events CodeMirror already handled). Ignored on env tabs, with a modal
+  open, or while that tab is already sending — no queueing.
 - **Autosave is the save model** (no dirty tabs, no Save button): 600 ms debounce per tab,
   one PATCH with only the changed fields (built in Go: `api.BuildRequestPatch`, which drops
   keyless rows), one save in flight per tab with last write winning, flushed on tab
@@ -106,7 +117,7 @@ projects.go              bound project/access methods (same pattern)
 workspace.go             bound current-team/project selection (LoadWorkspace, SelectTeam, SelectProject)
 tree.go                  bound folder/request methods + local tree state (GetTreeState/SetTreeState)
 editor.go                bound editor methods: SaveRequest (autosave patch), SendRequest/CancelRequest,
-                         GetTabs/SetTabs, quit handshake (beforeClose/ConfirmQuit)
+                         GetTabs/SetTabs (typed tab refs, legacy migration), quit handshake
 environments.go          bound environment/variable methods + local secret access
 internal/engine/         HTTP request engine (the product core)
 internal/api/            typed client for the Ghostman server API (/api/v1)
