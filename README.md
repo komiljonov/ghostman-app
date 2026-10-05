@@ -13,8 +13,10 @@ projects (create, rename, delete, reorder) with per-member and per-project acces
 request editor: method, URL, query params, headers and a raw (JSON/Text/XML/custom) or
 urlencoded form body; changes autosave; Send shows the response (pretty-printed JSON, headers)
 and can be cancelled. Environments hold variables used as `{{KEY}}` anywhere in a request;
-the active environment is picked in the top bar. **Secret** variables keep their values on
-this machine only — they are never sent to the server.
+the active environment is picked in the top bar (right side); environments are edited in
+tabs next to request tabs. **Secret** variables keep their values on this machine only —
+they are never sent to the server. Ctrl+Enter (Cmd+Enter on macOS) sends the active request
+from anywhere; tabs can be reordered by dragging.
 
 The window is laid out Postman-style: a top bar with team and project switchers (their menus
 also hold "+ New …" and the team/project settings) and a profile menu (invitations, settings,

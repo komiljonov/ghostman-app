@@ -39,10 +39,64 @@ type SendResult struct {
 	Environment string `json:"environment"`
 }
 
-// Tabs is a project's open request tabs (ids only) and the active one.
+// Tab kinds.
+const (
+	TabRequest = "request"
+	TabEnv     = "env"
+	TabEnvList = "env_list"
+)
+
+// TabRef identifies an open tab: a request, an environment, or the environment list.
+// An empty Kind means "none" (e.g. no active tab).
+type TabRef struct {
+	Kind string `json:"kind"`
+	ID   string `json:"id"`
+}
+
+// UnmarshalJSON also accepts the pre-typed format, a bare request id string.
+func (t *TabRef) UnmarshalJSON(raw []byte) error {
+	var id string
+	if err := json.Unmarshal(raw, &id); err == nil {
+		*t = TabRef{}
+		if id != "" {
+			*t = TabRef{Kind: TabRequest, ID: id}
+		}
+		return nil
+	}
+	type plain TabRef
+	return json.Unmarshal(raw, (*plain)(t))
+}
+
+func (t TabRef) valid() bool {
+	switch t.Kind {
+	case TabRequest, TabEnv:
+		return t.ID != ""
+	case TabEnvList:
+		return true
+	}
+	return false
+}
+
+// Tabs is a project's open tabs, in tab-bar order, and the active one.
 type Tabs struct {
-	Open   []string `json:"open"`
-	Active string   `json:"active"`
+	Open   []TabRef `json:"open"`
+	Active TabRef   `json:"active"`
+}
+
+// normalize drops unknown/invalid entries and duplicates, and an active tab that is not open.
+func (t Tabs) normalize() Tabs {
+	out := Tabs{Open: []TabRef{}}
+	seen := map[TabRef]bool{}
+	for _, ref := range t.Open {
+		if ref.valid() && !seen[ref] {
+			seen[ref] = true
+			out.Open = append(out.Open, ref)
+		}
+	}
+	if seen[t.Active] {
+		out.Active = t.Active
+	}
+	return out
 }
 
 // SaveRequest autosaves a tab: it PATCHes only what differs between base (the
@@ -171,9 +225,10 @@ func (a *App) recordHistory(spec engine.RequestSpec, resp *engine.Response, err 
 
 func tabsKey(projectID string) string { return "ui_tabs_" + projectID }
 
-// GetTabs returns a project's open tabs (local UI state).
+// GetTabs returns a project's open tabs (local UI state). The old format (bare
+// request ids) is read as request tabs; anything unreadable gives no tabs.
 func (a *App) GetTabs(projectID string) Tabs {
-	tabs := Tabs{Open: []string{}}
+	tabs := Tabs{Open: []TabRef{}}
 	if a.store == nil || projectID == "" {
 		return tabs
 	}
@@ -183,12 +238,33 @@ func (a *App) GetTabs(projectID string) Tabs {
 	}
 	if err := json.Unmarshal([]byte(raw), &tabs); err != nil {
 		slog.Warn("ignoring corrupt tab state", "project", projectID, "err", err)
-		return Tabs{Open: []string{}}
+		return Tabs{Open: []TabRef{}}
 	}
-	if tabs.Open == nil {
-		tabs.Open = []string{}
+	tabs = tabs.normalize()
+	if isLegacyTabs(raw) {
+		// Migrate the stored value once; if that fails, it is simply migrated again next time.
+		if res := a.SetTabs(projectID, tabs); res.Error != nil {
+			slog.Warn("migrate tab state", "project", projectID, "err", res.Error.Message)
+		}
 	}
 	return tabs
+}
+
+// isLegacyTabs reports whether raw is the pre-typed format (bare request id strings).
+func isLegacyTabs(raw string) bool {
+	var probe struct {
+		Open   []json.RawMessage `json:"open"`
+		Active json.RawMessage   `json:"active"`
+	}
+	if json.Unmarshal([]byte(raw), &probe) != nil {
+		return false
+	}
+	for _, e := range probe.Open {
+		if len(e) > 0 && e[0] == '"' {
+			return true
+		}
+	}
+	return len(probe.Active) > 0 && probe.Active[0] == '"'
 }
 
 // SetTabs saves a project's open tabs (local UI state).
@@ -196,10 +272,7 @@ func (a *App) SetTabs(projectID string, tabs Tabs) EmptyResult {
 	if a.store == nil || projectID == "" {
 		return EmptyResult{}
 	}
-	if tabs.Open == nil {
-		tabs.Open = []string{}
-	}
-	raw, err := json.Marshal(tabs)
+	raw, err := json.Marshal(tabs.normalize())
 	if err == nil {
 		err = a.store.PutSetting(a.ctx, tabsKey(projectID), string(raw))
 	}

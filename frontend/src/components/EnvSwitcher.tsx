@@ -4,17 +4,20 @@ import Dropdown from "./Dropdown";
 
 interface Props {
   disabled: boolean; // no project selected
-  onManage: () => void;
+  onEdit: (id: string, name: string) => void; // open the environment's tab
+  onManage: () => void; // open the environments list tab
 }
 
-// Top-bar environment picker: "No environment", the project's environments, and
-// "Manage environments…". The choice is remembered per project (in Go).
+// Top-bar environment picker (right side, next to the profile badge): "No
+// environment", the project's environments — each with a pencil that opens it in a
+// tab — and "Manage environments…". The choice is remembered per project (in Go).
 export default function EnvSwitcher(props: Props) {
   const activeId = () => envContext()?.active_id ?? "";
 
   return (
     <Dropdown
       triggerLabel="Switch environment"
+      align="right"
       disabled={props.disabled}
       onOpen={() => void refreshEnvContext()}
       trigger={
@@ -38,13 +41,20 @@ export default function EnvSwitcher(props: Props) {
           </button>
           <For each={envContext()?.environments ?? []}>
             {(env) => (
-              <button type="button" role="menuitem" classList={{ "menu-item": true, selected: env.id === activeId() }}
+              <div classList={{ "menu-item": true, "env-menu-row": true, selected: env.id === activeId() }} role="menuitem"
+                tabIndex={-1}
                 onClick={() => {
                   close();
                   void selectEnvironment(env.id);
                 }}>
                 <span class="nav-label">{env.name}</span>
-              </button>
+                <button type="button" class="env-edit" title={`Edit ${env.name}`} aria-label={`Edit ${env.name}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    close();
+                    props.onEdit(env.id, env.name);
+                  }}>✎</button>
+              </div>
             )}
           </For>
           <Show when={(envContext()?.environments ?? []).length === 0}>

@@ -1,7 +1,7 @@
 // The one shared CodeMirror 6 setup. Imported lazily (dynamic import) the first
 // time an editor is shown, so CodeMirror stays out of the startup bundle.
 import { basicSetup, EditorView } from "codemirror";
-import { Compartment, EditorState, Extension, RangeSetBuilder, StateEffect } from "@codemirror/state";
+import { Compartment, EditorState, Extension, Prec, RangeSetBuilder, StateEffect } from "@codemirror/state";
 import {
   Decoration, DecorationSet, hoverTooltip, keymap, placeholder as placeholderExt, ViewPlugin, ViewUpdate,
 } from "@codemirror/view";
@@ -9,6 +9,12 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { json } from "@codemirror/lang-json";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { classify, EnvDisplay, tooltipModel } from "./vars";
+import { triggerSend } from "./shortcuts";
+
+// Ctrl/Cmd+Enter sends from inside any editor. Highest precedence so no other
+// binding (basicSetup maps Mod-Enter to "insert blank line") gets it first; CM marks
+// the event handled, so the app-level handler does not send a second time.
+const sendShortcut = Prec.highest(keymap.of([{ key: "Mod-Enter", run: triggerSend, preventDefault: true }]));
 
 // ---- {{var}} highlighting + hover (shared by every editor) ----
 
@@ -130,6 +136,7 @@ export function createCodeEditor(
     state: EditorState.create({
       doc,
       extensions: [
+        sendShortcut,
         basicSetup,
         oneDark,
         language.of(isJSON ? json() : []),
@@ -173,10 +180,10 @@ export function createLineEditor(
     state: EditorState.create({
       doc: doc.replace(/[\r\n]+/g, ""),
       extensions: [
+        sendShortcut,
         history(),
         keymap.of([
           { key: "Enter", run: () => (opts.onEnter(), true) },
-          { key: "Mod-Enter", run: () => (opts.onEnter(), true) },
           ...defaultKeymap,
           ...historyKeymap,
         ]),
