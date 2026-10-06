@@ -1,0 +1,118 @@
+/* Design tokens — the ONLY place colors are defined (ui_tokens_test.go fails on color
+   literals anywhere else). <html data-theme="dark|light"> selects the set; theme.ts
+   resolves "System" from prefers-color-scheme. CodeMirror (codemirror.ts) reads these
+   too, so editors follow a theme switch without being reconfigured. */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Surfaces & text */
+  --bg: #16181d;
+  --panel: #1e2128;
+  --border: #2c313b;
+  --text: #e3e6ec;
+  --muted: #8b93a3;
+  --accent: #6c8cff;
+  --on-accent: #0d1020;
+  --danger: #d9534f;
+  --on-danger: #ffffff;
+
+  /* Status */
+  --ok: #4cc38a;
+  --redirect: #5aa9e6;
+  --client: #e6b450;
+  --server: #f06a6a;
+
+  /* Tints */
+  --hover: rgba(255, 255, 255, 0.04);
+  --hover-strong: rgba(255, 255, 255, 0.08);
+  --accent-soft: rgba(108, 140, 255, 0.16);
+  --accent-strong: rgba(108, 140, 255, 0.25);
+  --selection: rgba(108, 140, 255, 0.35);
+  --ok-soft: rgba(76, 195, 138, 0.18);
+  --ok-line: rgba(76, 195, 138, 0.45);
+  --client-soft: rgba(230, 180, 80, 0.08);
+  --client-line: rgba(230, 180, 80, 0.7);
+  --server-soft: rgba(240, 106, 106, 0.08);
+  --shadow: rgba(0, 0, 0, 0.45);
+  --backdrop: rgba(0, 0, 0, 0.55);
+
+  /* HTTP methods */
+  --method-get: var(--ok);
+  --method-post: var(--client);
+  --method-put: var(--redirect);
+  --method-patch: #b48cff;
+  --method-delete: var(--server);
+  --method-other: var(--muted);
+
+  /* Code editor (CodeMirror) */
+  --cm-bg: #1b1e24;
+  --cm-text: var(--text);
+  --cm-gutter: #1b1e24;
+  --cm-gutter-text: #5c6370;
+  --cm-active-line: rgba(255, 255, 255, 0.03);
+  --cm-cursor: #e3e6ec;
+  --cm-selection: rgba(108, 140, 255, 0.3);
+  --cm-match: rgba(108, 140, 255, 0.18);
+  --syn-property: #e06c75;
+  --syn-string: #98c379;
+  --syn-number: #d19a66;
+  --syn-keyword: #c678dd;
+  --syn-punct: #abb2bf;
+  --syn-invalid: #f06a6a;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f4f5f8;
+  --panel: #ffffff;
+  --border: #d6dae1;
+  --text: #1c2230;
+  --muted: #5b6474;
+  --accent: #3653d4;
+  --on-accent: #ffffff;
+  --danger: #c62828;
+  --on-danger: #ffffff;
+
+  --ok: #17824e;
+  --redirect: #1b67b0;
+  --client: #9a6200;
+  --server: #c4302b;
+
+  --hover: rgba(15, 25, 45, 0.04);
+  --hover-strong: rgba(15, 25, 45, 0.08);
+  --accent-soft: rgba(54, 83, 212, 0.1);
+  --accent-strong: rgba(54, 83, 212, 0.18);
+  --selection: rgba(54, 83, 212, 0.25);
+  --ok-soft: rgba(23, 130, 78, 0.12);
+  --ok-line: rgba(23, 130, 78, 0.45);
+  --client-soft: rgba(154, 98, 0, 0.09);
+  --client-line: rgba(154, 98, 0, 0.65);
+  --server-soft: rgba(196, 48, 43, 0.07);
+  --shadow: rgba(20, 30, 50, 0.16);
+  --backdrop: rgba(20, 25, 35, 0.35);
+
+  --method-get: var(--ok);
+  --method-post: var(--client);
+  --method-put: var(--redirect);
+  --method-patch: #6b42c4;
+  --method-delete: var(--server);
+  --method-other: var(--muted);
+
+  --cm-bg: #fbfbfd;
+  --cm-text: var(--text);
+  --cm-gutter: #f3f4f7;
+  --cm-gutter-text: #9097a3;
+  --cm-active-line: rgba(15, 25, 45, 0.035);
+  --cm-cursor: #1c2230;
+  --cm-selection: rgba(54, 83, 212, 0.22);
+  --cm-match: rgba(54, 83, 212, 0.12);
+  --syn-property: #b4232f;
+  --syn-string: #1f7a35;
+  --syn-number: #a14b00;
+  --syn-keyword: #7a32b8;
+  --syn-punct: #4a5160;
+  --syn-invalid: #c4302b;
+}

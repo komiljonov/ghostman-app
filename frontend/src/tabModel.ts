@@ -92,3 +92,51 @@ export function syncEnvTabs(
   }
   return { rename, close };
 }
+
+// ---- Tab context menu: Close / Close Others / Close All ----
+
+export type CloseMode = "close" | "others" | "all";
+
+export function tabsToClose(keys: string[], target: string, mode: CloseMode): string[] {
+  switch (mode) {
+    case "close":
+      return keys.includes(target) ? [target] : [];
+    case "others":
+      return keys.filter((k) => k !== target);
+    case "all":
+      return [...keys];
+  }
+}
+
+// Closes tabs one after another through the normal close path (each flushes its
+// own pending edits); resolves when all are closed.
+export async function closeEach(keys: string[], close: (key: string) => Promise<void>): Promise<void> {
+  for (const k of keys) await close(k);
+}
+
+// ---- Keyboard: Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W ----
+
+// The next/previous tab in bar order, wrapping around.
+export function cycleKey(keys: string[], active: string | undefined, dir: 1 | -1): string | undefined {
+  if (keys.length === 0) return undefined;
+  const i = active ? keys.indexOf(active) : -1;
+  if (i < 0) return dir === 1 ? keys[0] : keys[keys.length - 1];
+  return keys[(i + dir + keys.length) % keys.length];
+}
+
+export type ShortcutAction = "send" | "next" | "prev" | "close";
+
+type KeyLike = { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean; shiftKey: boolean };
+
+export function shortcutAction(e: KeyLike): ShortcutAction | undefined {
+  if (e.altKey) return undefined;
+  if (isSendShortcut(e)) return "send";
+  if (e.key === "Tab" && e.ctrlKey && !e.metaKey) return e.shiftKey ? "prev" : "next";
+  if ((e.key === "w" || e.key === "W") && (e.ctrlKey || e.metaKey) && !e.shiftKey) return "close";
+  return undefined;
+}
+
+// Tab-bar shortcuts (cycle, close) need at least one tab and no modal.
+export function canUseTabShortcut(s: { modalOpen: boolean; tabCount: number }): boolean {
+  return !s.modalOpen && s.tabCount > 0;
+}

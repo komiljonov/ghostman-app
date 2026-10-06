@@ -80,11 +80,16 @@ Postman-style shell, logged in:
   targets dropped silently). Tree renames/deletes relabel/close request tabs; environment
   renames/deletes relabel/close env tabs. Tabs reorder by dragging (pointer events, 5 px
   threshold so clicks stay clicks; drop indicator; ghost clamped to the bar); middle-click or ×
-  closes.
-- **Ctrl/Cmd+Enter** sends the active request tab from anywhere: one window keydown handler
-  plus a highest-precedence CodeMirror binding, both calling `shortcuts.triggerSend()` (the
-  window handler skips events CodeMirror already handled). Ignored on env tabs, with a modal
-  open, or while that tab is already sending — no queueing.
+  closes. Right-click opens the tab menu: Close / Close Others / Close All (`tabsToClose`;
+  tabs close one at a time through the normal close, so each flushes its pending save).
+- **Shortcuts** (one action table, `shortcutAction` in `src/tabModel.ts`): Ctrl/Cmd+Enter sends,
+  Ctrl+Tab / Ctrl+Shift+Tab cycle tabs in bar order (wrapping), Ctrl/Cmd+W closes the active
+  tab. Two entry points, both calling `shortcuts.runShortcut()`: one window keydown handler
+  (bubble phase, skips events CodeMirror already handled) and a `Prec.highest` CodeMirror
+  keymap. Both `preventDefault`, which is enough for WebView2: Ctrl+W never closes or blanks
+  the window (verified with real OS keystrokes in `wails dev` and a built exe), so no Wails
+  accelerator is needed. Ignored with a modal open or outside the tabs pane; Send is also
+  ignored on env tabs or while that tab is sending — no queueing; Ctrl+W with no tabs is a no-op.
 - **Autosave is the save model** (no dirty tabs, no Save button): 600 ms debounce per tab,
   one PATCH with only the changed fields (built in Go: `api.BuildRequestPatch`, which drops
   keyless rows), one save in flight per tab with last write winning, flushed on tab
@@ -101,6 +106,20 @@ Postman-style shell, logged in:
   `src/vars.ts` mirrors only the token grammar for highlighting (keep both test tables in
   step). URL and raw body are CodeMirror editors with the shared highlight/hover extension
   (`src/codemirror.ts`); hover reads the Solid env store (`src/envStore.ts`), never the bridge.
+  The params/headers/form tables use `VarCell`: a plain focusable div with `{{var}}` spans that
+  mounts a single-line CodeMirror editor only while focused, hovered or editing in a tooltip
+  (`src/cellMode.ts`), so a 30-row table has at most one or two live editors. The env
+  variables table stays plain inputs.
+- **Editing from the hover tooltip** (`tooltipActions` / `saveFromTooltip` in `src/vars.ts`,
+  bridge calls in `src/varEdit.ts`): a resolved var shows Edit; a secret shows Reveal, then
+  Edit (saved through `SetVariableValue`, so it stays local); an unresolved var with an active
+  env offers "Create in <env>" (creates a regular variable). Edit pins the tooltip (stays open
+  without the pointer); Enter or blur saves, Esc cancels; the env context is re-fetched after.
+- **Theme**: System / Dark / Light in Settings, stored locally (settings key `theme`, bound
+  `GetTheme`/`SetTheme`, works logged out); `<html data-theme>` selects a token set and
+  "system" follows `prefers-color-scheme` live (`src/theme.ts`). **Every color is a design
+  token in `src/tokens.css`** (CodeMirror theme and syntax colors included): no hex/rgb/hsl/
+  white/black literals anywhere else in `frontend/src` — `ui_tokens_test.go` fails the build.
 - **Current team/project** live in Go (`internal/workspace`), persisted in settings
   (`current_team_id`, `current_project_id`) and validated against fresh server lists on every
   load: a vanished team falls back to the first team with no project, a vanished project to no
@@ -119,6 +138,8 @@ tree.go                  bound folder/request methods + local tree state (GetTre
 editor.go                bound editor methods: SaveRequest (autosave patch), SendRequest/CancelRequest,
                          GetTabs/SetTabs (typed tab refs, legacy migration), quit handshake
 environments.go          bound environment/variable methods + local secret access
+theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
+ui_tokens_test.go        fails on color literals outside frontend/src/tokens.css
 internal/engine/         HTTP request engine (the product core)
 internal/api/            typed client for the Ghostman server API (/api/v1)
 internal/session/        server URL resolution, auth state machine, login/logout/settings
@@ -144,8 +165,7 @@ frontend/                Vite + Solid + TS
 
 ## Backlog (deliberately deferred)
 
-- `{{var}}` **autocomplete** on typing `{{`; highlighting inside the params/headers/form
-  tables (they resolve at send time already); variable usage search; env duplication;
+- `{{var}}` **autocomplete** on typing `{{`; variable usage search; env duplication;
   dynamic/generated variables.
 - Per-request auth; cookies; response history UI
   (history rows are already written on every send); multipart/file bodies.

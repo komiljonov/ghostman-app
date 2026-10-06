@@ -21,6 +21,7 @@ export default function UrlEditor(props: Props) {
     if (!host.isConnected) return;
     editor = createLineEditor(host, props.value, {
       placeholder: "https://api.example.com/resource — use {{VARIABLE}} for environment values",
+      ariaLabel: "URL",
       onChange: (text) => props.onChange(text),
       onEnter: () => props.onEnter(),
       getEnv: envDisplay,

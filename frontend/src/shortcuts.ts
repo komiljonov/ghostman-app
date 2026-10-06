@@ -1,15 +1,20 @@
-// The app-wide "send" shortcut (Ctrl+Enter, Cmd+Enter on macOS). One action, two
-// entry points: the window keydown handler (MainScreen) and a highest-precedence
-// CodeMirror binding (codemirror.ts), so editors that bind Mod-Enter themselves
-// cannot swallow it. Whoever handles the key first calls triggerSend(); the window
-// handler skips events CodeMirror already handled (defaultPrevented).
-let handler: (() => void) | undefined;
+// App-wide keyboard shortcuts: Ctrl/Cmd+Enter (send), Ctrl+Tab / Ctrl+Shift+Tab
+// (next/previous tab), Ctrl/Cmd+W (close tab). One action table, two entry points:
+// the window keydown handler (MainScreen) and a highest-precedence CodeMirror keymap
+// (codemirror.ts), so editors cannot swallow them. Whoever handles a key first runs
+// the action; the window handler skips events CodeMirror already handled
+// (defaultPrevented).
+import type { ShortcutAction } from "./tabModel";
 
-export function setSendShortcutHandler(fn: (() => void) | undefined) {
-  handler = fn;
+let handlers: Partial<Record<ShortcutAction, () => void>> = {};
+
+export function setShortcutHandlers(next: Partial<Record<ShortcutAction, () => void>>) {
+  handlers = next;
 }
 
-export function triggerSend(): boolean {
-  handler?.();
-  return true; // the key is consumed either way: Ctrl+Enter never inserts a line
+export function runShortcut(action: ShortcutAction): boolean {
+  handlers[action]?.();
+  return true; // consumed either way: e.g. Ctrl+Enter never inserts a line
 }
+
+export const triggerSend = () => runShortcut("send");
