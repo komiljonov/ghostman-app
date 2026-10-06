@@ -88,7 +88,7 @@ export default function TreeItem(props: Props) {
   };
 
   const onRowClick = () => {
-    if (renaming()) return;
+    if (tree.consumeDragClick() || renaming()) return;
     tree.select(props.node.id);
     if (isFolder()) tree.toggle(props.node.id);
     else tree.openRequest(props.node.id);
@@ -121,9 +121,15 @@ export default function TreeItem(props: Props) {
 
   return (
     <li class="tree-item" role="treeitem" id={`tree-row-${props.node.id}`} aria-selected={selected()}
-      aria-expanded={isFolder() ? expanded() : undefined}>
+      aria-expanded={isFolder() ? expanded() : undefined}
+      data-id={props.node.id} data-kind={props.node.kind} data-depth={props.depth} data-expanded={String(expanded())}
+      data-parent={(isFolder() ? (props.node as { parentId: string | null }).parentId : (props.node as { folderId: string | null }).folderId) ?? ""}
+      data-name={props.node.name} data-method={isFolder() ? "" : (props.node as { method: string }).method}>
       <div
-        classList={{ "tree-row": true, selected: selected(), "menu-open": !!menuAt() }}
+        classList={{
+          "tree-row": true, selected: selected(), "menu-open": !!menuAt(),
+          "drag-source": tree.draggingId() === props.node.id, "drop-into": tree.dropIntoId() === props.node.id,
+        }}
         style={{ "padding-left": `${4 + props.depth * INDENT}px` }}
         onClick={onRowClick}
         onContextMenu={(e) => {

@@ -3,7 +3,7 @@
 // (raw body; single-line for the URL bar and the params/headers/form tables).
 // Imported lazily (dynamic import), so CodeMirror stays out of the startup bundle.
 import { basicSetup, EditorView } from "codemirror";
-import { Compartment, EditorState, Extension, Prec, RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
+import { Annotation, Compartment, EditorState, Extension, Prec, RangeSetBuilder, StateEffect, StateField, Transaction } from "@codemirror/state";
 import {
   closeHoverTooltips, Decoration, DecorationSet, hoverTooltip, keymap, placeholder as placeholderExt, showTooltip, Tooltip,
   ViewPlugin, ViewUpdate,
@@ -298,9 +298,14 @@ export function createCodeEditor(
 
 // ---- Single-line editor (URL bar, table cells) ----
 
+// Marks a programmatic setDoc, so the update listener does not echo it back.
+const externalChange = Annotation.define<boolean>();
+
 export interface LineEditorHandle {
   refreshVars: () => void;
+  // Replaces the text programmatically: not reported to onChange, not in undo history.
   setDoc: (text: string) => void;
+  getDoc: () => string;
   focus: () => void;
   hasFocus: () => boolean;
   destroy: () => void;
@@ -344,7 +349,8 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
         theme,
         varHighlighting(opts.getEnv, opts.onPin),
         EditorView.updateListener.of((u) => {
-          if (u.docChanged) opts.onChange(u.state.doc.toString());
+          const external = u.transactions.some((tr) => tr.annotation(externalChange));
+          if (u.docChanged && !external) opts.onChange(u.state.doc.toString());
           if (u.focusChanged) opts.onFocusChange?.(u.view.hasFocus);
         }),
         EditorView.contentAttributes.of({ "aria-label": opts.ariaLabel, spellcheck: "false", autocapitalize: "off" }),
@@ -354,8 +360,13 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
   return {
     refreshVars: () => view.dispatch({ effects: refreshVars.of(null) }),
     setDoc: (text) => {
-      if (view.state.doc.toString() !== text) view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: text } });
+      if (view.state.doc.toString() === text) return;
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: text },
+        annotations: [externalChange.of(true), Transaction.addToHistory.of(false)],
+      });
     },
+    getDoc: () => view.state.doc.toString(),
     focus: () => view.focus(),
     hasFocus: () => view.hasFocus,
     destroy: () => view.destroy(),

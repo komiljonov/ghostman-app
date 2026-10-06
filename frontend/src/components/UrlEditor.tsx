@@ -1,6 +1,7 @@
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import type { LineEditorHandle } from "../codemirror";
 import { envDisplay } from "../envStore";
+import { sameMeaning } from "../urlParams";
 
 interface Props {
   value: string;
@@ -31,6 +32,14 @@ export default function UrlEditor(props: Props) {
   createEffect(() => {
     envDisplay();
     if (ready()) editor?.refreshVars();
+  });
+  // Params-tab edits change the displayed URL: apply them in place (a dispatched
+  // change, so highlighting/hover keep working), unless the text already means the
+  // same thing — e.g. "x?a=1&" while typing — so typing is never rewritten.
+  createEffect(() => {
+    const value = props.value;
+    if (!ready() || !editor) return;
+    if (!sameMeaning(editor.getDoc(), value)) editor.setDoc(value);
   });
   onCleanup(() => editor?.destroy());
 
