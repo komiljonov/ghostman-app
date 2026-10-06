@@ -98,6 +98,8 @@ export function MoveRequest(arg1:string,arg2:string):Promise<main.RequestSummary
 
 export function MoveVariable(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
 
+export function PlaceNode(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:Array<string>):Promise<main.EmptyResult>;
+
 export function Register(arg1:string,arg2:string,arg3:string):Promise<session.Result>;
 
 export function RejectInvitation(arg1:string):Promise<main.EmptyResult>;

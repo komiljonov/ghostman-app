@@ -78,6 +78,17 @@ Postman-style shell, logged in:
   opens the row menu; **Ctrl+E** inline rename, **Del** delete (existing confirm), **Ctrl+D**
   duplicate (requests only; no-op on folders). Never while the rename input, any input or
   editor has focus, or a modal is open (`canUseTreeKeys`).
+- **Tree drag-and-drop** (rules: `src/treeDnd.ts`, unit tested; pointer wiring:
+  `src/treeDrag.ts`): a press becomes a drag after 5 px (clicks and context menus unaffected).
+  Folder row: top 25% before · bottom 25% after (collapsed only) · else INTO (at the end);
+  request row: top/bottom half before/after; below the last row → end of the root. Inserts
+  land among the dragged kind's siblings (folders first, then requests). A folder never drops
+  into itself or its subtree (no indicator, no-drop cursor; the server's 400 is still shown).
+  Ghost follows the cursor, insertion line / folder highlight, a collapsed folder opens after
+  700 ms of hovering, the sidebar auto-scrolls near its edges, Escape cancels. A drop is one
+  bound Go call, `PlaceNode` (`api.Place`: move if the parent changes, then reorder the
+  target's full sibling list if an insert position was chosen), then the usual re-fetch.
+  Keyboard/menu moves stay.
 - **Duplicate request** is one bound Go call, `DuplicateRequest` (`api.DuplicateRequest`):
   get → create "<name> copy" in the same folder → patch method/url/headers/params/body; if a
   step after the create fails, the half-made copy is deleted and one error is returned. The UI
@@ -113,6 +124,16 @@ Postman-style shell, logged in:
   the window (verified with real OS keystrokes in `wails dev` and a built exe), so no Wails
   accelerator is needed. Ignored with a modal open or outside the tabs pane; Send is also
   ignored on env tabs or while that tab is sending — no queueing; Ctrl+W with no tabs is a no-op.
+- **URL ↔ Params** (`src/urlParams.ts` is the spec, with its test table): `url` stores only the
+  base (before "?"); `query_params` is the one source of truth for the query. The URL input
+  shows base + enabled keyed rows as `k=v&…` (empty value → `k=`; no "?" without any). Typing
+  in it re-derives pairs (split on "&", then the first "="; verbatim, no percent-coding —
+  Go encodes at send time) and reconciles them IN ORDER into the enabled keyed rows (update
+  in place, append extras, delete missing); disabled and keyless rows are never touched.
+  Params-tab edits rewrite the URL input via an annotated CodeMirror transaction (not echoed
+  to onChange, not in undo history), and only when its text does not already mean the same
+  (`sameMeaning`), so typing is never rewritten. A legacy `url` with a query has its pairs
+  moved into the rows on load (persisted with the next edit, never on open).
 - **Autosave is the save model** (no dirty tabs, no Save button): 600 ms debounce per tab,
   one PATCH with only the changed fields (built in Go: `api.BuildRequestPatch`, which drops
   keyless rows), one save in flight per tab with last write winning, flushed on tab
@@ -207,7 +228,6 @@ frontend/                Vite + Solid + TS
   dynamic/generated variables.
 - Per-request auth; cookies; response history UI
   (history rows are already written on every send); multipart/file bodies.
-- **Drag-and-drop** for the project list and the folders/requests tree: for now projects use
-  ↑/↓ in Project settings and tree rows use Move up / Move down / Move to… in their context
-  menu. Reorder endpoints need the full sibling set (projects: every team project, so only
-  the team owner and all-projects members get ↑/↓).
+- **Drag-and-drop for the project list**: for now projects use ↑/↓ in Project settings. Reorder
+  endpoints need the full sibling set (every team project, so only the team owner and
+  all-projects members get ↑/↓).

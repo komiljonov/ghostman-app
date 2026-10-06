@@ -21,6 +21,11 @@ export interface TreeCtx {
   openMenu: (id: string, x: number, y: number) => void;
   closeMenu: () => void;
   duplicate: (id: string) => Promise<void>;
+  // Drag-and-drop (treeDrag.ts): the row being dragged, the folder a drop goes into,
+  // and whether the click after a drag must be ignored.
+  draggingId: () => string | undefined;
+  dropIntoId: () => string | undefined;
+  consumeDragClick: () => boolean;
   openRequest: (id: string) => void;
   askMove: (node: TreeNode) => void;
   askDelete: (node: TreeNode) => void;

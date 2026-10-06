@@ -1,5 +1,6 @@
 import { For, Match, Show, Switch } from "solid-js";
 import { Row } from "../rows";
+import { applyUrlInput, serializeUrl } from "../urlParams";
 import { TabsController, TabState } from "../tabsController";
 import BodyEditor from "./BodyEditor";
 import KeyValueTable from "./KeyValueTable";
@@ -67,8 +68,13 @@ export default function RequestEditor(props: Props) {
               }}>
               <For each={METHODS}>{(m) => <option value={m}>{m}</option>}</For>
             </select>
-            <UrlEditor value={props.tab.draft.url}
-              onChange={(v) => edit((d) => (d.url = v))}
+            {/* Shows base url + enabled params; typing updates both (urlParams.ts). */}
+            <UrlEditor value={serializeUrl(props.tab.draft.url, props.tab.draft.query_params)}
+              onChange={(text) => edit((d) => {
+                const next = applyUrlInput(text, d.query_params);
+                d.url = next.url;
+                if (next.rows !== d.query_params) d.query_params = next.rows;
+              })}
               onEnter={() => {
                 if (!props.tab.sending) void props.controller.send(id());
               }} />

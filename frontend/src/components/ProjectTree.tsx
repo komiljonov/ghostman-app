@@ -1,16 +1,19 @@
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import {
-  CreateFolder, CreateRequest, DuplicateRequest, GetTreeState, ListFolders, ListRequests, SetTreeState,
+  CreateFolder, CreateRequest, DuplicateRequest, GetTreeState, ListFolders, ListRequests, PlaceNode, SetTreeState,
 } from "../../wailsjs/go/main/App";
 import { handleProblem } from "../authStore";
 import { buildTree, Tree, TreeNode } from "../tree";
 import { duplicateAndOpen } from "../treeActions";
 import { TreeContext, TreeCtx } from "../treeContext";
 import { canUseTreeKeys, navigate, shortcutApplies, treeShortcut, visibleRows } from "../treeNav";
+import { createTreeDrag } from "../treeDrag";
 import Dropdown from "./Dropdown";
 import FormError from "./FormError";
 import Icon from "./Icon";
+import MethodBadge from "./MethodBadge";
+import { Portal } from "solid-js/web";
 import TreeItem from "./TreeItem";
 import MoveToModal from "./MoveToModal";
 import DeleteNodeModal from "./DeleteNodeModal";
@@ -42,6 +45,7 @@ export default function ProjectTree(props: Props) {
   const [selectedId, setSelectedId] = createSignal<string>();
   const [menu, setMenu] = createSignal<{ id: string; x: number; y: number }>();
   let treeEl: HTMLUListElement | undefined;
+  let navEl: HTMLElement | undefined;
 
   // The selection follows the active request tab (opening from anywhere selects it).
   createEffect(on(() => props.selectedRequestId, (id) => id && setSelectedId(id)));
@@ -131,6 +135,12 @@ export default function ProjectTree(props: Props) {
       setRootError(problem?.message);
     },
     openRequest: props.onOpenRequest,
+    draggingId: () => drag.view()?.dragged.id,
+    dropIntoId: () => {
+      const d = drag.view()?.drop;
+      return d?.type === "into" ? d.folderId : undefined;
+    },
+    consumeDragClick: () => drag.consumeClick(),
     askMove: setMoving,
     askDelete: setDeleting,
     create: async (kind, parentId) => {
@@ -179,13 +189,32 @@ export default function ProjectTree(props: Props) {
     else props.onOpenRequest(move.id);
   };
 
+  // Tree drag-and-drop: one PlaceNode call per drop (move + reorder composed in Go),
+  // then the usual re-fetch.
+  const drag = createTreeDrag({
+    tree: lookup,
+    list: () => treeEl,
+    scroller: () => navEl,
+    canStart: () => !renamingId() && !modalOpen(),
+    expand: (id) => ctx.expand(id),
+    drop: async (dragged, args) => {
+      const result = await PlaceNode(dragged.kind, props.projectId, dragged.id,
+        args.currentParentId, args.targetParentId, args.orderedIds as string[]);
+      handleProblem(result.error);
+      setRootError(result.error?.message);
+      if (!result.error && args.targetParentId) ctx.expand(args.targetParentId);
+      await reload();
+      select(dragged.id);
+    },
+  });
+
   const createAtRoot = async (kind: "folder" | "request") => {
     setRootError((await ctx.create(kind, ""))?.message);
   };
 
   return (
     <TreeContext.Provider value={ctx}>
-      <nav class="sidebar tree-sidebar" aria-label="Project tree">
+      <nav class="sidebar tree-sidebar" aria-label="Project tree" ref={navEl}>
         <div class="tree-header">
           <span class="menu-heading">Requests</span>
           <Dropdown triggerLabel="New folder or request" triggerClass="row-menu-trigger add" trigger={<Icon name="plus" />}>
@@ -208,12 +237,35 @@ export default function ProjectTree(props: Props) {
           <Show when={view.root.length > 0} fallback={<p class="placeholder small tree-note">No requests yet — create one</p>}>
             <ul class="tree" role="tree" aria-label="Folders and requests" tabIndex={0} ref={treeEl}
               aria-activedescendant={selectedId() && nodeById(selectedId()) ? `tree-row-${selectedId()}` : undefined}
-              onKeyDown={onTreeKey}>
+              onKeyDown={onTreeKey} onPointerDown={drag.onPointerDown}>
               <For each={view.root}>{(node) => <TreeItem node={node} depth={0} />}</For>
             </ul>
           </Show>
         </Show>
       </nav>
+      <Show when={drag.view()}>
+        {(v) => (
+          <Portal>
+            <div class="tree-drag-ghost" aria-hidden="true"
+              style={{ transform: `translate(${v().x + 14}px, ${v().y + 8}px)` }}>
+              <Show when={v().method} fallback={<Icon name="folder" />}>{(m) => <MethodBadge method={m()} />}</Show>
+              <span>{v().label}</span>
+            </div>
+            <Show when={v().drop?.type === "insert" && v().drop}>
+              {(d) => {
+                const line = () => d() as { lineY: number; depth: number };
+                return (
+                  <div class="tree-drop-line" aria-hidden="true" style={{
+                    top: `${line().lineY - 1}px`,
+                    left: `${v().listLeft + 4 + line().depth * 16}px`,
+                    width: `${Math.max(24, v().listWidth - 8 - line().depth * 16)}px`,
+                  }} />
+                );
+              }}
+            </Show>
+          </Portal>
+        )}
+      </Show>
       <Show when={moving()}>
         {(node) => <MoveToModal node={node()} onClose={() => setMoving(undefined)} />}
       </Show>

@@ -20,7 +20,8 @@ params/headers/form tables; hovering one shows its value and lets you edit it in
 after Reveal, saved locally only) or create a missing one in the active environment.
 Keyboard: Ctrl+Enter (Cmd+Enter on macOS) sends the active request, Ctrl+Tab / Ctrl+Shift+Tab
 switch tabs, Ctrl+W closes the active tab. In the sidebar tree: arrow keys select, Enter opens,
-Ctrl+E renames, Del deletes, Ctrl+D duplicates a request. The sidebar is resizable (drag its
+Ctrl+E renames, Del deletes, Ctrl+D duplicates a request; folders and requests can also be
+dragged to move or reorder them. The URL field and the Params tab stay in sync both ways. The sidebar is resizable (drag its
 edge; double-click to reset). HTML responses can be previewed in a sandboxed frame (no scripts). Tabs can be reordered by dragging; right-click a tab
 for Close / Close Others / Close All. Settings has a System / Dark / Light theme.
 

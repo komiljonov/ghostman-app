@@ -41,6 +41,13 @@
   --shadow: rgba(0, 0, 0, 0.45);
   --backdrop: rgba(0, 0, 0, 0.55);
 
+  /* Tables (params / headers / form fields) */
+  --row-border: #272b34;
+  --field-bg: #1f232b;
+  --field-border: #363c48;
+  --field-border-hover: #4a5161;
+  --table-head: #b3bac7;
+
   /* HTTP methods */
   --method-get: var(--ok);
   --method-post: var(--client);
@@ -85,6 +92,13 @@
   --server: #c4302b;
   --warn: var(--client);
   --preview-bg: #ffffff;
+
+  /* Tables (params / headers / form fields) */
+  --row-border: #e2e5ea;
+  --field-bg: #ffffff;
+  --field-border: #c8cdd6;
+  --field-border-hover: #a9b0bc;
+  --table-head: #39414f;
 
   --hover: rgba(15, 25, 45, 0.04);
   --hover-strong: rgba(15, 25, 45, 0.08);

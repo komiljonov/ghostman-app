@@ -190,6 +190,10 @@ export function MoveVariable(arg1, arg2, arg3) {
   return window['go']['main']['App']['MoveVariable'](arg1, arg2, arg3);
 }
 
+export function PlaceNode(arg1, arg2, arg3, arg4, arg5, arg6) {
+  return window['go']['main']['App']['PlaceNode'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
 export function Register(arg1, arg2, arg3) {
   return window['go']['main']['App']['Register'](arg1, arg2, arg3);
 }

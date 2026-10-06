@@ -134,6 +134,23 @@ func (a *App) DuplicateRequest(id string) RequestSummaryResult {
 	return RequestSummaryResult{Data: ptr(v, p), Error: p}
 }
 
+// PlaceNode applies one tree drag-and-drop: kind is "folder" or "request";
+// parents are "" for the root; orderedIDs (nil = keep where the move puts it) is
+// the target parent's full same-kind sibling list in the new order. Move and
+// reorder are composed in Go (api.Place) so the UI re-fetches once, no flicker.
+func (a *App) PlaceNode(kind, projectID, id, currentParentID, targetParentID string, orderedIDs []string) EmptyResult {
+	if kind != api.NodeFolder && kind != api.NodeRequest {
+		return EmptyResult{Error: &session.Problem{Kind: session.KindInvalid, Message: `kind must be "folder" or "request"`}}
+	}
+	return callEmpty(a, func(ctx context.Context, c *api.APIClient) error {
+		return c.Place(ctx, api.Placement{
+			Kind: kind, ProjectID: projectID, ID: id,
+			CurrentParent: rootAsNil(currentParentID), TargetParent: rootAsNil(targetParentID),
+			OrderedIDs: orderedIDs,
+		})
+	})
+}
+
 // MoveRequest moves a request into folderID ("" = project root).
 func (a *App) MoveRequest(id, folderID string) RequestSummaryResult {
 	v, p := call(a, func(ctx context.Context, c *api.APIClient) (api.RequestSummary, error) {

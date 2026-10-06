@@ -4,6 +4,7 @@ import { api, engine, main } from "../wailsjs/go/models";
 import { handleProblem } from "./authStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
 import { BodyView, defaultView } from "./responseView";
+import { adoptUrlQuery } from "./urlParams";
 import { Row } from "./rows";
 import { restoreTabs, saveTabs, TabStorage } from "./tabPersistence";
 import { closeEach, CloseMode, cycleKey, ENV_LIST, reorder, sameTab, syncEnvTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
@@ -151,8 +152,12 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       });
       return result.error?.status !== 404;
     }
-    const draft = draftFromRequest(result.data);
-    bases.set(id, clone(draft));
+    // The base is what the server has; the draft may differ only by a legacy query
+    // moved out of `url` into the rows (saved with the next edit, see urlParams.ts).
+    const loaded = draftFromRequest(result.data);
+    bases.set(id, clone(loaded));
+    const adopted = adoptUrlQuery(loaded.url, loaded.query_params);
+    const draft = { ...loaded, url: adopted.url, query_params: adopted.rows };
     savers.set(id, makeSaver(id));
     update(id, (t) => {
       t.status = "ready";
