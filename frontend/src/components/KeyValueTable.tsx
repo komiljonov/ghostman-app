@@ -1,6 +1,7 @@
 import { Index } from "solid-js";
 import { editRow, isGhost, newRow, removeRow, Row, toggleRow } from "../rows";
 import VarCell from "./VarCell";
+import Icon from "./Icon";
 
 interface Props {
   rows: Row[];
@@ -43,7 +44,7 @@ export default function KeyValueTable(props: Props) {
                 </td>
                 <td class="kv-remove">
                   <button type="button" class="icon-button" title="Remove row" aria-label="Remove row"
-                    disabled={ghost()} onClick={() => props.onChange(removeRow(props.rows, i))}>×</button>
+                    disabled={ghost()} onClick={() => props.onChange(removeRow(props.rows, i))}><Icon name="close" size={14} /></button>
                 </td>
               </tr>
             );

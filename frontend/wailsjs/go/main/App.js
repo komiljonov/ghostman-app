@@ -70,6 +70,10 @@ export function DeleteVariable(arg1) {
   return window['go']['main']['App']['DeleteVariable'](arg1);
 }
 
+export function DuplicateRequest(arg1) {
+  return window['go']['main']['App']['DuplicateRequest'](arg1);
+}
+
 export function GetAuthState() {
   return window['go']['main']['App']['GetAuthState']();
 }
@@ -120,6 +124,10 @@ export function GetTheme() {
 
 export function GetTreeState(arg1) {
   return window['go']['main']['App']['GetTreeState'](arg1);
+}
+
+export function GetUIPrefs() {
+  return window['go']['main']['App']['GetUIPrefs']();
 }
 
 export function ListFolders(arg1) {
@@ -246,12 +254,20 @@ export function SetProjectAccess(arg1, arg2) {
   return window['go']['main']['App']['SetProjectAccess'](arg1, arg2);
 }
 
+export function SetResponseWrap(arg1) {
+  return window['go']['main']['App']['SetResponseWrap'](arg1);
+}
+
 export function SetSecretValue(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetSecretValue'](arg1, arg2, arg3);
 }
 
 export function SetServerURL(arg1) {
   return window['go']['main']['App']['SetServerURL'](arg1);
+}
+
+export function SetSidebarWidth(arg1) {
+  return window['go']['main']['App']['SetSidebarWidth'](arg1);
 }
 
 export function SetTabs(arg1, arg2) {

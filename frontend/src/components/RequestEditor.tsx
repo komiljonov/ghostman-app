@@ -72,11 +72,10 @@ export default function RequestEditor(props: Props) {
               onEnter={() => {
                 if (!props.tab.sending) void props.controller.send(id());
               }} />
+            {/* Send and Cancel share one fixed-width slot, pinned to the right. */}
             <Show when={props.tab.sending} fallback={<button class="send" type="submit">Send</button>}>
               <button class="send cancel" type="button" onClick={() => props.controller.cancel(id())}>Cancel</button>
             </Show>
-            <SaveIndicator state={props.tab.save} error={props.tab.saveError}
-              onRetry={() => void props.controller.retrySave(id())} />
           </form>
 
           <div class="editor-split" ref={split}>
@@ -95,6 +94,9 @@ export default function RequestEditor(props: Props) {
                     </button>
                   )}
                 </For>
+                <span class="row-spacer" />
+                <SaveIndicator state={props.tab.save} error={props.tab.saveError}
+                  onRetry={() => void props.controller.retrySave(id())} />
               </div>
               <div class="section-content">
                 <Switch>

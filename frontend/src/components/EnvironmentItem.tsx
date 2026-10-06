@@ -3,6 +3,7 @@ import { DeleteEnvironment, MoveEnvironment, RenameEnvironment } from "../../wai
 import { api } from "../../wailsjs/go/models";
 import { createAction } from "../action";
 import ConfirmDialog from "./ConfirmDialog";
+import Icon from "./Icon";
 
 interface Props {
   projectId: string;
@@ -62,13 +63,13 @@ export default function EnvironmentItem(props: Props) {
           setName(props.env.name);
           rename.setError(undefined);
           setEditing(true);
-        }}>✎</button>
+        }}><Icon name="pencil" size={14} /></button>
         <button type="button" class="small-button" title="Move up" aria-label="Move up" disabled={props.first || move.pending()}
           onClick={() => void doMove(-1)}>↑</button>
         <button type="button" class="small-button" title="Move down" aria-label="Move down" disabled={props.last || move.pending()}
           onClick={() => void doMove(1)}>↓</button>
         <button type="button" class="icon-button" title="Delete" aria-label={`Delete ${props.env.name}`}
-          onClick={() => setConfirmDelete(true)}>×</button>
+          onClick={() => setConfirmDelete(true)}><Icon name="trash" size={14} /></button>
       </div>
       <Show when={rename.error() || move.error()}><p class="inline-error">{rename.error() || move.error()}</p></Show>
       <Show when={confirmDelete()}>

@@ -146,10 +146,13 @@ func TestJSONResponsePrettyPrinted(t *testing.T) {
 	if resp.BodySize != int64(len(`{"a":[1,2],"b":{"c":true}}`)) {
 		t.Errorf("BodySize must be the wire size, got %d", resp.BodySize)
 	}
+	if resp.RawBody != `{"a":[1,2],"b":{"c":true}}` {
+		t.Errorf("RawBody must be the body as received, got %q", resp.RawBody)
+	}
 	for _, path := range []string{"/invalid", "/text"} {
 		resp, _ := e.SendRequest(context.Background(), RequestSpec{URL: srv.URL + path})
-		if resp.Formatted {
-			t.Errorf("%s: must not be formatted", path)
+		if resp.Formatted || resp.RawBody != "" {
+			t.Errorf("%s: must not be formatted (and Body is the raw text), raw=%q", path, resp.RawBody)
 		}
 	}
 }

@@ -12,7 +12,15 @@ export interface TreeCtx {
   reload: () => Promise<void>;
   renamingId: () => string | undefined;
   setRenamingId: (id: string | undefined) => void;
-  selectedRequestId: () => string | undefined;
+  // Keyboard/click selection (any node); follows the active request tab.
+  selectedId: () => string | undefined;
+  select: (id: string) => void;
+  focusTree: () => void;
+  // The one open row menu: which node, anchored where (viewport px).
+  menu: () => { id: string; x: number; y: number } | undefined;
+  openMenu: (id: string, x: number, y: number) => void;
+  closeMenu: () => void;
+  duplicate: (id: string) => Promise<void>;
   openRequest: (id: string) => void;
   askMove: (node: TreeNode) => void;
   askDelete: (node: TreeNode) => void;

@@ -1,13 +1,16 @@
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import {
-  CreateFolder, CreateRequest, GetTreeState, ListFolders, ListRequests, SetTreeState,
+  CreateFolder, CreateRequest, DuplicateRequest, GetTreeState, ListFolders, ListRequests, SetTreeState,
 } from "../../wailsjs/go/main/App";
 import { handleProblem } from "../authStore";
 import { buildTree, Tree, TreeNode } from "../tree";
+import { duplicateAndOpen } from "../treeActions";
 import { TreeContext, TreeCtx } from "../treeContext";
+import { canUseTreeKeys, navigate, shortcutApplies, treeShortcut, visibleRows } from "../treeNav";
 import Dropdown from "./Dropdown";
 import FormError from "./FormError";
+import Icon from "./Icon";
 import TreeItem from "./TreeItem";
 import MoveToModal from "./MoveToModal";
 import DeleteNodeModal from "./DeleteNodeModal";
@@ -36,6 +39,20 @@ export default function ProjectTree(props: Props) {
   const [renamingId, setRenamingId] = createSignal<string>();
   const [moving, setMoving] = createSignal<TreeNode>();
   const [deleting, setDeleting] = createSignal<TreeNode>();
+  const [selectedId, setSelectedId] = createSignal<string>();
+  const [menu, setMenu] = createSignal<{ id: string; x: number; y: number }>();
+  let treeEl: HTMLUListElement | undefined;
+
+  // The selection follows the active request tab (opening from anywhere selects it).
+  createEffect(on(() => props.selectedRequestId, (id) => id && setSelectedId(id)));
+
+  const nodeById = (id: string | undefined): TreeNode | undefined =>
+    id ? lookup().folders.get(id) ?? lookup().requests.get(id) : undefined;
+
+  const select = (id: string) => {
+    setSelectedId(id);
+    document.getElementById(`tree-row-${id}`)?.scrollIntoView({ block: "nearest" });
+  };
 
   const reload = async () => {
     const projectId = props.projectId;
@@ -69,6 +86,8 @@ export default function ProjectTree(props: Props) {
   createEffect(on(projectId, async (projectId) => {
     setLoaded(false);
     setRenamingId(undefined);
+    setSelectedId(props.selectedRequestId);
+    setMenu(undefined);
     setView("root", []);
     const ids = await GetTreeState(projectId);
     setExpanded(reconcile(Object.fromEntries(ids.map((id) => [id, true]))));
@@ -92,7 +111,25 @@ export default function ProjectTree(props: Props) {
     reload,
     renamingId,
     setRenamingId,
-    selectedRequestId: () => props.selectedRequestId,
+    selectedId,
+    select,
+    focusTree: () => treeEl?.focus({ preventScroll: true }),
+    menu,
+    openMenu: (id, x, y) => {
+      setSelectedId(id);
+      setMenu({ id, x, y });
+    },
+    closeMenu: () => setMenu(undefined),
+    duplicate: async (id) => {
+      const problem = await duplicateAndOpen(id, {
+        duplicate: DuplicateRequest,
+        reload,
+        select,
+        open: props.onOpenRequest,
+      });
+      handleProblem(problem);
+      setRootError(problem?.message);
+    },
     openRequest: props.onOpenRequest,
     askMove: setMoving,
     askDelete: setDeleting,
@@ -109,6 +146,39 @@ export default function ProjectTree(props: Props) {
     },
   };
 
+  const modalOpen = () => !!document.querySelector(".modal-backdrop");
+
+  // Keyboard while the tree has focus: arrows/Home/End/Enter navigate, Ctrl+E
+  // renames, Del deletes (with the usual confirm), Ctrl+D duplicates a request,
+  // Shift+F10 / the menu key open the row menu. Never from the rename input.
+  const onTreeKey = (e: KeyboardEvent) => {
+    if (!canUseTreeKeys({ modalOpen: modalOpen(), renaming: !!renamingId(), target: e.target as HTMLElement })) return;
+    const node = nodeById(selectedId());
+    const shortcut = treeShortcut(e);
+    if (shortcut) {
+      e.preventDefault(); // Ctrl+D / Ctrl+E also mean something to the browser
+      if (!node || !shortcutApplies(shortcut, node.kind)) return;
+      if (shortcut === "rename") setRenamingId(node.id);
+      else if (shortcut === "delete") setDeleting(node);
+      else void ctx.duplicate(node.id);
+      return;
+    }
+    if (node && (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10"))) {
+      e.preventDefault();
+      const r = document.getElementById(`tree-row-${node.id}`)?.getBoundingClientRect();
+      if (r) ctx.openMenu(node.id, r.left + 24, r.bottom);
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const move = navigate(visibleRows(view.root, ctx.isExpanded), selectedId(), e.key);
+    if (!move) return;
+    e.preventDefault();
+    if (move.type === "select") select(move.id);
+    else if (move.type === "expand") ctx.expand(move.id);
+    else if (move.type === "collapse" || move.type === "toggle") ctx.toggle(move.id);
+    else props.onOpenRequest(move.id);
+  };
+
   const createAtRoot = async (kind: "folder" | "request") => {
     setRootError((await ctx.create(kind, ""))?.message);
   };
@@ -118,7 +188,7 @@ export default function ProjectTree(props: Props) {
       <nav class="sidebar tree-sidebar" aria-label="Project tree">
         <div class="tree-header">
           <span class="menu-heading">Requests</span>
-          <Dropdown triggerLabel="New folder or request" triggerClass="row-menu-trigger add" trigger={<span>+</span>}>
+          <Dropdown triggerLabel="New folder or request" triggerClass="row-menu-trigger add" trigger={<Icon name="plus" />}>
             {(close) => (
               <>
                 <button type="button" role="menuitem" class="menu-item" onClick={() => {
@@ -136,7 +206,9 @@ export default function ProjectTree(props: Props) {
         <FormError message={rootError() || loadError()} />
         <Show when={loaded()} fallback={<Show when={!loadError()}><p class="placeholder small tree-note">Loading…</p></Show>}>
           <Show when={view.root.length > 0} fallback={<p class="placeholder small tree-note">No requests yet — create one</p>}>
-            <ul class="tree" role="tree">
+            <ul class="tree" role="tree" aria-label="Folders and requests" tabIndex={0} ref={treeEl}
+              aria-activedescendant={selectedId() && nodeById(selectedId()) ? `tree-row-${selectedId()}` : undefined}
+              onKeyDown={onTreeKey}>
               <For each={view.root}>{(node) => <TreeItem node={node} depth={0} />}</For>
             </ul>
           </Show>

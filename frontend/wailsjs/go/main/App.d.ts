@@ -38,6 +38,8 @@ export function DeleteTeam(arg1:string):Promise<main.EmptyResult>;
 
 export function DeleteVariable(arg1:string):Promise<main.EmptyResult>;
 
+export function DuplicateRequest(arg1:string):Promise<main.RequestSummaryResult>;
+
 export function GetAuthState():Promise<session.AuthState>;
 
 export function GetEnvContext(arg1:string):Promise<main.EnvContextResult>;
@@ -63,6 +65,8 @@ export function GetTeam(arg1:string):Promise<main.TeamResult>;
 export function GetTheme():Promise<string>;
 
 export function GetTreeState(arg1:string):Promise<Array<string>>;
+
+export function GetUIPrefs():Promise<main.UIPrefs>;
 
 export function ListFolders(arg1:string):Promise<main.FolderListResult>;
 
@@ -126,9 +130,13 @@ export function SetMemberAccess(arg1:string,arg2:string,arg3:boolean,arg4:Array<
 
 export function SetProjectAccess(arg1:string,arg2:Array<string>):Promise<main.ProjectAccessResult>;
 
+export function SetResponseWrap(arg1:boolean):Promise<main.EmptyResult>;
+
 export function SetSecretValue(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
 
 export function SetServerURL(arg1:string):Promise<session.Result>;
+
+export function SetSidebarWidth(arg1:number):Promise<main.EmptyResult>;
 
 export function SetTabs(arg1:string,arg2:main.Tabs):Promise<main.EmptyResult>;
 

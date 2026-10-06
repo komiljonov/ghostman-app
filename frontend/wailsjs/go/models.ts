@@ -706,6 +706,7 @@ export namespace engine {
 	    truncated: boolean;
 	    contentType: string;
 	    formatted: boolean;
+	    rawBody?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Response(source);
@@ -723,6 +724,7 @@ export namespace engine {
 	        this.truncated = source["truncated"];
 	        this.contentType = source["contentType"];
 	        this.formatted = source["formatted"];
+	        this.rawBody = source["rawBody"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1574,6 +1576,20 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+	export class UIPrefs {
+	    sidebar_width: number;
+	    response_wrap: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new UIPrefs(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sidebar_width = source["sidebar_width"];
+	        this.response_wrap = source["response_wrap"];
+	    }
 	}
 	export class VariableResult {
 	    data?: api.Variable;

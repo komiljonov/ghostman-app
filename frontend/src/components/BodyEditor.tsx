@@ -1,4 +1,4 @@
-import { For, Match, Show, Switch } from "solid-js";
+import { For, Match, Switch } from "solid-js";
 import { Body } from "../tabsController";
 import { Row } from "../rows";
 import CodeEditor from "./CodeEditor";
@@ -23,6 +23,7 @@ const PRESETS = [
 
 export default function BodyEditor(props: Props) {
   const preset = () => PRESETS.find((p) => p.value === props.body.content_type)?.value ?? "custom";
+  const isRaw = () => props.body.type === "raw";
   const isJSON = () => props.body.content_type.toLowerCase().includes("json");
 
   return (
@@ -37,23 +38,25 @@ export default function BodyEditor(props: Props) {
             )}
           </For>
         </div>
-        <Show when={props.body.type === "raw"}>
-          <select aria-label="Content type" value={preset()} onChange={(e) => {
+        {/* Always present (disabled when not applicable) so the toolbar never changes shape. */}
+        <span class="toolbar-slot" title={isRaw() ? "Content-Type of the raw body" : "Applies to raw body"}>
+          <select aria-label="Content type" value={preset()} disabled={!isRaw()} onChange={(e) => {
             const v = e.currentTarget.value;
             props.onChange((b) => (b.content_type = v === "custom" ? "" : v));
           }}>
             <For each={PRESETS}>{(p) => <option value={p.value}>{p.label}</option>}</For>
             <option value="custom">Custom…</option>
           </select>
-          <Show when={preset() === "custom"}>
-            <input type="text" class="content-type-input" spellcheck={false} placeholder="content-type, e.g. text/csv"
-              aria-label="Custom content type" value={props.body.content_type}
-              onInput={(e) => {
-                const v = e.currentTarget.value;
-                props.onChange((b) => (b.content_type = v));
-              }} />
-          </Show>
-        </Show>
+        </span>
+        <span class="toolbar-slot" title={!isRaw() ? "Applies to raw body" : preset() === "custom" ? "" : "Pick Custom… to type a content type"}>
+          <input type="text" class="content-type-input" spellcheck={false} placeholder="content-type, e.g. text/csv"
+            aria-label="Custom content type" disabled={!isRaw() || preset() !== "custom"}
+            value={preset() === "custom" ? props.body.content_type : ""}
+            onInput={(e) => {
+              const v = e.currentTarget.value;
+              props.onChange((b) => (b.content_type = v));
+            }} />
+        </span>
       </div>
       <Switch>
         <Match when={props.body.type === "none"}>
