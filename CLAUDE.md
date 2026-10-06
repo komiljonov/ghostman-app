@@ -12,8 +12,10 @@ data is cached locally in v1.
 
 Server URL: compiled-in default (localhost:8080 in dev builds), user-overridable via the
 settings table (key server_url). Never .env for shipped behavior. The default lives in
-`main.defaultServerURL`; release builds override it with
-`task build SERVER_URL=https://...` (`-ldflags -X main.defaultServerURL=...`).
+`main.defaultServerURL`; `task build` links in the production server
+`https://api.ghostman.uz` (`PROD_SERVER_URL` in Taskfile.yml, via `-ldflags -X
+main.defaultServerURL=...`); `task build SERVER_URL=https://...` overrides it. A bare
+`wails build` keeps localhost — release builds go through `task build`.
 
 ## Fixed decisions (do not revisit without the owner)
 

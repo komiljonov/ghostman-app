@@ -88,7 +88,8 @@ app's built-in default.
 - **Change the server** from the gear icon (top-right on the login, register and main
   screens). The value is stored in the local database and survives restarts. Switching
   servers logs you out.
-- **Release builds** can carry a different default: `task build SERVER_URL=https://...`
+- **Release builds** (`task build`) default to `https://api.ghostman.uz`; dev builds
+  (`task dev`) to `http://localhost:8080`. Another default: `task build SERVER_URL=https://...`
   (sets `main.defaultServerURL` via `-ldflags`). Environment variables and `.env` files are
   never used for this.
 - If the server cannot be reached, the app shows a "Cannot reach server" screen with the URL,

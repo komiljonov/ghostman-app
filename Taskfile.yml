@@ -1,6 +1,8 @@
 version: "3"
 
 vars:
+  # Default server of release builds (dev builds use main.defaultServerURL, localhost).
+  PROD_SERVER_URL: https://api.ghostman.uz
   GOOSE: go run github.com/pressly/goose/v3/cmd/goose@v3.28.0
   MIGRATIONS_DIR: internal/store/migrations
 
@@ -11,9 +13,11 @@ tasks:
       - wails dev
 
   build:
-    desc: "Build a production binary into build/bin/ (optional: task build SERVER_URL=https://...)"
+    desc: "Build a production binary into build/bin/ (server: https://api.ghostman.uz; override: task build SERVER_URL=https://...)"
+    vars:
+      SERVER_URL: '{{.SERVER_URL | default .PROD_SERVER_URL}}'
     cmds:
-      - wails build {{if .SERVER_URL}}-ldflags "-X main.defaultServerURL={{.SERVER_URL}}"{{end}}
+      - wails build -ldflags "-X main.defaultServerURL={{.SERVER_URL}}"
 
   sqlc:
     desc: Regenerate Go code from internal/store/queries (schema = migrations dir)

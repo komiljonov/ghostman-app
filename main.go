@@ -16,11 +16,12 @@ import (
 var assets embed.FS
 
 // defaultServerURL is the server used until the user sets one in Settings.
-// Release builds override it at link time:
+// localhost here is for `wails dev` and tests; `task build` links in the
+// production server (https://api.ghostman.uz, see Taskfile.yml) at link time:
 //
-//	wails build -ldflags "-X main.defaultServerURL=https://ghostman.example.com"
+//	wails build -ldflags "-X main.defaultServerURL=https://api.ghostman.uz"
 //
-// (or `task build SERVER_URL=...`). It is a var, not a const, so -X can set it.
+// (`task build SERVER_URL=...` picks another). It is a var, not a const, so -X can set it.
 var defaultServerURL = "http://localhost:8080"
 
 func main() {
