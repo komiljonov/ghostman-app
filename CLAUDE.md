@@ -217,6 +217,8 @@ frontend/                Vite + Solid + TS
 ## Workflow
 
 - `task dev` / `task build` / `task test` / `task lint` / `task frontend:check`
+- Linux binary: `task build:linux` (Docker, any host — Wails v2 cannot cross-compile to Linux;
+  `build/linux/Dockerfile`, WebKitGTK 4.1 via `-tags webkit2_41`) or `task build:linux:native`.
 - After changing SQL in `migrations/` or `queries/`: `task sqlc` (never edit generated `*.sql.go`).
 - New migration: `task migrate:create -- <name>`.
 - Frontend unit tests (vitest, pure logic only, node environment): `task frontend:test`;

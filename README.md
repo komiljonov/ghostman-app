@@ -62,7 +62,8 @@ Run `wails doctor` to check your machine.
 
 ```sh
 task dev              # hot-reload dev window (also serves http://localhost:34115 for browser devtools)
-task build            # production binary in build/bin/
+task build            # production binary for this OS in build/bin/
+task build:linux      # Linux amd64 binary, built in Docker (works from Windows too)
 ```
 
 ## Tasks
@@ -70,7 +71,9 @@ task build            # production binary in build/bin/
 | Command | What it does |
 | --- | --- |
 | `task dev` | `wails dev` |
-| `task build` | `wails build` |
+| `task build` | `wails build` for this OS, default server `https://api.ghostman.uz` |
+| `task build:linux` | Linux amd64 binary `build/bin/ghostman-linux-amd64`, built in Docker (`build/linux/Dockerfile`) — from Windows or Linux |
+| `task build:linux:native` | the same on a Linux host with `libgtk-3-dev` + `libwebkit2gtk-4.1-dev` |
 | `task test` | `go test ./...` + frontend unit tests (vitest) |
 | `task lint` | `golangci-lint run ./...` |
 | `task frontend:check` | `tsc --noEmit` in `frontend/` (installs deps first if needed) |
@@ -78,6 +81,12 @@ task build            # production binary in build/bin/
 | `task migrate:create -- <name>` | new goose SQL migration in `internal/store/migrations/` |
 
 Migrations are embedded in the binary and applied automatically at startup.
+
+**Linux builds from Windows:** Wails v2 cannot cross-compile to Linux (the app links
+WebKitGTK through cgo), so `task build:linux` builds inside a Linux container instead. Linux
+`node_modules` and Go caches live in Docker volumes, so your Windows `node_modules` are untouched.
+The binary needs WebKitGTK 4.1 at runtime (`libwebkit2gtk-4.1-0`: Ubuntu 22.04+, Debian 12+,
+Fedora 39+).
 
 ## Server connection
 

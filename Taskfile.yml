@@ -19,6 +19,35 @@ tasks:
     cmds:
       - wails build -ldflags "-X main.defaultServerURL={{.SERVER_URL}}"
 
+  build:linux:
+    desc: "Build the Linux amd64 binary (build/bin/ghostman-linux-amd64) in Docker — works from Windows or Linux; needs Docker"
+    vars:
+      SERVER_URL: '{{.SERVER_URL | default .PROD_SERVER_URL}}'
+    cmds:
+      - docker build -t ghostman-linux-build build/linux
+      # Linux node_modules and Go caches live in named volumes, so the host's
+      # (Windows) node_modules are never touched and rebuilds are fast.
+      # --ignore-scripts: esbuild's postinstall self-check races in containers
+      # (ETXTBSY); esbuild itself loads its @esbuild/linux-x64 package without it.
+      - >-
+        docker run --rm
+        -v "{{.ROOT_DIR}}:/src"
+        -v ghostman-linux-node-modules:/src/frontend/node_modules
+        -v ghostman-linux-gomod:/go/pkg/mod
+        -v ghostman-linux-gocache:/root/.cache/go-build
+        ghostman-linux-build
+        sh -c 'cd frontend && npm ci --no-audit --no-fund --ignore-scripts && npm run build && cd .. &&
+        wails build -s -skipbindings -platform linux/amd64 -tags webkit2_41 -o ghostman-linux-amd64
+        -ldflags "-X main.defaultServerURL={{.SERVER_URL}}"'
+
+  build:linux:native:
+    desc: "Build the Linux amd64 binary on a Linux host (needs libgtk-3-dev and libwebkit2gtk-4.1-dev)"
+    platforms: [linux]
+    vars:
+      SERVER_URL: '{{.SERVER_URL | default .PROD_SERVER_URL}}'
+    cmds:
+      - wails build -platform linux/amd64 -tags webkit2_41 -o ghostman-linux-amd64 -ldflags "-X main.defaultServerURL={{.SERVER_URL}}"
+
   sqlc:
     desc: Regenerate Go code from internal/store/queries (schema = migrations dir)
     cmds:
