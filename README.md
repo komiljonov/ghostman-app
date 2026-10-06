@@ -15,8 +15,12 @@ urlencoded form body; changes autosave; Send shows the response (pretty-printed 
 and can be cancelled. Environments hold variables used as `{{KEY}}` anywhere in a request;
 the active environment is picked in the top bar (right side); environments are edited in
 tabs next to request tabs. **Secret** variables keep their values on this machine only —
-they are never sent to the server. Ctrl+Enter (Cmd+Enter on macOS) sends the active request
-from anywhere; tabs can be reordered by dragging.
+they are never sent to the server. `{{KEY}}` tokens are highlighted in the URL, body and the
+params/headers/form tables; hovering one shows its value and lets you edit it in place (secrets
+after Reveal, saved locally only) or create a missing one in the active environment.
+Keyboard: Ctrl+Enter (Cmd+Enter on macOS) sends the active request, Ctrl+Tab / Ctrl+Shift+Tab
+switch tabs, Ctrl+W closes the active tab. Tabs can be reordered by dragging; right-click a tab
+for Close / Close Others / Close All. Settings has a System / Dark / Light theme.
 
 The window is laid out Postman-style: a top bar with team and project switchers (their menus
 also hold "+ New …" and the team/project settings) and a profile menu (invitations, settings,

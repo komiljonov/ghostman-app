@@ -5,8 +5,8 @@ import { api, main, workspace } from "../../wailsjs/go/models";
 import { handleProblem, setAuthState } from "../authStore";
 import { createTabsController } from "../tabsController";
 import { envContext, loadEnvContext, refreshEnvContext } from "../envStore";
-import { canSendShortcut, isSendShortcut } from "../tabModel";
-import { setSendShortcutHandler, triggerSend } from "../shortcuts";
+import { canSendShortcut, canUseTabShortcut, shortcutAction } from "../tabModel";
+import { runShortcut, setShortcutHandlers } from "../shortcuts";
 import TeamSwitcher from "./TeamSwitcher";
 import ProjectSwitcher from "./ProjectSwitcher";
 import ProfileMenu from "./ProfileMenu";
@@ -79,28 +79,39 @@ export default function MainScreen(props: Props) {
     setPane("editor");
   };
 
-  // Ctrl/Cmd+Enter sends the active request tab from anywhere. One window-level
-  // handler; CodeMirror has its own highest-precedence binding to the same action
-  // (and marks the event handled, so it is not sent twice).
-  setSendShortcutHandler(() => {
-    const t = tabs();
-    const active = t?.active();
-    const modalOpen = !!document.querySelector(".modal-backdrop");
-    if (!t || !active) return;
-    if (pane() !== "editor") return;
-    if (!canSendShortcut({ activeKind: active.kind, modalOpen, sending: active.sending })) return;
-    void t.send(active.id);
+  // Keyboard shortcuts, active regardless of focus: Ctrl/Cmd+Enter sends the active
+  // request tab; Ctrl+Tab / Ctrl+Shift+Tab cycle tabs in bar order; Ctrl/Cmd+W closes
+  // the active tab. One window-level handler; CodeMirror has its own highest-
+  // precedence bindings to the same actions (and marks the event handled, so the
+  // action never runs twice). All are no-ops while a modal is open.
+  const modalOpen = () => !!document.querySelector(".modal-backdrop");
+  const tabsUsable = () => pane() === "editor" && canUseTabShortcut({ modalOpen: modalOpen(), tabCount: tabs()?.state.tabs.length ?? 0 });
+  setShortcutHandlers({
+    send: () => {
+      const t = tabs();
+      const active = t?.active();
+      if (!t || !active || pane() !== "editor") return;
+      if (!canSendShortcut({ activeKind: active.kind, modalOpen: modalOpen(), sending: active.sending })) return;
+      void t.send(active.id);
+    },
+    next: () => tabsUsable() && tabs()!.cycle(1),
+    prev: () => tabsUsable() && tabs()!.cycle(-1),
+    close: () => {
+      const key = tabs()?.state.activeKey;
+      if (tabsUsable() && key) void tabs()!.close(key);
+    },
   });
   onMount(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.defaultPrevented || !isSendShortcut(e)) return;
-      e.preventDefault();
-      triggerSend();
+      const action = shortcutAction(e);
+      if (!action || e.defaultPrevented) return; // handled already (by a CodeMirror binding)
+      e.preventDefault(); // the webview must not act on Ctrl+W / Ctrl+Tab itself
+      runShortcut(action);
     };
     window.addEventListener("keydown", onKey);
     onCleanup(() => {
       window.removeEventListener("keydown", onKey);
-      setSendShortcutHandler(undefined);
+      setShortcutHandlers({});
     });
   });
 

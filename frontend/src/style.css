@@ -1,17 +1,6 @@
+/* Non-color tokens. Colors live in tokens.css only. */
 :root {
-  --bg: #16181d;
-  --panel: #1e2128;
-  --border: #2c313b;
-  --text: #e3e6ec;
-  --muted: #8b93a3;
-  --accent: #6c8cff;
-  --ok: #4cc38a;
-  --redirect: #5aa9e6;
-  --client: #e6b450;
-  --server: #f06a6a;
-  --danger: #d9534f;
   --mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, "DejaVu Sans Mono", monospace;
-  color-scheme: dark;
 }
 
 * {
@@ -98,7 +87,7 @@ button:focus-visible {
 .send {
   background: var(--accent);
   border-color: var(--accent);
-  color: #0d1020;
+  color: var(--on-accent);
   font-weight: 600;
   padding: 8px 20px;
   cursor: pointer;
@@ -156,7 +145,7 @@ button:focus-visible {
   margin: 0;
   padding: 6px 10px;
   border-left: 3px solid var(--client);
-  background: rgba(230, 180, 80, 0.08);
+  background: var(--client-soft);
 }
 
 .error {
@@ -165,7 +154,7 @@ button:focus-visible {
   gap: 4px;
   padding: 10px 12px;
   border-left: 3px solid var(--server);
-  background: rgba(240, 106, 106, 0.08);
+  background: var(--server-soft);
 }
 
 .error strong {
@@ -222,7 +211,7 @@ button:focus-visible {
 }
 
 .history button:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--hover);
 }
 
 .history-method {
@@ -294,7 +283,7 @@ button:focus-visible {
 button.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #0d1020;
+  color: var(--on-accent);
   font-weight: 600;
   cursor: pointer;
 }
@@ -302,7 +291,7 @@ button.primary {
 button.danger {
   background: var(--danger);
   border-color: var(--danger);
-  color: #fff;
+  color: var(--on-danger);
   font-weight: 600;
   cursor: pointer;
 }
@@ -346,7 +335,7 @@ button.link:hover {
   margin: 0;
   padding: 8px 10px;
   border-left: 3px solid var(--server);
-  background: rgba(240, 106, 106, 0.08);
+  background: var(--server-soft);
   color: var(--server);
 }
 
@@ -354,7 +343,7 @@ button.link:hover {
   margin: 0;
   padding: 8px 10px;
   border-left: 3px solid var(--client);
-  background: rgba(230, 180, 80, 0.08);
+  background: var(--client-soft);
 }
 
 code {
@@ -369,7 +358,7 @@ code {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--backdrop);
 }
 
 .modal-actions {
@@ -417,7 +406,7 @@ code {
 .badge.count {
   background: var(--accent);
   border-color: var(--accent);
-  color: #0d1020;
+  color: var(--on-accent);
   font-weight: 700;
 }
 
@@ -703,7 +692,7 @@ button.danger-outline {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 8px 24px var(--shadow);
 }
 
 
@@ -728,11 +717,11 @@ button.danger-outline {
 }
 
 .menu-item:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--hover);
 }
 
 .menu-item.selected {
-  background: rgba(108, 140, 255, 0.16);
+  background: var(--accent-soft);
 }
 
 .menu-item.accent {
@@ -785,7 +774,7 @@ button.danger-outline {
   height: 32px;
   border-radius: 50%;
   background: var(--accent);
-  color: #0d1020;
+  color: var(--on-accent);
   font-size: 12px;
   font-weight: 700;
 }
@@ -869,11 +858,11 @@ button.danger-outline {
 }
 
 .tree-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--hover);
 }
 
 .tree-row.selected {
-  background: rgba(108, 140, 255, 0.16);
+  background: var(--accent-soft);
 }
 
 .chevron {
@@ -939,7 +928,7 @@ button.danger-outline {
 
 .row-menu-trigger:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--hover-strong);
 }
 
 .row-menu-trigger.add {
@@ -958,13 +947,13 @@ button.danger-outline {
   text-align: left;
 }
 
-.method-GET { color: var(--ok); }
-.method-POST { color: var(--client); }
-.method-PUT { color: var(--redirect); }
-.method-PATCH { color: #b48cff; }
-.method-DELETE { color: var(--server); }
+.method-GET { color: var(--method-get); }
+.method-POST { color: var(--method-post); }
+.method-PUT { color: var(--method-put); }
+.method-PATCH { color: var(--method-patch); }
+.method-DELETE { color: var(--method-delete); }
 .method-HEAD,
-.method-OPTIONS { color: var(--muted); }
+.method-OPTIONS { color: var(--method-other); }
 
 .request-line {
   display: flex;
@@ -1022,7 +1011,7 @@ button.danger-outline {
 }
 
 .tab:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--hover);
 }
 
 .tab.active {
@@ -1064,7 +1053,7 @@ button.danger-outline {
 }
 
 .tab-close:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--hover-strong);
   color: var(--text);
 }
 
@@ -1248,7 +1237,7 @@ button.danger-outline {
 }
 
 .segmented button.active {
-  background: rgba(108, 140, 255, 0.18);
+  background: var(--accent-soft);
   color: var(--text);
 }
 
@@ -1290,7 +1279,7 @@ button.danger-outline {
 }
 
 .split-divider:hover {
-  background: rgba(108, 140, 255, 0.25);
+  background: var(--accent-strong);
 }
 
 .response-view {
@@ -1374,9 +1363,9 @@ button.danger-outline {
 }
 
 .cm-var-resolved {
-  background: rgba(76, 195, 138, 0.18);
+  background: var(--ok-soft);
   color: var(--ok) !important;
-  box-shadow: inset 0 0 0 1px rgba(76, 195, 138, 0.45);
+  box-shadow: inset 0 0 0 1px var(--ok-line);
 }
 
 .cm-var-resolved * {
@@ -1386,7 +1375,7 @@ button.danger-outline {
 .cm-var-unresolved {
   background: transparent;
   color: var(--client) !important;
-  box-shadow: inset 0 0 0 1px rgba(230, 180, 80, 0.7);
+  box-shadow: inset 0 0 0 1px var(--client-line);
 }
 
 .cm-var-unresolved * {
@@ -1408,7 +1397,7 @@ button.danger-outline {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 6px 20px var(--shadow);
   color: var(--text);
   font: 12px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
 }
@@ -1507,7 +1496,7 @@ button.danger-outline {
 
 .url-editor-host .cm-selectionBackground,
 .url-editor-host .cm-editor.cm-focused .cm-selectionBackground {
-  background: rgba(108, 140, 255, 0.35) !important;
+  background: var(--selection) !important;
 }
 
 .url-editor-host .cm-placeholder {
@@ -1565,7 +1554,7 @@ button.danger-outline {
 }
 
 .env-item.selected {
-  background: rgba(108, 140, 255, 0.16);
+  background: var(--accent-soft);
 }
 
 .env-name {
@@ -1726,7 +1715,7 @@ button.danger-outline {
   opacity: 1;
   outline: 1px solid var(--accent);
   background: var(--panel);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 4px 14px var(--shadow);
   cursor: grabbing;
   transition: none;
 }
@@ -1754,4 +1743,110 @@ button.danger-outline {
 
 .env-list.wide {
   width: min(520px, 100%);
+}
+
+/* ---- Refinements 2: table cells as editors, tooltip editing, tab menu ---- */
+
+.var-cell {
+  position: relative;
+  min-width: 0;
+}
+
+.var-cell-display,
+.var-cell-host .cm-editor {
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--panel);
+  font: 13px/1.45 var(--mono);
+}
+
+.var-cell-display {
+  padding: 5px 8px;
+  overflow: hidden;
+  white-space: pre;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+
+.var-cell-display:hover,
+.var-cell-host .cm-editor:hover {
+  border-color: var(--border);
+}
+
+.var-cell-display:focus {
+  outline: none;
+}
+
+.var-cell-placeholder {
+  color: var(--muted);
+}
+
+.var-cell-host .cm-editor {
+  padding: 0 8px;
+}
+
+.var-cell-host .cm-editor.cm-focused {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.var-cell-host .cm-scroller {
+  font: 13px/1.45 var(--mono);
+  overflow: hidden;
+}
+
+.var-cell-host .cm-content {
+  padding: 5px 0;
+}
+
+.var-cell-host .cm-line {
+  padding: 0;
+}
+
+.kv-table tr.ghost .var-cell-display,
+.kv-table tr.ghost .var-cell-host .cm-editor {
+  background: transparent;
+}
+
+.kv-table tr.disabled .var-cell-display,
+.kv-table tr.disabled .var-cell-host .cm-content {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.var-tooltip-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.var-tooltip-btn {
+  padding: 1px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.var-tooltip-input {
+  width: 100%;
+  padding: 4px 6px;
+  font: 12px var(--mono);
+  background: var(--bg);
+}
+
+.var-tooltip.is-editing {
+  min-width: 260px;
+}
+
+.var-tooltip-error:empty {
+  display: none;
+}
+
+.var-tooltip-error {
+  color: var(--server);
+  font-size: 11px;
+}
+
+.tab-menu {
+  min-width: 170px;
 }

@@ -2,12 +2,15 @@ import { createSignal, onMount, Show } from "solid-js";
 import { GetSettings, SetServerURL } from "../../wailsjs/go/main/App";
 import { authState, setAuthState } from "../authStore";
 import FormError from "./FormError";
+import { setThemePref, themePref } from "../themeStore";
+import { asPref } from "../theme";
 
 interface Props {
   onClose: () => void;
 }
 
 export default function SettingsModal(props: Props) {
+  const [themeError, setThemeError] = createSignal<string>();
   const [original, setOriginal] = createSignal("");
   const [url, setUrl] = createSignal("");
   const [confirming, setConfirming] = createSignal(false);
@@ -59,6 +62,18 @@ export default function SettingsModal(props: Props) {
       <form class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" onSubmit={save}
         onKeyDown={(e) => e.key === "Escape" && props.onClose()}>
         <h2 id="settings-title">Settings</h2>
+        <label class="field">
+          <span>Theme</span>
+          <select aria-label="Theme" value={themePref()} onChange={(e) => {
+            const v = asPref(e.currentTarget.value);
+            void setThemePref(v).then((err) => setThemeError(err));
+          }}>
+            <option value="system">System</option>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select>
+        </label>
+        <FormError message={themeError()} />
         <label class="field">
           <span>Server URL</span>
           <input type="text" spellcheck={false} autofocus value={url()} disabled={confirming()}

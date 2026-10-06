@@ -1,5 +1,6 @@
 import { Index } from "solid-js";
 import { editRow, isGhost, newRow, removeRow, Row, toggleRow } from "../rows";
+import VarCell from "./VarCell";
 
 interface Props {
   rows: Row[];
@@ -12,7 +13,8 @@ const GHOST = newRow();
 
 // Editable key/value rows (headers, query params, form fields) with a trailing
 // empty row that becomes real as soon as you type into it. <Index> keeps each
-// row's inputs in place while typing, so focus and caret never jump.
+// row's cells in place while typing, so focus and caret never jump. Cells are
+// VarCells: {{var}} highlighting + hover, with a CodeMirror editor mounted lazily.
 export default function KeyValueTable(props: Props) {
   const items = () => [...props.rows, GHOST];
 
@@ -32,12 +34,12 @@ export default function KeyValueTable(props: Props) {
                     onChange={() => props.onChange(toggleRow(props.rows, i))} />
                 </td>
                 <td>
-                  <input type="text" spellcheck={false} placeholder={props.keyPlaceholder ?? "Key"} value={row().key}
-                    onInput={(e) => props.onChange(editRow(props.rows, i, { key: e.currentTarget.value }))} />
+                  <VarCell value={row().key} placeholder={props.keyPlaceholder ?? "Key"} ariaLabel={props.keyPlaceholder ?? "Key"}
+                    onChange={(text) => props.onChange(editRow(props.rows, i, { key: text }))} />
                 </td>
                 <td>
-                  <input type="text" spellcheck={false} placeholder={props.valuePlaceholder ?? "Value"} value={row().value}
-                    onInput={(e) => props.onChange(editRow(props.rows, i, { value: e.currentTarget.value }))} />
+                  <VarCell value={row().value} placeholder={props.valuePlaceholder ?? "Value"} ariaLabel={props.valuePlaceholder ?? "Value"}
+                    onChange={(text) => props.onChange(editRow(props.rows, i, { value: text }))} />
                 </td>
                 <td class="kv-remove">
                   <button type="button" class="icon-button" title="Remove row" aria-label="Remove row"

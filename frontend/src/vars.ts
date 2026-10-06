@@ -6,6 +6,7 @@
 // Keep vars.test.ts in step with internal/engine/resolve_test.go.
 
 export interface VarInfo {
+  id?: string; // the variable's id (needed to edit it from a tooltip)
   key: string;
   value: string;
   secret: boolean;
@@ -15,6 +16,7 @@ export interface VarInfo {
 // What the highlighter knows about the active environment. envName === null means
 // "No environment".
 export interface EnvDisplay {
+  envId?: string;
   envName: string | null;
   vars: Map<string, VarInfo>;
 }
@@ -85,3 +87,66 @@ export function tooltipModel(key: string, env: EnvDisplay): TooltipModel {
 }
 
 export const NO_ENV: EnvDisplay = { envName: null, vars: new Map() };
+
+// ---- Plain rendering (table cells before their editor is mounted) ----
+
+export interface Segment {
+  text: string;
+  kind: "plain" | "resolved" | "unresolved";
+}
+
+// Splits text into plain runs and {{tokens}} classified like the editor does.
+export function segments(text: string, env: EnvDisplay): Segment[] {
+  const out: Segment[] = [];
+  let last = 0;
+  for (const t of classify(text, env)) {
+    if (t.from > last) out.push({ text: text.slice(last, t.from), kind: "plain" });
+    out.push({ text: text.slice(t.from, t.to), kind: t.resolved ? "resolved" : "unresolved" });
+    last = t.to;
+  }
+  if (last < text.length) out.push({ text: text.slice(last), kind: "plain" });
+  return out;
+}
+
+// ---- Editing from the hover tooltip ----
+
+export interface TooltipActions {
+  edit: boolean; // the value can be edited inline right away
+  editAfterReveal: boolean; // secret with a value: edit is offered once it is revealed
+  createIn?: string; // unresolved with an active env: "Create in <env>"
+}
+
+export function tooltipActions(key: string, env: EnvDisplay): TooltipActions {
+  const v = env.vars.get(key);
+  if (env.envName === null || !env.envId) return { edit: false, editAfterReveal: false };
+  if (!v) return { edit: false, editAfterReveal: false, createIn: env.envName };
+  if (v.secret) return { edit: !v.hasValue, editAfterReveal: v.hasValue }; // an unset secret can be set directly
+  return { edit: true, editAfterReveal: false };
+}
+
+// The bound calls a tooltip edit goes through — the same ones the env tab uses.
+export interface VarEditApi {
+  setValue: (envId: string, varId: string, value: string) => Promise<{ error?: { message: string } }>;
+  create: (envId: string, key: string, type: string) => Promise<{ data?: { id: string } | null; error?: { message: string } }>;
+  refresh: () => Promise<unknown>;
+}
+
+// Saves a value typed into the tooltip. Go routes it: server for regular
+// variables, this machine only for secrets. Returns an error message or undefined.
+export async function saveFromTooltip(key: string, value: string, env: EnvDisplay, impl: VarEditApi): Promise<string | undefined> {
+  const v = env.vars.get(key);
+  if (!env.envId || !v?.id) return "variable not found";
+  const res = await impl.setValue(env.envId, v.id, value);
+  if (res.error) return res.error.message;
+  await impl.refresh();
+  return undefined;
+}
+
+// "Create in <env>": a regular variable with no value yet; returns its id.
+export async function createFromTooltip(key: string, env: EnvDisplay, impl: VarEditApi): Promise<{ id?: string; error?: string }> {
+  if (!env.envId) return { error: "no environment selected" };
+  const res = await impl.create(env.envId, key, "regular");
+  if (res.error || !res.data) return { error: res.error?.message ?? "could not create the variable" };
+  await impl.refresh();
+  return { id: res.data.id };
+}

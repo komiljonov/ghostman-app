@@ -114,6 +114,10 @@ export function GetTeam(arg1) {
   return window['go']['main']['App']['GetTeam'](arg1);
 }
 
+export function GetTheme() {
+  return window['go']['main']['App']['GetTheme']();
+}
+
 export function GetTreeState(arg1) {
   return window['go']['main']['App']['GetTreeState'](arg1);
 }
@@ -252,6 +256,10 @@ export function SetServerURL(arg1) {
 
 export function SetTabs(arg1, arg2) {
   return window['go']['main']['App']['SetTabs'](arg1, arg2);
+}
+
+export function SetTheme(arg1) {
+  return window['go']['main']['App']['SetTheme'](arg1);
 }
 
 export function SetTreeState(arg1, arg2) {

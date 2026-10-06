@@ -5,7 +5,7 @@ import { handleProblem } from "./authStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
 import { Row } from "./rows";
 import { restoreTabs, saveTabs, TabStorage } from "./tabPersistence";
-import { ENV_LIST, reorder, sameTab, syncEnvTabs, TabKind, TabRef, tabKey } from "./tabModel";
+import { closeEach, CloseMode, cycleKey, ENV_LIST, reorder, sameTab, syncEnvTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
 
 export const AUTOSAVE_DELAY_MS = 600;
 
@@ -258,6 +258,18 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       saver?.dispose();
       closing.delete(id);
       bases.delete(id);
+    },
+
+    // Tab context menu: Close / Close Others / Close All, each through close() (which
+    // flushes that tab's pending edits and persists).
+    async closeMany(target: string, mode: CloseMode) {
+      await closeEach(tabsToClose(state.tabs.map((t) => t.key), target, mode), (k) => controller.close(k));
+    },
+
+    // Ctrl+Tab / Ctrl+Shift+Tab: next/previous tab in bar order, wrapping.
+    cycle(dir: 1 | -1) {
+      const next = cycleKey(state.tabs.map((t) => t.key), state.activeKey, dir);
+      if (next && next !== state.activeKey) controller.activate(next);
     },
 
     // Drag & drop: move the tab at `from` to insertion slot `drop` (see tabModel.reorder).

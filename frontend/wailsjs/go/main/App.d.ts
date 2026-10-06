@@ -60,6 +60,8 @@ export function GetTabs(arg1:string):Promise<main.Tabs>;
 
 export function GetTeam(arg1:string):Promise<main.TeamResult>;
 
+export function GetTheme():Promise<string>;
+
 export function GetTreeState(arg1:string):Promise<Array<string>>;
 
 export function ListFolders(arg1:string):Promise<main.FolderListResult>;
@@ -129,6 +131,8 @@ export function SetSecretValue(arg1:string,arg2:string,arg3:string):Promise<main
 export function SetServerURL(arg1:string):Promise<session.Result>;
 
 export function SetTabs(arg1:string,arg2:main.Tabs):Promise<main.EmptyResult>;
+
+export function SetTheme(arg1:string):Promise<main.EmptyResult>;
 
 export function SetTreeState(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
 

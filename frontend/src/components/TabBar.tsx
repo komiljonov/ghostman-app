@@ -2,6 +2,7 @@ import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { dropSlot } from "../tabModel";
 import { TabsController, TabState } from "../tabsController";
 import MethodBadge from "./MethodBadge";
+import TabContextMenu from "./TabContextMenu";
 
 interface Props {
   controller: TabsController;
@@ -16,6 +17,7 @@ export default function TabBar(props: Props) {
   let bar!: HTMLDivElement;
   const [drag, setDrag] = createSignal<{ key: string; from: number; dx: number; slot: number }>();
   let suppressClick = false;
+  const [menu, setMenu] = createSignal<{ key: string; x: number; y: number }>();
 
   const tabElements = () => [...bar.querySelectorAll<HTMLElement>(".tab")];
 
@@ -92,6 +94,10 @@ export default function TabBar(props: Props) {
               props.controller.activate(tab.key);
             }}
             onMouseDown={(e) => e.button === 1 && e.preventDefault()}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setMenu({ key: tab.key, x: e.clientX, y: e.clientY });
+            }}
             onAuxClick={(e) => {
               if (e.button === 1) void props.controller.close(tab.key);
             }}>
@@ -119,6 +125,12 @@ export default function TabBar(props: Props) {
         )}
       </For>
       <Show when={indicatorAtEnd()}><div class="drop-end" aria-hidden="true" /></Show>
+      <Show when={menu()}>
+        {(m) => (
+          <TabContextMenu x={m().x} y={m().y} onClose={() => setMenu(undefined)}
+            onPick={(mode) => void props.controller.closeMany(m().key, mode)} />
+        )}
+      </Show>
     </div>
   );
 }

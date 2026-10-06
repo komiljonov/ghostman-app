@@ -43,7 +43,7 @@ export const envDisplay = createRoot(() => createMemo<EnvDisplay>(() => {
   if (!ctx || !ctx.active_id) return NO_ENV;
   const vars = new Map<string, VarInfo>();
   for (const v of ctx.variables) {
-    vars.set(v.key, { key: v.key, value: v.value, secret: v.type === "secret", hasValue: v.has_value });
+    vars.set(v.key, { id: v.id, key: v.key, value: v.value, secret: v.type === "secret", hasValue: v.has_value });
   }
-  return { envName: ctx.active_name, vars };
+  return { envId: ctx.active_id, envName: ctx.active_name, vars };
 }));
