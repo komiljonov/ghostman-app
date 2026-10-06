@@ -23,6 +23,9 @@
   --redirect: #5aa9e6;
   --client: #e6b450;
   --server: #f06a6a;
+  --warn: var(--client);
+  /* HTML response preview: always a white page, like a browser (both themes). */
+  --preview-bg: #ffffff;
 
   /* Tints */
   --hover: rgba(255, 255, 255, 0.04);
@@ -80,6 +83,8 @@
   --redirect: #1b67b0;
   --client: #9a6200;
   --server: #c4302b;
+  --warn: var(--client);
+  --preview-bg: #ffffff;
 
   --hover: rgba(15, 25, 45, 0.04);
   --hover-strong: rgba(15, 25, 45, 0.08);

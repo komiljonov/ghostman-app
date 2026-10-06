@@ -125,6 +125,15 @@ func (a *App) UpdateRequest(id string, patch api.RequestPatch) RequestResult {
 	return RequestResult{Data: ptr(v, p), Error: p}
 }
 
+// DuplicateRequest copies a request into its folder as "<name> copy" (see
+// api.DuplicateRequest: composed from get/create/update, rolled back on failure).
+func (a *App) DuplicateRequest(id string) RequestSummaryResult {
+	v, p := call(a, func(ctx context.Context, c *api.APIClient) (api.RequestSummary, error) {
+		return c.DuplicateRequest(ctx, id)
+	})
+	return RequestSummaryResult{Data: ptr(v, p), Error: p}
+}
+
 // MoveRequest moves a request into folderID ("" = project root).
 func (a *App) MoveRequest(id, folderID string) RequestSummaryResult {
 	v, p := call(a, func(ctx context.Context, c *api.APIClient) (api.RequestSummary, error) {

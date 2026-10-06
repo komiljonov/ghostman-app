@@ -65,15 +65,38 @@ Postman-style shell, logged in:
   tested) from ONE ListFolders + ONE ListRequests call and rebuilt after every mutation;
   rows are keyed by id and expansion is per-node state (persisted locally under
   `ui_tree_state_<project_id>`), so expand/collapse never rebuilds the tree. Row actions live
-  in a ⋯ / right-click menu; "+" at the top creates at the project root.
+  in the shared context menu (⋯ or right-click); "+" at the top creates at the project root.
+  Rows: indent 16 px per level · chevron + folder icon (folders) or the method badge in the
+  same 36 px column (requests) · name, so names align per depth.
+  The sidebar is **resizable**: a handle on its right edge (180 px to half the window,
+  double-click → 260 px) rewrites only the `--sidebar-width` CSS variable while dragging
+  (no re-render) and saves once on release (`ui_sidebar_width`, bound `SetSidebarWidth`;
+  `GetUIPrefs` on startup, `src/uiPrefs.ts`).
+- **Tree selection & keys** (`src/treeNav.ts`, unit tested): click selects, and the selection
+  follows the active request tab. With the tree focused: Up/Down move, Right expands/enters,
+  Left collapses/goes to the parent, Enter opens (or toggles a folder), Home/End, Shift+F10
+  opens the row menu; **Ctrl+E** inline rename, **Del** delete (existing confirm), **Ctrl+D**
+  duplicate (requests only; no-op on folders). Never while the rename input, any input or
+  editor has focus, or a modal is open (`canUseTreeKeys`).
+- **Duplicate request** is one bound Go call, `DuplicateRequest` (`api.DuplicateRequest`):
+  get → create "<name> copy" in the same folder → patch method/url/headers/params/body; if a
+  step after the create fails, the half-made copy is deleted and one error is returned. The UI
+  then re-fetches the tree and selects + opens the copy (`src/treeActions.ts`).
+- **Context menu**: one component, `ContextMenu.tsx`, for tree rows and tabs. Its top-left
+  corner sits at the pointer and it flips per axis at the window's right/bottom edge so a
+  corner stays on the cursor (`src/menuPosition.ts`, unit tested); compact (13 px, icon +
+  label + right-aligned shortcut hint, separators, 160–240 px). It owns the keyboard while
+  open (Up/Down/Enter/Escape; key events stop there — Solid delegation would otherwise
+  bubble them out of the Portal into the owner, e.g. the tree).
 - **Env switcher** (top bar, right side, left of the profile badge): "No environment", the
   project's environments (a pencil on each opens it in an env tab), "Manage environments…"
   (opens the environments list tab). The active environment is per project
   (`active_env_<project_id>`), validated on load.
 - **Main pane**: the **tabs** by default, or Team settings / Project settings / Invitations
   when opened. Empty state without tabs. Tabs are typed (`src/tabModel.ts`):
-  `request` (method, URL, Send / Cancel, save indicator; Params | Headers | Body; response
-  below a draggable divider), `env` (that environment's variables table) and `env_list`
+  `request` (method | URL (stretches) | Send / Cancel in one fixed slot at the far right;
+  Params | Headers | Body with the save status at the row's right end; response below a
+  draggable divider), `env` (that environment's variables table) and `env_list`
   (create / rename / reorder / delete environments). There is no separate environments page.
 - **Tabs** are per project, persisted as typed refs in tab-bar order (`ui_tabs_<project_id>`;
   the old bare-id format is read as request tabs and rewritten) and restored on startup (gone
@@ -94,11 +117,25 @@ Postman-style shell, logged in:
   one PATCH with only the changed fields (built in Go: `api.BuildRequestPatch`, which drops
   keyless rows), one save in flight per tab with last write winning, flushed on tab
   close/switch, project switch, Send, and window close (Go's OnBeforeClose asks the UI to
-  flush, then `ConfirmQuit`). A failed save keeps the edits and shows "Not saved — retry".
+  flush, then `ConfirmQuit`). Status (`SaveIndicator`): dot + muted "Saved", amber
+  "Saving…", red "Not saved — retry" (click retries; the tab also shows a red dot). A failed
+  save keeps the edits.
 - **Sending** happens in Go (`internal/engine`): enabled rows only, query params appended to
   any query already in the URL, raw/form body with its Content-Type unless a header sets one,
-  JSON responses pretty-printed in Go, 256 KB cap, cancellable per request. Response state is
-  per tab and never persisted.
+  JSON responses pretty-printed in Go (`rawBody` carries the original, only then), 256 KB cap,
+  cancellable per request. Response state is per tab and never persisted.
+- **Response pane** (`ResponseView.tsx`, rules in `src/responseView.ts`): one toolbar row —
+  Body | Headers left; right: Pretty | Raw | Preview, Wrap, then status · duration · size in
+  fixed slots. Pretty only for formatted JSON; **Preview only for `text/html`**, rendered in an
+  iframe with an **empty `sandbox`** (no scripts, opaque origin), `srcdoc` = the truncated
+  body, `referrerpolicy=no-referrer`, white page in both themes (absolute URLs load, relative
+  ones break — accepted). A new response resets the view (Preview for HTML, Pretty for JSON,
+  else Raw); Wrap is global (`ui_response_wrap`).
+- **Controls never vanish or move on a mode/type switch**: what does not apply is disabled
+  (muted, tooltip says why), not hidden — response toolbar, body content-type controls,
+  Send/Cancel slot. New UI follows the same rule.
+- **Icons**: inline SVGs on a 16 px grid in `components/Icon.tsx` (one component, `currentColor`,
+  no icon font or package). Add shapes there; no text glyphs as icons.
 - **`{{var}}` resolution** happens in Go at send time (`internal/engine/resolve.go` is the
   single source of truth, with its spec comment and table test): exact, case-sensitive
   keys; unknown keys and secrets without a local value stay literal and are reported
@@ -139,6 +176,7 @@ editor.go                bound editor methods: SaveRequest (autosave patch), Sen
                          GetTabs/SetTabs (typed tab refs, legacy migration), quit handshake
 environments.go          bound environment/variable methods + local secret access
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
+uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
 ui_tokens_test.go        fails on color literals outside frontend/src/tokens.css
 internal/engine/         HTTP request engine (the product core)
 internal/api/            typed client for the Ghostman server API (/api/v1)

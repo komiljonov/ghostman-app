@@ -1,8 +1,9 @@
 import { createSignal, For, Match, Show, Switch } from "solid-js";
-import { dropSlot } from "../tabModel";
+import { CloseMode, dropSlot } from "../tabModel";
 import { TabsController, TabState } from "../tabsController";
 import MethodBadge from "./MethodBadge";
-import TabContextMenu from "./TabContextMenu";
+import ContextMenu, { MenuEntry } from "./ContextMenu";
+import Icon from "./Icon";
 
 interface Props {
   controller: TabsController;
@@ -18,6 +19,17 @@ export default function TabBar(props: Props) {
   const [drag, setDrag] = createSignal<{ key: string; from: number; dx: number; slot: number }>();
   let suppressClick = false;
   const [menu, setMenu] = createSignal<{ key: string; x: number; y: number }>();
+
+  // Values captured now: the menu closes (and its accessor dies) before the pick runs.
+  const menuItems = (key: string): MenuEntry[] => {
+    const close = (mode: CloseMode) => () => void props.controller.closeMany(key, mode);
+    return [
+      { label: "Close", icon: "close", hint: "Ctrl+W", onSelect: close("close") },
+      "separator",
+      { label: "Close Others", onSelect: close("others"), disabled: props.controller.state.tabs.length < 2 },
+      { label: "Close All", onSelect: close("all") },
+    ];
+  };
 
   const tabElements = () => [...bar.querySelectorAll<HTMLElement>(".tab")];
 
@@ -111,7 +123,7 @@ export default function TabBar(props: Props) {
                 <span class="env-chip">ENV</span>
               </Match>
               <Match when={tab.kind === "env_list"}>
-                <span class="env-chip">⚙</span>
+                <span class="env-chip"><Icon name="settings" size={12} /></span>
               </Match>
             </Switch>
             <span class="tab-name">{tab.name || "Loading…"}</span>
@@ -120,15 +132,15 @@ export default function TabBar(props: Props) {
               onClick={(e) => {
                 e.stopPropagation();
                 void props.controller.close(tab.key);
-              }}>×</button>
+              }}><Icon name="close" size={14} /></button>
           </div>
         )}
       </For>
       <Show when={indicatorAtEnd()}><div class="drop-end" aria-hidden="true" /></Show>
       <Show when={menu()}>
         {(m) => (
-          <TabContextMenu x={m().x} y={m().y} onClose={() => setMenu(undefined)}
-            onPick={(mode) => void props.controller.closeMany(m().key, mode)} />
+          <ContextMenu x={m().x} y={m().y} label="Tab actions" onClose={() => setMenu(undefined)}
+            items={menuItems(m().key)} />
         )}
       </Show>
     </div>

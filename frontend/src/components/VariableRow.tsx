@@ -6,6 +6,7 @@ import { createAutosaver, SaveState } from "../autosave";
 import { handleProblem } from "../authStore";
 import ConfirmDialog from "./ConfirmDialog";
 import SecretInput from "./SecretInput";
+import Icon from "./Icon";
 
 interface Props {
   envId: string;
@@ -127,7 +128,7 @@ export default function VariableRow(props: Props) {
         <button type="button" class="small-button" title="Move down" aria-label="Move down" disabled={props.last || move.pending()}
           onClick={() => void doMove(1)}>↓</button>
         <button type="button" class="icon-button" title="Delete variable" aria-label="Delete variable" disabled={del.pending()}
-          onClick={() => void doDelete()}>×</button>
+          onClick={() => void doDelete()}><Icon name="trash" size={14} /></button>
         <Show when={error()}><div class="inline-error">{error()}</div></Show>
       </td>
       <Show when={confirmRegular()}>

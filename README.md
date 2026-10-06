@@ -19,7 +19,9 @@ they are never sent to the server. `{{KEY}}` tokens are highlighted in the URL, 
 params/headers/form tables; hovering one shows its value and lets you edit it in place (secrets
 after Reveal, saved locally only) or create a missing one in the active environment.
 Keyboard: Ctrl+Enter (Cmd+Enter on macOS) sends the active request, Ctrl+Tab / Ctrl+Shift+Tab
-switch tabs, Ctrl+W closes the active tab. Tabs can be reordered by dragging; right-click a tab
+switch tabs, Ctrl+W closes the active tab. In the sidebar tree: arrow keys select, Enter opens,
+Ctrl+E renames, Del deletes, Ctrl+D duplicates a request. The sidebar is resizable (drag its
+edge; double-click to reset). HTML responses can be previewed in a sandboxed frame (no scripts). Tabs can be reordered by dragging; right-click a tab
 for Close / Close Others / Close All. Settings has a System / Dark / Light theme.
 
 The window is laid out Postman-style: a top bar with team and project switchers (their menus

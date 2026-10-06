@@ -3,6 +3,7 @@ import { CancelRequest, GetRequest, GetTabs, SaveRequest, SendRequest, SetTabs }
 import { api, engine, main } from "../wailsjs/go/models";
 import { handleProblem } from "./authStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
+import { BodyView, defaultView } from "./responseView";
 import { Row } from "./rows";
 import { restoreTabs, saveTabs, TabStorage } from "./tabPersistence";
 import { closeEach, CloseMode, cycleKey, ENV_LIST, reorder, sameTab, syncEnvTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
@@ -43,7 +44,8 @@ export interface TabState {
   // View state (not saved anywhere).
   section: "params" | "headers" | "body";
   responseSection: "body" | "headers";
-  wrap: boolean;
+  // Pretty | Raw | Preview; reset to the response's default on every new response.
+  responseView: BodyView;
   responseShare: number; // fraction of the editor height given to the response
 }
 
@@ -104,7 +106,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
 
   const newTab = (ref: TabRef, name: string, status: TabState["status"]): TabState => ({
     kind: ref.kind, id: ref.id, key: tabKey(ref), name, status, draft: emptyDraft(), save: "idle", sending: false,
-    unresolved: [], section: "params", responseSection: "body", wrap: true, responseShare: 0.45,
+    unresolved: [], section: "params", responseSection: "body", responseView: "raw", responseShare: 0.45,
   });
   const addTab = (ref: TabRef, name: string, status: TabState["status"]) => {
     if (byKey(tabKey(ref))) return;
@@ -309,6 +311,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       update(id, (t) => {
         t.sending = false;
         t.response = result.data ?? undefined;
+        if (result.data) t.responseView = defaultView(result.data);
         t.responseError = result.error?.message;
         t.unresolved = result.unresolved ?? [];
       });

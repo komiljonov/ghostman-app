@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
 import { envContext, refreshEnvContext, selectEnvironment } from "../envStore";
 import Dropdown from "./Dropdown";
+import Icon from "./Icon";
 
 interface Props {
   disabled: boolean; // no project selected
@@ -53,7 +54,7 @@ export default function EnvSwitcher(props: Props) {
                     e.stopPropagation();
                     close();
                     props.onEdit(env.id, env.name);
-                  }}>✎</button>
+                  }}><Icon name="pencil" size={14} /></button>
               </div>
             )}
           </For>

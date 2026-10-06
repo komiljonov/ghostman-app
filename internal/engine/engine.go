@@ -74,6 +74,9 @@ type Response struct {
 	ContentType string `json:"contentType"`
 	// Formatted is true when Body was pretty-printed (valid, untruncated JSON).
 	Formatted bool `json:"formatted"`
+	// RawBody is the body exactly as received, set only when Formatted (for the
+	// Raw view); otherwise Body already is the raw text. Both are within the cap.
+	RawBody string `json:"rawBody,omitempty"`
 }
 
 // Engine sends requests. It is safe for concurrent use.
@@ -126,8 +129,10 @@ func (e *Engine) SendRequest(ctx context.Context, spec RequestSpec) (*Response, 
 
 	contentType := resp.Header.Get("Content-Type")
 	formatted := false
+	rawBody := ""
 	if !truncated && isJSONContentType(contentType) {
 		if pretty, ok := prettyJSON(body); ok {
+			rawBody = string(body)
 			body, formatted = pretty, true
 		}
 	}
@@ -143,6 +148,7 @@ func (e *Engine) SendRequest(ctx context.Context, spec RequestSpec) (*Response, 
 		Truncated:   truncated,
 		ContentType: contentType,
 		Formatted:   formatted,
+		RawBody:     rawBody,
 	}, nil
 }
 

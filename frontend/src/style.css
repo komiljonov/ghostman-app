@@ -379,7 +379,9 @@ code {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 240px;
+  /* Set by SidebarResizer / uiPrefs.ts (persisted as ui_sidebar_width). */
+  width: var(--sidebar-width, 260px);
+  box-sizing: border-box; /* the variable is the full width, padding and border included */
   flex-shrink: 0;
   padding: 12px 8px;
   border-right: 1px solid var(--border);
@@ -819,7 +821,6 @@ button.danger-outline {
 /* ---- Project tree (sidebar) ---- */
 
 .tree-sidebar {
-  width: 280px;
   padding: 8px 4px;
   gap: 4px;
 }
@@ -863,17 +864,6 @@ button.danger-outline {
 
 .tree-row.selected {
   background: var(--accent-soft);
-}
-
-.chevron {
-  width: 10px;
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.folder-icon {
-  color: var(--client);
-  font-size: 11px;
 }
 
 .tree-label {
@@ -1091,16 +1081,6 @@ button.danger-outline {
   background: transparent;
   color: var(--server);
   border-color: var(--server);
-}
-
-.save-indicator {
-  min-width: 118px;
-  font-size: 12px;
-  text-align: right;
-}
-
-.save-indicator .saved {
-  color: var(--muted);
 }
 
 .not-saved {
@@ -1847,6 +1827,337 @@ button.danger-outline {
   font-size: 11px;
 }
 
-.tab-menu {
-  min-width: 170px;
+/* ---- Refinements 3: resizable sidebar, tree icons, context menu, save status,
+   response toolbar ---- */
+
+.icon {
+  flex-shrink: 0;
+  display: block;
+}
+
+/* Sidebar resize handle: 6 px hit area straddling the sidebar's border, no layout width. */
+.sidebar-resizer {
+  position: relative;
+  z-index: 5;
+  flex: 0 0 6px;
+  margin: 0 -3px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.sidebar-resizer::after {
+  content: "";
+  position: absolute;
+  inset: 0 2px;
+  border-radius: 1px;
+  transition: background 0.12s;
+}
+
+.sidebar-resizer:hover::after,
+.sidebar-resizer.dragging::after {
+  background: var(--accent);
+}
+
+/* While dragging: keep the col-resize cursor everywhere, no text selection. */
+.resizing-sidebar,
+.resizing-sidebar * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+/* Tree rows: indent · [chevron 16 + gap 4 + folder icon 16] or [method badge 36] · name · ⋯ */
+.tree:focus {
+  outline: none;
+}
+
+.tree-row {
+  gap: 4px;
+}
+
+.tree-lead {
+  display: flex;
+  align-items: center;
+  flex: 0 0 36px;
+  gap: 4px;
+}
+
+.tree-lead .method-badge {
+  width: 36px;
+  padding-left: 2px;
+}
+
+.tree-chevron {
+  display: flex;
+  justify-content: center;
+  width: 16px;
+  color: var(--muted);
+  transition: transform 0.12s;
+}
+
+.tree-chevron.open {
+  transform: rotate(90deg);
+}
+
+.tree-folder {
+  display: flex;
+  color: var(--client);
+}
+
+.tree-row.selected {
+  background: var(--accent-soft);
+}
+
+.tree:focus-visible .tree-row.selected,
+.tree:focus .tree-row.selected {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.tree-row.menu-open .row-menu-trigger {
+  opacity: 1;
+}
+
+.row-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.row-menu-trigger.add {
+  width: 22px;
+}
+
+/* The shared context menu (tree rows, tabs). */
+.context-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  max-width: 240px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px var(--shadow);
+  font-size: 13px;
+}
+
+.context-menu:focus {
+  outline: none;
+}
+
+.context-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 10px 5px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  line-height: 18px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.context-item:hover:not(:disabled),
+.context-item:focus-visible {
+  background: var(--hover-strong);
+  outline: none;
+}
+
+.context-item:disabled {
+  color: var(--muted);
+  opacity: 0.55;
+  cursor: default;
+}
+
+.context-item.context-danger {
+  color: var(--server);
+}
+
+.context-icon {
+  display: flex;
+  justify-content: center;
+  flex: 0 0 16px;
+  color: var(--muted);
+}
+
+.context-item.context-danger .context-icon {
+  color: inherit;
+}
+
+.context-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.context-hint {
+  margin-left: 16px;
+  color: var(--muted);
+  font: 11px var(--mono);
+}
+
+.context-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+/* Send / Cancel share one fixed slot at the far right of the URL row. */
+.url-bar .send {
+  flex: 0 0 92px;
+  padding: 8px 0;
+}
+
+/* Autosave status at the right end of Params | Headers | Body. */
+.section-tabs {
+  align-items: center;
+}
+
+.save-indicator {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  min-width: 140px;
+  white-space: nowrap;
+  padding-right: 4px;
+  font-size: 12px;
+}
+
+.save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+}
+
+.save-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.save-state.saved .save-dot {
+  opacity: 0.6;
+}
+
+.save-state.saving {
+  color: var(--warn);
+}
+
+.save-state.error {
+  color: var(--server);
+  cursor: pointer;
+}
+
+.save-state.error:hover {
+  text-decoration: underline;
+}
+
+/* Response toolbar: one row, fixed slots (see ResponseView.tsx). */
+.response-toolbar {
+  flex-wrap: nowrap;
+  gap: 10px;
+  min-height: 28px;
+  white-space: nowrap;
+}
+
+/* Controls keep their size; only the spacer and the status text give way when the
+   pane is narrow (that depends on the window, never on the mode). */
+.response-toolbar > * {
+  flex-shrink: 0;
+}
+
+.response-toolbar > .row-spacer {
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.toolbar-slot {
+  display: inline-flex;
+  align-items: center;
+}
+
+.toolbar-divider {
+  align-self: stretch;
+  width: 1px;
+  margin: 4px 0;
+  background: var(--border);
+}
+
+.response-toolbar > .resp-status {
+  flex: 0 1 130px;
+  min-width: 56px;
+}
+
+.resp-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.resp-metric {
+  width: 58px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.resp-count {
+  display: inline-block;
+  min-width: 2ch;
+  text-align: left;
+}
+
+.segmented button:disabled {
+  color: var(--muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.choice.disabled {
+  color: var(--muted);
+  opacity: 0.55;
+  cursor: default;
+}
+
+select:disabled,
+input:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.response-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 8px;
+}
+
+/* Preview: theme-independent white page, like a browser. */
+.response-preview {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--preview-bg);
 }

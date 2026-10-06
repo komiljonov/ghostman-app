@@ -12,6 +12,7 @@ import ProjectSwitcher from "./ProjectSwitcher";
 import ProfileMenu from "./ProfileMenu";
 import ProjectSidebar from "./ProjectSidebar";
 import ProjectTree from "./ProjectTree";
+import SidebarResizer from "./SidebarResizer";
 import TeamSettingsView from "./TeamSettingsView";
 import ProjectSettingsView from "./ProjectSettingsView";
 import InvitationsView from "./InvitationsView";
@@ -242,6 +243,7 @@ export default function MainScreen(props: Props) {
             />
           )}
         </Show>
+        <SidebarResizer />
         <section class="pane">
           <Switch fallback={<div class="empty-pane"><p class="placeholder">{emptyText()}</p></div>}>
             <Match when={pane() === "team-settings" && teamId()}>
