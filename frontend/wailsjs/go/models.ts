@@ -1230,6 +1230,8 @@ export namespace main {
 	    body_size: number;
 	    stored_bytes: number;
 	    stored_truncated: boolean;
+	    media: string;
+	    media_url: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new HistoryResponse(source);
@@ -1248,6 +1250,8 @@ export namespace main {
 	        this.body_size = source["body_size"];
 	        this.stored_bytes = source["stored_bytes"];
 	        this.stored_truncated = source["stored_truncated"];
+	        this.media = source["media"];
+	        this.media_url = source["media_url"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

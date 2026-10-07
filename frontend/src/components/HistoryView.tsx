@@ -1,10 +1,10 @@
 import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
-import { DeleteHistoryEntry, GetHistoryEntry, ListHistory, RestoreHistoryEntry } from "../../wailsjs/go/main/App";
+import { DeleteHistoryEntry, GetHistoryEntry, ListHistory, RestoreHistoryEntry, SaveHistoryResponseToFile } from "../../wailsjs/go/main/App";
 import { main } from "../../wailsjs/go/models";
 import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 import { handleProblem } from "../authStore";
 import {
-  canOpenOriginal, defaultFilter, FilterState, requestFilter, filterToQuery, formatDuration, groupByDay, METHODS, nextCursor,
+  canOpenOriginal, defaultFilter, FilterState, formatBytes, requestFilter, filterToQuery, formatDuration, groupByDay, METHODS, nextCursor,
   restoreAndOpen, rowLabel, STATUS_CLASSES, StatusClass, statusChip, timeOfDay,
 } from "../historyModel";
 import { consumeHistoryFocus, historyChanged, historyFocus, historyTick } from "../historyStore";
@@ -131,6 +131,21 @@ export default function HistoryView(props: Props) {
     }
   };
 
+  const [notice, setNotice] = createSignal<string>();
+  let noticeTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(noticeTimer));
+  const save = async (id: number) => {
+    const result = await SaveHistoryResponseToFile(id);
+    handleProblem(result.error);
+    setError(result.error?.message);
+    const d = result.data;
+    if (!d) return; // cancelled (or failed: shown above)
+    const bytes = formatBytes(d.bytes_written);
+    clearTimeout(noticeTimer);
+    setNotice(d.truncated_at_cap ? `Saved ${bytes} to ${d.path} — history kept only the first part of this response.` : `Saved ${bytes} to ${d.path}`);
+    noticeTimer = setTimeout(() => setNotice(undefined), 8000);
+  };
+
   const copyURL = (s: main.HistorySummary) => void ClipboardSetText(s.url_resolved);
 
   const menuItems = (s: main.HistorySummary): MenuEntry[] => {
@@ -139,6 +154,7 @@ export default function HistoryView(props: Props) {
       { label: "Restore to new request", icon: "plus", disabled: busy(), onSelect: () => void restore(s.id) },
       { label: "Open original request", disabled: !orig.ok, onSelect: () => props.onOpenRequest(s.request_id) },
       { label: "Copy resolved URL", disabled: !s.url_resolved, onSelect: () => copyURL(s) },
+      { label: "Save response…", disabled: !!s.error, onSelect: () => void save(s.id) },
       "separator",
       { label: "Delete entry", icon: "trash", danger: true, onSelect: () => void remove(s.id) },
     ];
@@ -227,6 +243,7 @@ export default function HistoryView(props: Props) {
             </button>
           </Show>
         </div>
+        <Show when={notice()}><p class="history-notice small" role="status">{notice()}</p></Show>
         <footer class="history-footer muted small">History is stored only on this computer.</footer>
       </div>
       <div class="history-detail-pane">
@@ -236,7 +253,8 @@ export default function HistoryView(props: Props) {
               onRestore={() => void restore(e.summary.id)}
               onOpenOriginal={() => props.onOpenRequest(e.summary.request_id)}
               onCopyURL={() => copyURL(e.summary)}
-              onDelete={() => void remove(e.summary.id)} />
+              onDelete={() => void remove(e.summary.id)}
+              onSave={() => void save(e.summary.id)} />
           )}
         </Show>
       </div>

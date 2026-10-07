@@ -3361,3 +3361,52 @@ input:disabled {
 .cm-masked {
   letter-spacing: 0.05em;
 }
+
+/* History detail: a stored media / binary response. */
+.history-media {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px;
+}
+
+.history-media .settings-hint {
+  margin: 0;
+}
+
+.history-media-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: 12px;
+  background: var(--cm-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.history-media-stage img,
+.history-media-stage video {
+  display: block;
+  max-width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.history-media-audio {
+  width: 100%;
+}
+
+.history-media-file {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-notice {
+  margin: 0;
+  padding: 6px 10px;
+  overflow-wrap: anywhere;
+  border-top: 1px solid var(--border);
+}

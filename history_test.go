@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"ghostman/internal/api"
+	"ghostman/internal/engine"
 	"ghostman/internal/store"
 )
 
@@ -122,9 +123,10 @@ func TestHistoryBodyCapAndTruncatedFlag(t *testing.T) {
 	if s := send(); s.RespTruncated || s.RespBodySize != 2_000_000 {
 		t.Fatalf("10MB: %+v", s)
 	}
+	// application/octet-stream: stored in full, offered as a file, never sent as text.
 	e := a.GetHistoryEntry(historyRows(t, a)[0].ID).Data.Response
-	if e.StoredBytes != 2_000_000 || !e.PreviewCut || len(e.Body) > 256*1024 {
-		t.Fatalf("stored=%d previewCut=%v preview=%d", e.StoredBytes, e.PreviewCut, len(e.Body))
+	if e.StoredBytes != 2_000_000 || e.Media != engine.MediaBinary || e.Body != "" {
+		t.Fatalf("stored=%d media=%q preview=%d", e.StoredBytes, e.Media, len(e.Body))
 	}
 	// 1 MB: first 1 MB kept, flagged.
 	if r := a.SetHistoryMaxResponseBytes(1 << 20); r.Error != nil {
@@ -340,5 +342,19 @@ func TestRestoredName(t *testing.T) {
 		if got := restoredName(c.name, c.method, c.url); got != c.want {
 			t.Errorf("restoredName(%q, %q) = %q, want %q", c.name, c.url, got, c.want)
 		}
+	}
+}
+
+func TestHistoryTextBodyPreviewIsCut(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte(strings.Repeat("x", 600_000)))
+	}))
+	defer srv.Close()
+	a := newTestApp(t, true, nil)
+	a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: srv.URL}, SendOptions{})
+	e := a.GetHistoryEntry(historyRows(t, a)[0].ID).Data.Response
+	if e.Media != "" || !e.PreviewCut || len(e.Body) != 256*1024 || e.StoredBytes != 600_000 {
+		t.Fatalf("media=%q cut=%v preview=%d stored=%d", e.Media, e.PreviewCut, len(e.Body), e.StoredBytes)
 	}
 }

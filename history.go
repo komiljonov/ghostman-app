@@ -249,6 +249,11 @@ type HistoryResponse struct {
 	BodySize        int64           `json:"body_size"`        // the full size received
 	StoredBytes     int64           `json:"stored_bytes"`     // what history kept
 	StoredTruncated bool            `json:"stored_truncated"` // history kept less than the full body
+	// Media is "" for text, else image | audio | video | pdf | binary (engine.MediaKind):
+	// the body is then NOT sent as text (Body empty); images / audio / video load
+	// from the app-local route MediaURL (history_media.go), everything can be saved.
+	Media    string `json:"media"`
+	MediaURL string `json:"media_url"`
 }
 
 // HistoryEntry is one entry in full (opened from the list).
@@ -333,11 +338,16 @@ func (a *App) GetHistoryEntry(id int64) HistoryEntryResult {
 				ct = hd.Value
 			}
 		}
-		pv := engine.PreviewBody(h.RespBody, h.RespBodySize, ct)
 		e.Response = &HistoryResponse{
 			Status: h.Status, StatusText: httpStatusText(h.Status), ContentType: ct, Headers: headers,
-			Body: pv.Body, RawBody: pv.RawBody, Formatted: pv.Formatted, PreviewCut: pv.Truncated,
 			BodySize: h.RespBodySize, StoredBytes: int64(len(h.RespBody)), StoredTruncated: h.RespTruncated != 0,
+			Media: engine.MediaKind(ct, h.RespBody),
+		}
+		if e.Response.Media == engine.MediaNone {
+			pv := engine.PreviewBody(h.RespBody, h.RespBodySize, ct)
+			e.Response.Body, e.Response.RawBody, e.Response.Formatted, e.Response.PreviewCut = pv.Body, pv.RawBody, pv.Formatted, pv.Truncated
+		} else if servableMedia(e.Response.Media) && len(h.RespBody) > 0 {
+			e.Response.MediaURL = historyMediaURL(h.ID)
 		}
 	}
 	return HistoryEntryResult{Data: e}

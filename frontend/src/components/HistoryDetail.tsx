@@ -9,6 +9,8 @@ import ResponseBody from "./ResponseBody";
 import StatusBadge from "./StatusBadge";
 import TimingPanel from "./TimingPanel";
 import HistoryKVTable from "./HistoryKVTable";
+import HistoryMedia from "./HistoryMedia";
+import { MEDIA_VIEW_TITLE } from "../historyModel";
 import { authRows, effectiveName, normalizeAuth } from "../auth";
 
 interface Props {
@@ -19,6 +21,7 @@ interface Props {
   onOpenOriginal: () => void;
   onCopyURL: () => void;
   onDelete: () => void;
+  onSave: () => void; // save the stored response body to a file (any type)
 }
 
 type Section = "request" | "response" | "timing";
@@ -43,6 +46,8 @@ export default function HistoryDetail(props: Props) {
   };
   const structured = () => !!like() && hasStructure(like()!);
   // Pretty: collapsible JSON, or the flat text + notice for JSON cut at 256 KB.
+  // A media / binary body: shown by HistoryMedia, never as text (Pretty/Raw/Wrap disabled).
+  const media = () => !!resp()?.media;
   const prettyOK = () => structured() || (!!like() && prettyFallback(like()!));
   const effective = (): BodyView => (view() === "pretty" && !prettyOK() ? "raw" : view());
   const text = () => {
@@ -84,6 +89,10 @@ export default function HistoryDetail(props: Props) {
           <button type="button" class="small" disabled={!s().url_resolved} onClick={() => props.onCopyURL()}
             title={s().url_resolved ? "Copy the URL as sent" : "No resolved URL for this entry"}>
             Copy resolved URL
+          </button>
+          <button type="button" class="small" disabled={!resp()} onClick={() => props.onSave()}
+            title={resp() ? "Save the stored response body to a file" : noResponse}>
+            Save response…
           </button>
           <Show when={confirmDelete()} fallback={
             <button type="button" class="small danger-outline" onClick={() => setConfirmDelete(true)}>
@@ -130,14 +139,16 @@ export default function HistoryDetail(props: Props) {
           </div>
           <div class="segmented small" role="radiogroup" aria-label="Body view"
             title={!resp() ? noResponse : respPart() === "headers" ? "Applies to the body" : undefined}>
-            <button type="button" role="radio" disabled={!resp() || respPart() !== "body" || !prettyOK()}
-              title={resp() && !prettyOK() ? "Pretty is for JSON responses" : undefined}
+            <button type="button" role="radio" disabled={!resp() || respPart() !== "body" || media() || !prettyOK()}
+              title={media() ? MEDIA_VIEW_TITLE : resp() && !prettyOK() ? "Pretty is for JSON responses" : undefined}
               classList={{ active: !!resp() && effective() === "pretty" }} onClick={() => setView("pretty")}>Pretty</button>
-            <button type="button" role="radio" disabled={!resp() || respPart() !== "body"}
-              classList={{ active: !!resp() && effective() === "raw" }} onClick={() => setView("raw")}>Raw</button>
+            <button type="button" role="radio" disabled={!resp() || respPart() !== "body" || media()}
+              title={media() ? MEDIA_VIEW_TITLE : undefined}
+              classList={{ active: !!resp() && !media() && effective() === "raw" }} onClick={() => setView("raw")}>Raw</button>
           </div>
-          <label classList={{ "choice small": true, disabled: !resp() || respPart() !== "body" }}>
-            <input type="checkbox" checked={responseWrap()} disabled={!resp() || respPart() !== "body"}
+          <label classList={{ "choice small": true, disabled: !resp() || respPart() !== "body" || media() }}
+            title={media() ? MEDIA_VIEW_TITLE : undefined}>
+            <input type="checkbox" checked={responseWrap()} disabled={!resp() || respPart() !== "body" || media()}
               onChange={(e) => setResponseWrap(e.currentTarget.checked)} />
             Wrap
           </label>
@@ -177,6 +188,7 @@ export default function HistoryDetail(props: Props) {
           <Show when={resp()} fallback={<p class="placeholder small">{noResponse}{s().error ? ` (${s().error})` : ""}</p>}>
             {(r) => (
               <Show when={respPart() === "body"} fallback={<HistoryKVTable rows={r().headers.map((h) => ({ key: h.key, value: h.value, off: false }))} />}>
+                <Show when={!r().media} fallback={<HistoryMedia response={r()} onSave={() => props.onSave()} />}>
                 <Show when={r().preview_cut}>
                   <p class="settings-hint">Showing the first 256 KB of {formatBytes(r().stored_bytes)} stored.</p>
                 </Show>
@@ -186,6 +198,7 @@ export default function HistoryDetail(props: Props) {
                       fallbackNotice={effective() === "pretty" && !structured()} wrap={responseWrap()}
                       onFolds={() => undefined} ref={() => undefined} />
                   </div>
+                </Show>
                 </Show>
               </Show>
             )}
