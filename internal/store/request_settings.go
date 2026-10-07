@@ -4,28 +4,54 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strconv"
 )
 
-// Per-request settings kept only on this machine. A request without a row uses
-// the defaults: redirects are followed.
+// Redirect settings, kept only on this machine:
+//   - a global default (settings key follow_redirects_default; true when unset);
+//   - an optional per-request override (request_settings; no row = use the default).
 
-// FollowRedirects reports whether sends of a request follow redirects (default true).
-func (s *Store) FollowRedirects(ctx context.Context, requestID string) (bool, error) {
+const settingFollowRedirectsDefault = "follow_redirects_default"
+
+// FollowRedirectsOverride returns a request's override, or nil when it uses the default.
+func (s *Store) FollowRedirectsOverride(ctx context.Context, requestID string) (*bool, error) {
 	v, err := s.GetFollowRedirects(ctx, requestID)
 	if errors.Is(err, sql.ErrNoRows) {
-		return true, nil
+		return nil, nil
 	}
 	if err != nil {
-		return true, err
+		return nil, err
 	}
-	return v != 0, nil
+	follow := v != 0
+	return &follow, nil
 }
 
-// SetFollowRedirects stores the follow-redirects toggle of a request.
-func (s *Store) SetFollowRedirects(ctx context.Context, requestID string, follow bool) error {
+// SetFollowRedirectsOverride stores a request's override; nil removes it (use the default).
+func (s *Store) SetFollowRedirectsOverride(ctx context.Context, requestID string, follow *bool) error {
+	if follow == nil {
+		return s.DeleteFollowRedirects(ctx, requestID)
+	}
 	var v int64
-	if follow {
+	if *follow {
 		v = 1
 	}
 	return s.PutFollowRedirects(ctx, PutFollowRedirectsParams{RequestID: requestID, FollowRedirects: v})
+}
+
+// FollowRedirectsDefault is the global default (true when never set or unreadable).
+func (s *Store) FollowRedirectsDefault(ctx context.Context) (bool, error) {
+	v, ok, err := s.Setting(ctx, settingFollowRedirectsDefault)
+	if err != nil || !ok {
+		return true, err
+	}
+	b, perr := strconv.ParseBool(v)
+	if perr != nil {
+		return true, nil
+	}
+	return b, nil
+}
+
+// SetFollowRedirectsDefault stores the global default.
+func (s *Store) SetFollowRedirectsDefault(ctx context.Context, follow bool) error {
+	return s.PutSetting(ctx, settingFollowRedirectsDefault, strconv.FormatBool(follow))
 }

@@ -170,14 +170,7 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft) S
 	if unresolved == nil {
 		unresolved = []string{}
 	}
-	follow := true
-	if a.store != nil {
-		if f, err := a.store.FollowRedirects(ctx, requestID); err != nil {
-			slog.Warn("load follow-redirects setting", "err", err)
-		} else {
-			follow = f
-		}
-	}
+	follow := a.followRedirects(ctx, requestID)
 	start := time.Now()
 	resp, err := a.engine.Send(ctx, spec, engine.SendOptions{FollowRedirects: follow})
 	a.recordHistory(template, resp, err, start)
@@ -370,28 +363,4 @@ func nonNilHops(h []engine.Hop) []engine.Hop {
 		return []engine.Hop{}
 	}
 	return h
-}
-
-// GetFollowRedirects reports whether sends of a request follow redirects. It is
-// a local, per-request setting (SQLite, never synced); true when never set.
-func (a *App) GetFollowRedirects(requestID string) bool {
-	if a.store == nil {
-		return true
-	}
-	follow, err := a.store.FollowRedirects(a.ctx, requestID)
-	if err != nil {
-		slog.Error("load follow-redirects setting", "err", err)
-	}
-	return follow
-}
-
-// SetFollowRedirects saves a request's follow-redirects toggle (local only).
-func (a *App) SetFollowRedirects(requestID string, follow bool) EmptyResult {
-	if a.store == nil {
-		return EmptyResult{Error: problemNotLoggedIn}
-	}
-	if err := a.store.SetFollowRedirects(a.ctx, requestID, follow); err != nil {
-		return EmptyResult{Error: session.ProblemFrom(err)}
-	}
-	return EmptyResult{}
 }

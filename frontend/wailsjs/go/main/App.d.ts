@@ -44,7 +44,7 @@ export function GetAuthState():Promise<session.AuthState>;
 
 export function GetEnvContext(arg1:string):Promise<main.EnvContextResult>;
 
-export function GetFollowRedirects(arg1:string):Promise<boolean>;
+export function GetFollowRedirectsDefault():Promise<boolean>;
 
 export function GetMemberAccess(arg1:string,arg2:string):Promise<main.MemberAccessViewResult>;
 
@@ -53,6 +53,8 @@ export function GetProject(arg1:string):Promise<main.ProjectResult>;
 export function GetProjectAccess(arg1:string):Promise<main.ProjectAccessUserListResult>;
 
 export function GetRequest(arg1:string):Promise<main.RequestResult>;
+
+export function GetRequestRedirects(arg1:string):Promise<main.RedirectSetting>;
 
 export function GetSecretValue(arg1:string,arg2:string):Promise<string>;
 
@@ -134,11 +136,13 @@ export function SendRequest(arg1:string,arg2:string,arg3:api.RequestDraft):Promi
 
 export function SetActiveEnvironment(arg1:string,arg2:string):Promise<main.EnvContextResult>;
 
-export function SetFollowRedirects(arg1:string,arg2:boolean):Promise<main.EmptyResult>;
+export function SetFollowRedirectsDefault(arg1:boolean):Promise<main.EmptyResult>;
 
 export function SetMemberAccess(arg1:string,arg2:string,arg3:boolean,arg4:Array<string>):Promise<main.MemberAccessResult>;
 
 export function SetProjectAccess(arg1:string,arg2:Array<string>):Promise<main.ProjectAccessResult>;
+
+export function SetRequestRedirects(arg1:string,arg2:string):Promise<main.EmptyResult>;
 
 export function SetResponseWrap(arg1:boolean):Promise<main.EmptyResult>;
 

@@ -4,6 +4,7 @@ import { authState, setAuthState } from "../authStore";
 import FormError from "./FormError";
 import { setThemePref, themePref } from "../themeStore";
 import { asPref } from "../theme";
+import { redirectDefault, setRedirectDefault } from "../redirectDefault";
 
 interface Props {
   onClose: () => void;
@@ -11,6 +12,7 @@ interface Props {
 
 export default function SettingsModal(props: Props) {
   const [themeError, setThemeError] = createSignal<string>();
+  const [redirectError, setRedirectError] = createSignal<string>();
   const [original, setOriginal] = createSignal("");
   const [url, setUrl] = createSignal("");
   const [confirming, setConfirming] = createSignal(false);
@@ -74,6 +76,13 @@ export default function SettingsModal(props: Props) {
           </select>
         </label>
         <FormError message={themeError()} />
+        <label class="choice settings-check">
+          <input type="checkbox" checked={redirectDefault()}
+            onChange={(e) => void setRedirectDefault(e.currentTarget.checked).then((err) => setRedirectError(err?.message))} />
+          Follow redirects by default
+        </label>
+        <p class="settings-hint">Up to 10. A request can override this in its Settings tab. Applies right away.</p>
+        <FormError message={redirectError()} />
         <label class="field">
           <span>Server URL</span>
           <input type="text" spellcheck={false} autofocus value={url()} disabled={confirming()}

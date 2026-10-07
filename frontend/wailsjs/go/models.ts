@@ -1297,6 +1297,22 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class RedirectSetting {
+	    mode: string;
+	    default: boolean;
+	    effective: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new RedirectSetting(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.default = source["default"];
+	        this.effective = source["effective"];
+	    }
+	}
 	export class RequestListResult {
 	    data: api.RequestSummary[];
 	    error?: session.Problem;

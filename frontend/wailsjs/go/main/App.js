@@ -82,8 +82,8 @@ export function GetEnvContext(arg1) {
   return window['go']['main']['App']['GetEnvContext'](arg1);
 }
 
-export function GetFollowRedirects(arg1) {
-  return window['go']['main']['App']['GetFollowRedirects'](arg1);
+export function GetFollowRedirectsDefault() {
+  return window['go']['main']['App']['GetFollowRedirectsDefault']();
 }
 
 export function GetMemberAccess(arg1, arg2) {
@@ -100,6 +100,10 @@ export function GetProjectAccess(arg1) {
 
 export function GetRequest(arg1) {
   return window['go']['main']['App']['GetRequest'](arg1);
+}
+
+export function GetRequestRedirects(arg1) {
+  return window['go']['main']['App']['GetRequestRedirects'](arg1);
 }
 
 export function GetSecretValue(arg1, arg2) {
@@ -262,8 +266,8 @@ export function SetActiveEnvironment(arg1, arg2) {
   return window['go']['main']['App']['SetActiveEnvironment'](arg1, arg2);
 }
 
-export function SetFollowRedirects(arg1, arg2) {
-  return window['go']['main']['App']['SetFollowRedirects'](arg1, arg2);
+export function SetFollowRedirectsDefault(arg1) {
+  return window['go']['main']['App']['SetFollowRedirectsDefault'](arg1);
 }
 
 export function SetMemberAccess(arg1, arg2, arg3, arg4) {
@@ -272,6 +276,10 @@ export function SetMemberAccess(arg1, arg2, arg3, arg4) {
 
 export function SetProjectAccess(arg1, arg2) {
   return window['go']['main']['App']['SetProjectAccess'](arg1, arg2);
+}
+
+export function SetRequestRedirects(arg1, arg2) {
+  return window['go']['main']['App']['SetRequestRedirects'](arg1, arg2);
 }
 
 export function SetResponseWrap(arg1) {
