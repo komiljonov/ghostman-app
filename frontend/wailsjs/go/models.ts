@@ -893,6 +893,38 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class DeletedResult {
+	    data: number;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new DeletedResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = source["data"];
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class EmptyResult {
 	    error?: session.Problem;
 	
@@ -1051,6 +1083,357 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class HistoryResponse {
+	    status: number;
+	    status_text: string;
+	    content_type: string;
+	    headers: engine.Header[];
+	    body: string;
+	    raw_body: string;
+	    formatted: boolean;
+	    preview_cut: boolean;
+	    body_size: number;
+	    stored_bytes: number;
+	    stored_truncated: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistoryResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.status_text = source["status_text"];
+	        this.content_type = source["content_type"];
+	        this.headers = this.convertValues(source["headers"], engine.Header);
+	        this.body = source["body"];
+	        this.raw_body = source["raw_body"];
+	        this.formatted = source["formatted"];
+	        this.preview_cut = source["preview_cut"];
+	        this.body_size = source["body_size"];
+	        this.stored_bytes = source["stored_bytes"];
+	        this.stored_truncated = source["stored_truncated"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class HistoryRequestForm {
+	    url: string;
+	    headers: api.KeyValue[];
+	    params: api.KeyValue[];
+	    body: string;
+	    body_type: string;
+	    content_type: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistoryRequestForm(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.url = source["url"];
+	        this.headers = this.convertValues(source["headers"], api.KeyValue);
+	        this.params = this.convertValues(source["params"], api.KeyValue);
+	        this.body = source["body"];
+	        this.body_type = source["body_type"];
+	        this.content_type = source["content_type"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class HistorySummary {
+	    id: number;
+	    created_at: number;
+	    project_id: string;
+	    request_id: string;
+	    request_name: string;
+	    method: string;
+	    url_template: string;
+	    url_resolved: string;
+	    env_name: string;
+	    status: number;
+	    duration_ms: number;
+	    error: string;
+	    resp_body_size: number;
+	    resp_truncated: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistorySummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.created_at = source["created_at"];
+	        this.project_id = source["project_id"];
+	        this.request_id = source["request_id"];
+	        this.request_name = source["request_name"];
+	        this.method = source["method"];
+	        this.url_template = source["url_template"];
+	        this.url_resolved = source["url_resolved"];
+	        this.env_name = source["env_name"];
+	        this.status = source["status"];
+	        this.duration_ms = source["duration_ms"];
+	        this.error = source["error"];
+	        this.resp_body_size = source["resp_body_size"];
+	        this.resp_truncated = source["resp_truncated"];
+	    }
+	}
+	export class HistoryEntry {
+	    summary: HistorySummary;
+	    env_id: string;
+	    template: HistoryRequestForm;
+	    resolved: HistoryRequestForm;
+	    response?: HistoryResponse;
+	    hops: engine.Hop[];
+	
+	    static createFrom(source: any = {}) {
+	        return new HistoryEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.summary = this.convertValues(source["summary"], HistorySummary);
+	        this.env_id = source["env_id"];
+	        this.template = this.convertValues(source["template"], HistoryRequestForm);
+	        this.resolved = this.convertValues(source["resolved"], HistoryRequestForm);
+	        this.response = this.convertValues(source["response"], HistoryResponse);
+	        this.hops = this.convertValues(source["hops"], engine.Hop);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class HistoryEntryResult {
+	    data?: HistoryEntry;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistoryEntryResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], HistoryEntry);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class HistoryFilter {
+	    project_id: string;
+	    query: string;
+	    method: string;
+	    status_class: string;
+	    before_created: number;
+	    before_id: number;
+	    limit: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistoryFilter(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.project_id = source["project_id"];
+	        this.query = source["query"];
+	        this.method = source["method"];
+	        this.status_class = source["status_class"];
+	        this.before_created = source["before_created"];
+	        this.before_id = source["before_id"];
+	        this.limit = source["limit"];
+	    }
+	}
+	export class HistoryPage {
+	    items: HistorySummary[];
+	    has_more: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistoryPage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = this.convertValues(source["items"], HistorySummary);
+	        this.has_more = source["has_more"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class HistoryPageResult {
+	    data?: HistoryPage;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistoryPageResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], HistoryPage);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	
+	export class HistorySettings {
+	    max_entries: number;
+	    max_response_bytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistorySettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.max_entries = source["max_entries"];
+	        this.max_response_bytes = source["max_response_bytes"];
+	    }
+	}
+	export class HistoryStorageInfo {
+	    row_count: number;
+	    total_bytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistoryStorageInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.row_count = source["row_count"];
+	        this.total_bytes = source["total_bytes"];
+	    }
+	}
+	export class HistoryStorageResult {
+	    data?: HistoryStorageInfo;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new HistoryStorageResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], HistoryStorageInfo);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class InvitationResult {
 	    data?: api.Invitation;
 	    error?: session.Problem;
@@ -1498,6 +1881,20 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+	export class SendOptions {
+	    follow_redirects: boolean;
+	    request_name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SendOptions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.follow_redirects = source["follow_redirects"];
+	        this.request_name = source["request_name"];
+	    }
 	}
 	export class SendResult {
 	    data?: engine.Response;

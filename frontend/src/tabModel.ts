@@ -1,14 +1,15 @@
 // Pure tab logic (typed tabs, persistence format, reordering, shortcut rules).
 // No Solid, no bindings — unit-tested in tabModel.test.ts.
 
-export type TabKind = "request" | "env" | "env_list";
+export type TabKind = "request" | "env" | "env_list" | "history";
 
 export interface TabRef {
   kind: TabKind;
-  id: string; // request id / environment id; "" for env_list
+  id: string; // request id / environment id; "" for env_list and history
 }
 
 export const ENV_LIST: TabRef = { kind: "env_list", id: "" };
+export const HISTORY: TabRef = { kind: "history", id: "" };
 
 export const tabKey = (ref: TabRef) => `${ref.kind}:${ref.id}`;
 export const sameTab = (a: TabRef | undefined, b: TabRef | undefined) => !!a && !!b && a.kind === b.kind && a.id === b.id;
@@ -26,6 +27,7 @@ function toRef(v: unknown): TabRef | undefined {
   const sid = typeof id === "string" ? id : "";
   if (kind === "request" || kind === "env") return sid ? { kind, id: sid } : undefined;
   if (kind === "env_list") return ENV_LIST;
+  if (kind === "history") return HISTORY;
   return undefined;
 }
 

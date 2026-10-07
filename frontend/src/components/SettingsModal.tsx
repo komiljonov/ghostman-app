@@ -2,6 +2,7 @@ import { createSignal, onMount, Show } from "solid-js";
 import { GetSettings, SetServerURL } from "../../wailsjs/go/main/App";
 import { authState, setAuthState } from "../authStore";
 import FormError from "./FormError";
+import HistorySettings from "./HistorySettings";
 import { setThemePref, themePref } from "../themeStore";
 import { asPref } from "../theme";
 import { redirectDefault, setRedirectDefault } from "../redirectDefault";
@@ -86,6 +87,7 @@ export default function SettingsModal(props: Props) {
           On this machine only; applies right away.
         </p>
         <FormError message={redirectError()} />
+        <HistorySettings />
         <label class="field">
           <span>Server URL</span>
           <input type="text" spellcheck={false} autofocus value={url()} disabled={confirming()}

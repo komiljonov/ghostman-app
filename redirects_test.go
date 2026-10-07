@@ -25,10 +25,10 @@ func TestSendUsesTheResolvedFollowFlag(t *testing.T) {
 	defer target.Close()
 	a := newTestApp(t, true, nil)
 	draft := api.RequestDraft{Method: "GET", URL: target.URL + "/start"}
-	if res := a.SendRequest("p1", "r1", draft, true); res.Error != nil || res.Data.Status != 200 || len(res.Hops) != 2 {
+	if res := a.SendRequest("p1", "r1", draft, SendOptions{FollowRedirects: true}); res.Error != nil || res.Data.Status != 200 || len(res.Hops) != 2 {
 		t.Fatalf("follow: %+v", res.Error)
 	}
-	if res := a.SendRequest("p1", "r1", draft, false); res.Error != nil || res.Data.Status != 302 || len(res.Hops) != 1 {
+	if res := a.SendRequest("p1", "r1", draft, SendOptions{FollowRedirects: false}); res.Error != nil || res.Data.Status != 302 || len(res.Hops) != 1 {
 		t.Fatalf("don't follow: %+v", res.Error)
 	}
 }
@@ -168,11 +168,11 @@ func TestLegacyMigrationNeedsALogin(t *testing.T) {
 
 func TestFailedSendStillReturnsHops(t *testing.T) {
 	a := newTestApp(t, true, nil)
-	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: "http://127.0.0.1:1/x"}, true)
+	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: "http://127.0.0.1:1/x"}, SendOptions{FollowRedirects: true})
 	if res.Error == nil || len(res.Hops) != 1 || res.Hops[0].FailedPhase != engine.PhaseConnect {
 		t.Fatalf("want one failed hop (connect): %+v %+v", res.Error, res.Hops)
 	}
-	if res = a.SendRequest("p1", "r1", api.RequestDraft{URL: "not a url"}, true); res.Hops == nil || len(res.Hops) != 0 {
+	if res = a.SendRequest("p1", "r1", api.RequestDraft{URL: "not a url"}, SendOptions{FollowRedirects: true}); res.Hops == nil || len(res.Hops) != 0 {
 		t.Fatalf("nothing sent: hops must be an empty list, got %v", res.Hops)
 	}
 }

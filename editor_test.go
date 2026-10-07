@@ -1,10 +1,10 @@
 package main
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -59,19 +59,18 @@ func TestSendRequestUsesDraftAndRecordsHistory(t *testing.T) {
 		Headers:     []api.KeyValue{{Key: "X-On", Value: "1", Enabled: true}, {Key: "X-Off", Value: "1"}},
 		QueryParams: []api.KeyValue{{Key: "b", Value: "2", Enabled: true}, {Key: "b", Value: "3", Enabled: true}},
 		Body:        api.RequestBody{Type: "none"},
-	}, true)
+	}, SendOptions{FollowRedirects: true})
 	if res.Error != nil || res.Data.Status != 200 || !res.Data.Formatted {
 		t.Fatalf("send = %s", toJSON(t, res))
 	}
 	if gotQuery != "a=1&b=2&b=3" || gotHeader != "1" || gotOff != "" {
 		t.Errorf("server saw query=%q X-On=%q X-Off=%q", gotQuery, gotHeader, gotOff)
 	}
-	rows, err := a.store.ListHistory(context.Background(), 10)
-	if err != nil || len(rows) != 1 || rows[0].Status != 200 {
-		t.Errorf("history = %+v, %v", rows, err)
+	if rows := historyRows(t, a); len(rows) != 1 || rows[0].Status != 200 {
+		t.Errorf("history = %+v", rows)
 	}
 
-	bad := a.SendRequest("p1", "r1", api.RequestDraft{URL: "not a url"}, true)
+	bad := a.SendRequest("p1", "r1", api.RequestDraft{URL: "not a url"}, SendOptions{FollowRedirects: true})
 	if bad.Error == nil || bad.Error.Kind != KindRequest || bad.Data != nil {
 		t.Errorf("bad url = %s", toJSON(t, bad))
 	}
@@ -95,18 +94,20 @@ func TestCancelRequest(t *testing.T) {
 		}
 		a.CancelRequest("r1")
 	}()
-	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: slow.URL}, true)
+	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: slow.URL}, SendOptions{FollowRedirects: true})
 	if res.Error == nil || res.Error.Message != "request cancelled" {
 		t.Fatalf("cancelled send = %s", toJSON(t, res))
 	}
 
 	// A second send of the same request cancels the first.
 	done := make(chan SendResult)
-	go func() { done <- a.SendRequest("p1", "r2", api.RequestDraft{Method: "GET", URL: slow.URL}, true) }()
+	go func() {
+		done <- a.SendRequest("p1", "r2", api.RequestDraft{Method: "GET", URL: slow.URL}, SendOptions{FollowRedirects: true})
+	}()
 	for started.Load() < 2 {
 		time.Sleep(10 * time.Millisecond)
 	}
-	go a.SendRequest("p1", "r2", api.RequestDraft{Method: "GET", URL: "not a url"}, true)
+	go a.SendRequest("p1", "r2", api.RequestDraft{Method: "GET", URL: "not a url"}, SendOptions{FollowRedirects: true})
 	if first := <-done; first.Error == nil || first.Error.Message != "request cancelled" {
 		t.Fatalf("superseded send = %s", toJSON(t, first))
 	}
@@ -119,10 +120,10 @@ func TestTabsRoundtrip(t *testing.T) {
 		t.Fatalf("empty = %s", got)
 	}
 	a.SetTabs("p1", Tabs{
-		Open:   []TabRef{{TabRequest, "r1"}, {TabEnv, "e1"}, {TabEnvList, ""}, {TabRequest, "r1"}, {"bogus", "x"}, {TabEnv, ""}},
+		Open:   []TabRef{{TabRequest, "r1"}, {TabEnv, "e1"}, {TabEnvList, ""}, {TabHistory, ""}, {TabRequest, "r1"}, {"bogus", "x"}, {TabEnv, ""}},
 		Active: TabRef{TabEnv, "e1"},
 	})
-	want := `{"open":[{"kind":"request","id":"r1"},{"kind":"env","id":"e1"},{"kind":"env_list","id":""}],"active":{"kind":"env","id":"e1"}}`
+	want := `{"open":[{"kind":"request","id":"r1"},{"kind":"env","id":"e1"},{"kind":"env_list","id":""},{"kind":"history","id":""}],"active":{"kind":"env","id":"e1"}}`
 	if got := toJSON(t, a.GetTabs("p1")); got != want {
 		t.Fatalf("tabs = %s\nwant %s", got, want)
 	}
@@ -190,7 +191,7 @@ func TestSendResolvesActiveEnvironmentWithLocalSecrets(t *testing.T) {
 	}
 
 	// No active environment: everything literal and reported unresolved.
-	res := a.SendRequest("p1", "r1", draft, true)
+	res := a.SendRequest("p1", "r1", draft, SendOptions{FollowRedirects: true})
 	if res.Error == nil || toJSON(t, res.Unresolved) != `["BASE_URL","API_TOKEN","OTHER_SECRET","missing"]` || res.Environment != "" {
 		t.Fatalf("without env = %s", toJSON(t, res))
 	}
@@ -198,7 +199,7 @@ func TestSendResolvesActiveEnvironmentWithLocalSecrets(t *testing.T) {
 	if r := a.SetActiveEnvironment("p1", "dev"); r.Error != nil {
 		t.Fatal(r.Error.Message)
 	}
-	res = a.SendRequest("p1", "r1", draft, true)
+	res = a.SendRequest("p1", "r1", draft, SendOptions{FollowRedirects: true})
 	if res.Error != nil || res.Data.Status != http.StatusNoContent {
 		t.Fatalf("send = %s", toJSON(t, res))
 	}
@@ -210,9 +211,9 @@ func TestSendResolvesActiveEnvironmentWithLocalSecrets(t *testing.T) {
 		toJSON(t, res.Unresolved) != `["OTHER_SECRET","missing"]` || res.Environment != "dev" {
 		t.Errorf("query=%q unresolved=%v env=%q", gotQuery, res.Unresolved, res.Environment)
 	}
-	// History keeps the template, never resolved values.
-	rows, err := a.store.ListHistory(context.Background(), 10)
-	if err != nil || len(rows) == 0 || rows[0].Url != "{{BASE_URL}}/anything" {
-		t.Errorf("history = %+v %v", rows, err)
+	// History keeps the template form and (local-only, deliberately) the resolved one.
+	rows := historyRows(t, a)
+	if len(rows) == 0 || rows[0].URLTemplate != "{{BASE_URL}}/anything" || !strings.HasPrefix(rows[0].URLResolved, target.URL+"/anything?") {
+		t.Errorf("history = %+v", rows)
 	}
 }

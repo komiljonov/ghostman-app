@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canSendShortcut, dropSlot, ENV_LIST, isSendShortcut, normalizeSaved, reorder, syncEnvTabs, tabKey } from "./tabModel";
+import { canSendShortcut, dropSlot, ENV_LIST, HISTORY, isSendShortcut, normalizeSaved, reorder, syncEnvTabs, tabKey } from "./tabModel";
 
 describe("tab persistence format", () => {
   it("migrates the old bare-id format to request tabs", () => {
@@ -9,7 +9,7 @@ describe("tab persistence format", () => {
     });
   });
   it("reads the typed format and keeps order", () => {
-    const saved = { open: [{ kind: "env", id: "e1" }, { kind: "request", id: "r1" }, { kind: "env_list", id: "" }], active: { kind: "env", id: "e1" } };
+    const saved = { open: [{ kind: "env", id: "e1" }, { kind: "request", id: "r1" }, { kind: "env_list", id: "" }, { kind: "history", id: "" }], active: { kind: "env", id: "e1" } };
     expect(normalizeSaved(saved)).toEqual(saved);
   });
   it("tolerates garbage: unknown kinds, empty ids, duplicates, null, a stale active", () => {
@@ -23,6 +23,7 @@ describe("tab persistence format", () => {
   it("keys are unique per kind", () => {
     expect(tabKey({ kind: "request", id: "x" })).not.toBe(tabKey({ kind: "env", id: "x" }));
     expect(tabKey(ENV_LIST)).toBe("env_list:");
+    expect(tabKey(HISTORY)).toBe("history:");
   });
 });
 

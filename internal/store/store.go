@@ -77,6 +77,9 @@ func dsn(path string) string {
 	q := url.Values{}
 	q.Add("_pragma", "busy_timeout(5000)")
 	q.Add("_pragma", "foreign_keys(1)")
+	// Before any table exists this makes a new database incremental-vacuum capable;
+	// existing ones are converted once by migration 00007.
+	q.Add("_pragma", "auto_vacuum(INCREMENTAL)")
 	if path != ":memory:" {
 		q.Add("_pragma", "journal_mode(WAL)")
 	}

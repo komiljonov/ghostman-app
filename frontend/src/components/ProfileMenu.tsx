@@ -7,6 +7,8 @@ interface Props {
   loggingOut: boolean;
   onOpen: () => void;
   onInvitations: () => void;
+  onHistory: () => void;
+  historyDisabled: boolean; // no project selected (tabs belong to a project)
   onSettings: () => void;
   onLogout: () => void;
 }
@@ -50,6 +52,9 @@ export default function ProfileMenu(props: Props) {
               <span class="nav-label">Invitations</span>
               <Show when={props.invitationCount > 0}><span class="badge count">{props.invitationCount}</span></Show>
             </button>
+            <button type="button" role="menuitem" class="menu-item" disabled={props.historyDisabled}
+              title={props.historyDisabled ? "Select a project first" : "Requests sent from this computer"}
+              onClick={item(props.onHistory)}>History</button>
             <button type="button" role="menuitem" class="menu-item" onClick={item(props.onSettings)}>Settings</button>
             <div class="menu-divider" />
             <button type="button" role="menuitem" class="menu-item" disabled={props.loggingOut}

@@ -125,6 +125,9 @@ export default function TabBar(props: Props) {
               <Match when={tab.kind === "env_list"}>
                 <span class="env-chip"><Icon name="settings" size={12} /></span>
               </Match>
+              <Match when={tab.kind === "history"}>
+                <span class="env-chip"><Icon name="history" size={12} /></span>
+              </Match>
             </Switch>
             <span class="tab-name">{tab.name || "Loading…"}</span>
             <Show when={tab.save === "error"}><span class="tab-unsaved" title="Not saved">●</span></Show>

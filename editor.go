@@ -14,7 +14,6 @@ import (
 	"ghostman/internal/api"
 	"ghostman/internal/engine"
 	"ghostman/internal/session"
-	"ghostman/internal/store"
 )
 
 // Bound request-editor methods: autosave, send/cancel, and the open-tabs list.
@@ -49,6 +48,7 @@ const (
 	TabRequest = "request"
 	TabEnv     = "env"
 	TabEnvList = "env_list"
+	TabHistory = "history"
 )
 
 // TabRef identifies an open tab: a request, an environment, or the environment list.
@@ -76,7 +76,7 @@ func (t TabRef) valid() bool {
 	switch t.Kind {
 	case TabRequest, TabEnv:
 		return t.ID != ""
-	case TabEnvList:
+	case TabEnvList, TabHistory:
 		return true
 	}
 	return false
@@ -117,11 +117,18 @@ func (a *App) SaveRequest(id string, base, draft api.RequestDraft) RequestResult
 	return RequestResult{Data: ptr(v, p), Error: p}
 }
 
+// SendOptions are the per-send settings the UI resolves (the effective
+// follow-redirects value) plus what history labels the entry with.
+type SendOptions struct {
+	FollowRedirects bool   `json:"follow_redirects"`
+	RequestName     string `json:"request_name"`
+}
+
 // SendRequest executes a tab's current draft with {{vars}} resolved from the
 // project's active environment (local secret values included). A send already
 // running for the same request is cancelled first. Every send is recorded in local
-// history — with the unresolved template URL, so secrets never land in history or logs.
-func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, followRedirects bool) SendResult {
+// history (history.go); logs keep the unresolved template URL only.
+func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, opts SendOptions) SendResult {
 	if !a.session.IsLoggedIn() {
 		return SendResult{Error: problemNotLoggedIn, Unresolved: []string{}}
 	}
@@ -130,6 +137,7 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, f
 	type resolved struct {
 		vars    map[string]string
 		env     string
+		envID   string
 		secrets []string // local secret values, masked in the hop URLs shown to the UI
 	}
 	rv, p := call(a, func(ctx context.Context, c *api.APIClient) (resolved, error) {
@@ -140,7 +148,7 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, f
 				secrets = append(secrets, v.Value)
 			}
 		}
-		return resolved{m, ec.ActiveName, secrets}, err
+		return resolved{m, ec.ActiveName, ec.ActiveID, secrets}, err
 	})
 	if p != nil {
 		p.Message = "could not load environment variables: " + p.Message
@@ -171,8 +179,16 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, f
 		unresolved = []string{}
 	}
 	start := time.Now()
-	resp, err := a.engine.Send(ctx, spec, engine.SendOptions{FollowRedirects: followRedirects})
-	a.recordHistory(template, resp, err, start)
+	bodyCap := int64(0)
+	if a.store != nil {
+		bodyCap = historyBodyCap(a.store.HistoryLimits(a.ctx))
+	}
+	resp, err := a.engine.Send(ctx, spec, engine.SendOptions{FollowRedirects: opts.FollowRedirects, FullBodyCap: bodyCap})
+	a.recordHistory(historyRecord{
+		projectID: projectID, requestID: requestID, requestName: opts.RequestName,
+		envID: rv.envID, envName: rv.env, draft: draft, template: template, resolved: spec,
+		resp: resp, err: err, start: start,
+	})
 	// The tab's active response (full body, Go-side) — unless a newer send of the
 	// same request has taken over meanwhile.
 	a.sendsMu.Lock()
@@ -224,29 +240,6 @@ func specFromDraft(d api.RequestDraft) engine.RequestSpec {
 			Content:     d.Body.Content,
 			Fields:      rows(d.Body.Fields),
 		},
-	}
-}
-
-func (a *App) recordHistory(spec engine.RequestSpec, resp *engine.Response, err error, start time.Time) {
-	entry := store.InsertHistoryParams{
-		Method:    strings.ToUpper(strings.TrimSpace(spec.Method)),
-		Url:       strings.TrimSpace(spec.URL),
-		CreatedAt: start.UnixMilli(),
-	}
-	if err != nil {
-		entry.DurationMs = time.Since(start).Milliseconds()
-		slog.Info("request failed", "method", entry.Method, "url", entry.Url, "err", err)
-	} else {
-		entry.Status = int64(resp.Status)
-		entry.DurationMs = resp.DurationMs
-		slog.Info("request sent", "method", entry.Method, "url", entry.Url, "status", resp.Status, "duration_ms", resp.DurationMs)
-	}
-	if entry.Url == "" || a.store == nil {
-		return
-	}
-	// History is best-effort: a DB problem must not hide the response.
-	if herr := a.store.InsertHistory(a.ctx, entry); herr != nil {
-		slog.Error("record history", "err", herr)
 	}
 }
 
