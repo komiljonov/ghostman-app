@@ -83,8 +83,11 @@ func legacyValue(follow bool) string {
 // MigrateLegacyRequestSettings pushes the old local request_settings rows to
 // the server once, then drops the table. Each row is deleted right after its
 // PATCH succeeds, so an interrupted run just resumes (re-PATCHing is harmless).
-// Rows whose request is gone or not accessible (404/403/400) are dropped; any
-// other failure stops the run and keeps the rest for next time.
+// Rows whose request is gone or not accessible (404/403) are dropped; any other
+// failure stops the run and keeps the rest for next time — including a 400: the
+// ids are real request ids, so a 400 means a server that does not know
+// follow_redirects yet (an older build), and the overrides must survive until
+// the server is updated.
 func (a *App) MigrateLegacyRequestSettings() LegacyMigration {
 	var out LegacyMigration
 	if a.store == nil || !a.session.IsLoggedIn() {
@@ -103,7 +106,7 @@ func (a *App) MigrateLegacyRequestSettings() LegacyMigration {
 		switch {
 		case p == nil:
 			out.Pushed++
-		case p.Kind == session.KindServer && (p.Status == http.StatusNotFound || p.Status == http.StatusForbidden || p.Status == http.StatusBadRequest):
+		case p.Kind == session.KindServer && (p.Status == http.StatusNotFound || p.Status == http.StatusForbidden):
 			out.Dropped++
 		default:
 			out.Remaining = len(rows) - i

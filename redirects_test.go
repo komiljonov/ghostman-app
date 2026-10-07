@@ -149,6 +149,22 @@ func TestMigrateLegacyRequestSettingsResumesAfterAFailure(t *testing.T) {
 	}
 }
 
+func TestLegacyMigrationKeepsRowsWhenTheServerIsTooOld(t *testing.T) {
+	// An older server build rejects the unknown field with a 400: keep the rows.
+	a := newTestApp(t, true, map[string]http.HandlerFunc{
+		"PATCH /api/v1/requests/{id}": func(w http.ResponseWriter, _ *http.Request) {
+			writeEnvelope(w, http.StatusBadRequest, "bad_request", "provide at least one of name, method, url, headers, query_params or body")
+		},
+	})
+	seedLegacy(t, a, map[string]int64{"r1": 0, "r2": 1})
+	if got := a.MigrateLegacyRequestSettings(); got.Pushed != 0 || got.Dropped != 0 || got.Remaining != 2 {
+		t.Fatalf("result = %+v", got)
+	}
+	if rows, _ := a.store.LegacyRequestSettings(a.ctx); len(rows) != 2 {
+		t.Fatalf("both overrides must survive: %+v", rows)
+	}
+}
+
 func TestLegacyMigrationNeedsALogin(t *testing.T) {
 	a := newTestApp(t, false, nil)
 	seedLegacy(t, a, map[string]int64{"r1": 0})
