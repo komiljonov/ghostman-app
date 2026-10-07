@@ -171,9 +171,10 @@ Postman-style shell, logged in:
   `SetRequestFollowRedirects` / `SetFolderFollowRedirects`, values validated in Go), then the
   tree is re-fetched. TS passes the resolved boolean to `SendRequest`. Off → the 3xx is the
   response. **One-time migration**: old local `request_settings` rows (Always→on, Never→off)
-  are pushed by `MigrateLegacyRequestSettings` on the first logged-in load (each row deleted
-  once pushed; 404/403 rows dropped; other failures — a 400 from an older server too — retried
-  next time), then the table is dropped. **Per-hop timing** (`internal/engine/trace.go`, httptrace): every hop records
+  are pushed by `MigrateLegacyRequestSettings` on the first logged-in load — ONE attempt, no
+  retries: 404/403 rows are skipped, any other failure is shown as a dismissible banner, and the
+  table is dropped either way. Server/app version mismatches are not handled in the client: the
+  error is shown, and the fix is updating the server or the app. **Per-hop timing** (`internal/engine/trace.go`, httptrace): every hop records
   dns / connect (TLS folded in) / wait (TTFB) / download / total ms, connection reuse and remote
   address; a phase that did not happen is null (never 0); a failed hop names the phase it died
   in. `Response.Hops` and `SendResult.Hops` (also on failure, via `engine.SendError`) carry

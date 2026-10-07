@@ -2715,3 +2715,10 @@ input:disabled {
   padding-bottom: 10px;
   background: var(--panel);
 }
+
+.banner-dismissible {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}

@@ -126,12 +126,6 @@ func TestLegacyRequestSettingsLifecycle(t *testing.T) {
 	if err != nil || len(rows) != 2 || rows[0] != (LegacyRequestSetting{RequestID: "a", Follow: false}) || !rows[1].Follow {
 		t.Fatalf("rows = %+v %v", rows, err)
 	}
-	if err := s.DoneLegacyRequestSetting(ctx, "a"); err != nil {
-		t.Fatal(err)
-	}
-	if rows, _ := s.LegacyRequestSettings(ctx); len(rows) != 1 {
-		t.Fatalf("after done: %+v", rows)
-	}
 	if err := s.DropLegacyRequestSettings(ctx); err != nil {
 		t.Fatal(err)
 	}

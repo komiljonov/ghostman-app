@@ -103,8 +103,8 @@ func TestMigrateLegacyRequestSettings(t *testing.T) {
 	seedLegacy(t, a, map[string]int64{"r-always": 1, "r-never": 0, "r-deleted": 1})
 
 	got := a.MigrateLegacyRequestSettings()
-	if got != (LegacyMigration{Pushed: 2, Dropped: 1}) {
-		t.Fatalf("result = %+v", got)
+	if got.Error != nil || got.Data != (LegacyMigration{Pushed: 2, Dropped: 1}) {
+		t.Fatalf("result = %+v %+v", got.Data, got.Error)
 	}
 	sort.Strings(srv.patches)
 	want := []string{`request r-always {"follow_redirects":"on"}`, `request r-never {"follow_redirects":"off"}`}
@@ -115,60 +115,50 @@ func TestMigrateLegacyRequestSettings(t *testing.T) {
 	if rows, err := a.store.LegacyRequestSettings(a.ctx); err != nil || len(rows) != 0 {
 		t.Fatalf("rows left: %v %v", rows, err)
 	}
-	if again := a.MigrateLegacyRequestSettings(); again != (LegacyMigration{}) || len(srv.patches) != 2 {
+	if again := a.MigrateLegacyRequestSettings(); again.Data != (LegacyMigration{}) || again.Error != nil || len(srv.patches) != 2 {
 		t.Fatalf("second run must do nothing: %+v", again)
 	}
 }
 
-func TestMigrateLegacyRequestSettingsResumesAfterAFailure(t *testing.T) {
+func TestMigrateLegacyRequestSettingsReportsFailuresOnceWithoutRetrying(t *testing.T) {
+	// r2: the server fails; r3: an older server rejects the field (400). Both are
+	// just reported — no special case, no retry.
 	srv := &settingsServer{fail: map[string]bool{"r2": true}}
-	a := newTestApp(t, true, srv.routes())
-	seedLegacy(t, a, map[string]int64{"r1": 1, "r2": 0, "r3": 1}) // pushed in id order
+	routes := srv.routes()
+	patch := routes["PATCH /api/v1/requests/{id}"]
+	routes["PATCH /api/v1/requests/{id}"] = func(w http.ResponseWriter, r *http.Request) {
+		if r.PathValue("id") == "r3" {
+			writeEnvelope(w, http.StatusBadRequest, "bad_request", "provide at least one of name, method, url, headers, query_params or body")
+			return
+		}
+		patch(w, r)
+	}
+	a := newTestApp(t, true, routes)
+	seedLegacy(t, a, map[string]int64{"r1": 1, "r2": 0, "r3": 1})
 
 	got := a.MigrateLegacyRequestSettings()
-	if got.Pushed != 1 || got.Remaining != 2 {
-		t.Fatalf("interrupted run = %+v", got)
+	if got.Data != (LegacyMigration{Pushed: 1, Failed: 2}) || got.Error == nil {
+		t.Fatalf("result = %+v %+v", got.Data, got.Error)
 	}
-	rows, _ := a.store.LegacyRequestSettings(a.ctx)
-	if len(rows) != 2 || rows[0].RequestID != "r2" {
-		t.Fatalf("r1 must be forgotten, r2 and r3 kept: %+v", rows)
+	if !strings.HasPrefix(got.Error.Message, "Could not move 2 redirect setting(s) to the server: ") {
+		t.Fatalf("message = %q", got.Error.Message)
 	}
-
+	// One attempt only: the table is gone, a second run pushes nothing.
+	if rows, _ := a.store.LegacyRequestSettings(a.ctx); len(rows) != 0 {
+		t.Fatalf("rows left: %+v", rows)
+	}
 	srv.mu.Lock()
 	srv.fail = nil
 	srv.mu.Unlock()
-	got = a.MigrateLegacyRequestSettings()
-	if got != (LegacyMigration{Pushed: 2}) {
-		t.Fatalf("resumed run = %+v", got)
-	}
-	if rows, _ := a.store.LegacyRequestSettings(a.ctx); len(rows) != 0 {
-		t.Fatal("table must be gone after the resumed run")
-	}
-	if len(srv.patches) != 3 {
-		t.Fatalf("each row pushed once after resuming: %v", srv.patches)
-	}
-}
-
-func TestLegacyMigrationKeepsRowsWhenTheServerIsTooOld(t *testing.T) {
-	// An older server build rejects the unknown field with a 400: keep the rows.
-	a := newTestApp(t, true, map[string]http.HandlerFunc{
-		"PATCH /api/v1/requests/{id}": func(w http.ResponseWriter, _ *http.Request) {
-			writeEnvelope(w, http.StatusBadRequest, "bad_request", "provide at least one of name, method, url, headers, query_params or body")
-		},
-	})
-	seedLegacy(t, a, map[string]int64{"r1": 0, "r2": 1})
-	if got := a.MigrateLegacyRequestSettings(); got.Pushed != 0 || got.Dropped != 0 || got.Remaining != 2 {
-		t.Fatalf("result = %+v", got)
-	}
-	if rows, _ := a.store.LegacyRequestSettings(a.ctx); len(rows) != 2 {
-		t.Fatalf("both overrides must survive: %+v", rows)
+	if again := a.MigrateLegacyRequestSettings(); again.Data != (LegacyMigration{}) || again.Error != nil || len(srv.patches) != 1 {
+		t.Fatalf("no retry expected: %+v, patches %v", again, srv.patches)
 	}
 }
 
 func TestLegacyMigrationNeedsALogin(t *testing.T) {
 	a := newTestApp(t, false, nil)
 	seedLegacy(t, a, map[string]int64{"r1": 0})
-	if got := a.MigrateLegacyRequestSettings(); got != (LegacyMigration{}) {
+	if got := a.MigrateLegacyRequestSettings(); got.Data != (LegacyMigration{}) || got.Error != nil {
 		t.Fatalf("logged out: %+v", got)
 	}
 	if rows, _ := a.store.LegacyRequestSettings(a.ctx); len(rows) != 1 {
