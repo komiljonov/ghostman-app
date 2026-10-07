@@ -22,7 +22,7 @@ export default function KeyValueEditor(props: Props) {
     <div class="kv-editor">
       <div class="kv-editor-bar">
         <span class="kv-editor-hint muted small">
-          <Show when={bulk()}>One <code>key:value</code> per line · <code>//key:value</code> = disabled</Show>
+          <Show when={bulk()}>One <code>key:value</code> per line · <code>//key:value</code> = disabled (Ctrl+/ toggles)</Show>
         </span>
         <button type="button" class="link-button kv-editor-toggle" aria-pressed={bulk()}
           title={bulk() ? "Back to the key / value table" : "Edit all rows as text (key:value per line)"}
