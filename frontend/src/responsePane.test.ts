@@ -3,7 +3,7 @@ import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 import { childInfo, collapseRanges, foldRangeForLine, placeholderLabel } from "./jsonFold";
 import {
-  counterText, findMatches, firstAtOrAfter, matchesIn, responseFindTarget, stepIndex, visibleMatches,
+  counterText, findMatches, firstAtOrAfter, matchesIn, responseFindTarget, stepIndex,
 } from "./responseSearch";
 import {
   allHeadersText, bodyMenu, copyAllText, defaultView, headerLine, prettyFallback, ResponseLike, responseMenuKind,
@@ -48,10 +48,9 @@ describe("search in the response body", () => {
     expect(firstAtOrAfter(m, 25)).toBe(0);
     expect(firstAtOrAfter([], 3)).toBe(-1);
   });
-  it("skips matches hidden in collapsed nodes; counter reads 3/41", () => {
-    const m = [{ from: 1, to: 2 }, { from: 10, to: 12 }, { from: 30, to: 31 }];
-    expect(visibleMatches(m, [{ from: 8, to: 20 }])).toEqual([m[0], m[2]]);
+  it("counter reads 3/41; no current match yet reads –/41", () => {
     expect(counterText(2, 41)).toBe("3/41");
+    expect(counterText(-1, 41)).toBe("–/41");
     expect(counterText(-1, 0)).toBe("0/0");
   });
   it("Ctrl+F focus rule: the response pane wins unless another editor has focus", () => {
