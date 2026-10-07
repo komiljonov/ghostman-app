@@ -130,6 +130,15 @@ Postman-style shell, logged in:
   the window (verified with real OS keystrokes in `wails dev` and a built exe), so no Wails
   accelerator is needed. Ignored with a modal open or outside the tabs pane; Send is also
   ignored on env tabs or while that tab is sending — no queueing; Ctrl+W with no tabs is a no-op.
+- **Bulk edit** (format: `src/bulkEdit.ts`, round-trip tested): Params, Headers and form fields
+  are `KeyValueEditor`s — the table or ONE multi-line editor from the shared factory ({{var}}
+  highlight / hover / completion), switched by a fixed-width, right-aligned toggle in a bar
+  that exists in both views. Postman format: `key:value` per line, value = everything after
+  the FIRST colon verbatim (JSON blobs survive), `//key:value` = disabled, no colon = empty
+  value, blank lines ignored, key trimmed / value not. The rows stay the only data: every
+  edit is parsed straight back into rows (same autosave); outside changes (URL bar) rewrite
+  the text only when it no longer means the rows (`textMeansRows`). The view is a GLOBAL
+  preference per kind (settings `ui_bulk_mode_params|headers|form`, `SetBulkMode`, `GetUIPrefs`).
 - **URL ↔ Params** (`src/urlParams.ts` is the spec, with its test table): `url` stores only the
   base (before "?"); `query_params` is the one source of truth for the query. The URL input
   shows base + enabled keyed rows as `k=v&…` (empty value → `k=`; no "?" without any). Typing

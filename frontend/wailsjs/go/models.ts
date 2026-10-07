@@ -2294,6 +2294,9 @@ export namespace main {
 	export class UIPrefs {
 	    sidebar_width: number;
 	    response_wrap: boolean;
+	    bulk_params: boolean;
+	    bulk_headers: boolean;
+	    bulk_form: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new UIPrefs(source);
@@ -2303,6 +2306,9 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.sidebar_width = source["sidebar_width"];
 	        this.response_wrap = source["response_wrap"];
+	        this.bulk_params = source["bulk_params"];
+	        this.bulk_headers = source["bulk_headers"];
+	        this.bulk_form = source["bulk_form"];
 	    }
 	}
 	export class VariableResult {

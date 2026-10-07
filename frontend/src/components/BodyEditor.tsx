@@ -2,7 +2,7 @@ import { For, Match, Switch } from "solid-js";
 import { Body } from "../tabsController";
 import { Row } from "../rows";
 import CodeEditor from "./CodeEditor";
-import KeyValueTable from "./KeyValueTable";
+import KeyValueEditor from "./KeyValueEditor";
 
 interface Props {
   body: Body;
@@ -67,7 +67,7 @@ export default function BodyEditor(props: Props) {
             onChange={(text) => props.onChange((b) => (b.content = text))} />
         </Match>
         <Match when={props.body.type === "form"}>
-          <KeyValueTable rows={props.body.fields} keyPlaceholder="Field"
+          <KeyValueEditor kind="form" rows={props.body.fields} keyPlaceholder="Field"
             onChange={(rows: Row[]) => props.onChange((b) => (b.fields = rows))} />
         </Match>
       </Switch>
