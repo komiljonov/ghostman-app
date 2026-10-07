@@ -9,6 +9,7 @@ import ResponseBody from "./ResponseBody";
 import StatusBadge from "./StatusBadge";
 import TimingPanel from "./TimingPanel";
 import HistoryKVTable from "./HistoryKVTable";
+import { authRows, effectiveName, normalizeAuth } from "../auth";
 
 interface Props {
   entry: main.HistoryEntry;
@@ -153,6 +154,14 @@ export default function HistoryDetail(props: Props) {
             <Show when={req().params.length > 0}>
               <h4>Query params</h4>
               <HistoryKVTable rows={req().params} />
+            </Show>
+            <Show when={form() === "template"}>
+              <h4>Auth <span class="muted small">
+                {props.entry.auth ? `${effectiveName(normalizeAuth(props.entry.auth))} (${props.entry.auth_source})` : "No auth"}
+              </span></h4>
+              <Show when={props.entry.auth}>
+                {(a) => <HistoryKVTable rows={authRows(normalizeAuth(a())).map((r) => ({ ...r, off: false }))} />}
+              </Show>
             </Show>
             <h4>Headers</h4>
             <Show when={req().headers.length > 0} fallback={<p class="muted small">No headers</p>}>

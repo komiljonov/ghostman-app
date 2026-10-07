@@ -31,7 +31,9 @@ type historyRecord struct {
 	envID, envName                    string
 	draft                             api.RequestDraft   // template form
 	template, resolved                engine.RequestSpec // template / resolved spec
-	resp                              *engine.Response   // nil when the send failed
+	auth                              *api.Auth          // effective auth config, template form
+	authSource                        string
+	resp                              *engine.Response // nil when the send failed
 	err                               error
 	start                             time.Time
 }
@@ -76,6 +78,9 @@ func (a *App) recordHistory(r historyRecord) {
 		ReqBodyJson:    jsonText(r.draft.Body),
 
 		ReqHeadersResolvedJson: jsonText(engine.SentHeaders(r.resolved)),
+	}
+	if r.auth != nil {
+		entry.ReqAuthJson = jsonText(historyAuth{Config: api.NormalizeAuth(*r.auth), Source: r.authSource})
 	}
 	if body, _ := engine.SentBody(r.resolved.Body); body != "" {
 		entry.ReqBodyResolved = nullText(body)
@@ -214,6 +219,13 @@ func (a *App) ListHistory(f HistoryFilter) HistoryPageResult {
 	return HistoryPageResult{Data: page}
 }
 
+// historyAuth is the effective auth of a send as authored (template form), and
+// where it came from. The header / param it produced is in the resolved copy.
+type historyAuth struct {
+	Config api.Auth `json:"config"`
+	Source string   `json:"source"`
+}
+
 // HistoryRequestForm is the request in one form (template or resolved).
 type HistoryRequestForm struct {
 	URL         string         `json:"url"`
@@ -247,6 +259,10 @@ type HistoryEntry struct {
 	Resolved HistoryRequestForm `json:"resolved"`
 	Response *HistoryResponse   `json:"response"` // nil when the send failed
 	Hops     []engine.Hop       `json:"hops"`
+	// Auth is the effective auth config as authored ({{vars}}), nil when none
+	// was in effect or the entry predates auth.
+	Auth       *api.Auth `json:"auth"`
+	AuthSource string    `json:"auth_source"`
 }
 
 type HistoryEntryResult struct {
@@ -305,6 +321,9 @@ func (a *App) GetHistoryEntry(id int64) HistoryEntryResult {
 			Body: h.ReqBodyResolved.String, BodyType: body.Type, ContentType: body.ContentType,
 		},
 		Hops: unmarshalOr(h.TimingsJson, []engine.Hop{}),
+	}
+	if ha := unmarshalOr(h.ReqAuthJson, historyAuth{}); h.ReqAuthJson.Valid {
+		e.Auth, e.AuthSource = &ha.Config, ha.Source
 	}
 	if !h.Error.Valid {
 		headers := unmarshalOr(h.RespHeadersJson, []engine.Header{})
@@ -442,12 +461,25 @@ func (a *App) RestoreHistoryEntry(id int64, projectID string) RequestSummaryResu
 		Headers:     unmarshalOr(h.ReqHeadersJson, []api.KeyValue{}),
 		QueryParams: unmarshalOr(h.ReqParamsJson, []api.KeyValue{}),
 		Body:        unmarshalOr(h.ReqBodyJson, api.RequestBody{Type: api.BodyNone}),
+		Auth:        restoredAuth(h.ReqAuthJson),
 	}
 	name := restoredName(h.RequestName.String, h.Method, h.UrlTemplate)
 	v, p := call(a, func(ctx context.Context, c *api.APIClient) (api.RequestSummary, error) {
 		return c.CreateRequestFrom(ctx, projectID, nil, name, draft)
 	})
 	return RequestSummaryResult{Data: ptr(v, p), Error: p}
+}
+
+// restoredAuth: the new request sits at the project root, so the auth that was
+// in effect (possibly inherited from a folder) is set on it explicitly; "no
+// auth" becomes inherit, which at the root is the same.
+func restoredAuth(raw sql.NullString) api.Auth {
+	ha := unmarshalOr(raw, historyAuth{})
+	switch api.NormalizeAuth(ha.Config).Type {
+	case api.AuthBearer, api.AuthBasic, api.AuthAPIKey:
+		return api.NormalizeAuth(ha.Config)
+	}
+	return api.NormalizeAuth(api.Auth{Type: api.AuthInherit})
 }
 
 // restoredName: "<name> (from history)", or "<METHOD> <host/path>" for entries

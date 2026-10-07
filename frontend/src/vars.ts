@@ -150,3 +150,16 @@ export async function createFromTooltip(key: string, env: EnvDisplay, impl: VarE
   await impl.refresh();
   return { id: res.data.id };
 }
+
+// A masked (password) field hides literal text but keeps {{var}} tokens visible
+// (a token is a name, not a secret). The ranges of literal text, in order.
+export function maskRanges(text: string): [number, number][] {
+  const out: [number, number][] = [];
+  let pos = 0;
+  for (const t of findTokens(text)) {
+    if (t.from > pos) out.push([pos, t.from]);
+    pos = t.to;
+  }
+  if (pos < text.length) out.push([pos, text.length]);
+  return out;
+}

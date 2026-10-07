@@ -53,6 +53,35 @@ func (a *App) SetRequestFollowRedirects(id, value string) RequestResult {
 	return RequestResult{Data: ptr(v, p), Error: p}
 }
 
+func invalidAuth() *session.Problem {
+	return &session.Problem{Kind: session.KindInvalid, Message: "auth type must be inherit, none, bearer, basic or api_key (API key in header or query)"}
+}
+
+// SaveFolderSettings saves a folder's cascading settings (Folder settings modal)
+// in one PATCH: follow_redirects when it differs from the stored value, auth as
+// type + the fields that changed between base (stored) and auth (edited).
+// Nothing changed = no request.
+func (a *App) SaveFolderSettings(id, storedFollow, follow string, base, auth api.Auth) FolderResult {
+	if !api.ValidToggle(follow) {
+		return FolderResult{Error: invalidToggle()}
+	}
+	if !api.ValidAuth(auth) {
+		return FolderResult{Error: invalidAuth()}
+	}
+	var patch api.FolderSettingsPatch
+	if follow != storedFollow {
+		patch.FollowRedirects = &follow
+	}
+	patch.Auth, _ = api.BuildAuthPatch(base, auth)
+	if patch.FollowRedirects == nil && patch.Auth == nil {
+		return FolderResult{}
+	}
+	v, p := call(a, func(ctx context.Context, c *api.APIClient) (api.FolderDetail, error) {
+		return c.UpdateFolderSettings(ctx, id, patch)
+	})
+	return FolderResult{Data: ptr(v, p), Error: p}
+}
+
 // SetFolderFollowRedirects sets a folder's follow_redirects on the server.
 func (a *App) SetFolderFollowRedirects(id, value string) FolderResult {
 	if !api.ValidToggle(value) {

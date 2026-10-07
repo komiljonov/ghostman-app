@@ -30,6 +30,13 @@ redirects are followed cascades: a request or folder can follow, not follow, use
 (Settings, this machine) or inherit from its folder — set in the request's Settings tab or a
 folder's Settings…, shared with the team. Tabs can be reordered by dragging; right-click a tab
 for Close / Close Others / Close All. Settings has a System / Dark / Light theme.
+**Auth** (the request's Auth sub-tab, and a folder's Settings…): Bearer token, Basic auth or an
+API key (header or query parameter); "Inherit from parent" uses the nearest folder that sets auth
+(or none), "No auth" sends nothing even inside such a folder. Values can use `{{variables}}` —
+put credentials in a **secret** variable (`{{API_TOKEN}}`): auth settings themselves are saved on
+the server for the whole team, secret values never are. A header or query parameter you write
+yourself with the same name (e.g. your own `Authorization` header) wins over the one built from
+the Auth settings.
 **History** (profile menu → History) lists every request sent from this computer, newest first,
 grouped by day, with search and method / status / project filters; an entry shows the request
 as authored and as sent, the response and its timing, and can be restored as a new request.

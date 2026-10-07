@@ -1,5 +1,6 @@
 // Builds the sidebar tree from the server's two flat lists (folders, requests).
 // Pure functions only — no Solid, no bindings — so it is unit-testable.
+import { AuthConfig, AuthInput, normalizeAuth } from "./auth";
 
 // Cascading per-node settings as the server stores them (settingsResolver.ts
 // resolves them). Keyed by the server's field name; absent = "inherit".
@@ -13,6 +14,7 @@ export interface FolderInput {
   name: string;
   sort_order: number;
   follow_redirects?: string;
+  auth?: AuthInput;
 }
 
 export interface RequestInput {
@@ -23,6 +25,7 @@ export interface RequestInput {
   url: string;
   sort_order: number;
   follow_redirects?: string;
+  auth?: AuthInput;
 }
 
 export interface FolderNode {
@@ -32,6 +35,7 @@ export interface FolderNode {
   name: string;
   sortOrder: number;
   settings: NodeSettings;
+  auth: AuthConfig; // the cascading auth setting as stored (auth.ts, settingsResolver.resolveAuth)
   children: TreeNode[]; // folders first, then requests, each by sort_order
 }
 
@@ -44,6 +48,7 @@ export interface RequestNode {
   url: string;
   sortOrder: number;
   settings: NodeSettings;
+  auth: AuthConfig;
 }
 
 export type TreeNode = FolderNode | RequestNode;
@@ -74,7 +79,7 @@ export function buildTree(
   for (const f of folderList) {
     folders.set(f.id, {
       kind: "folder", id: f.id, parentId: f.parent_id ?? null, name: f.name, sortOrder: f.sort_order,
-      settings: nodeSettings(f), children: [],
+      settings: nodeSettings(f), auth: normalizeAuth(f.auth), children: [],
     });
   }
 
@@ -123,7 +128,7 @@ export function buildTree(
   for (const r of requestList) {
     const node: RequestNode = {
       kind: "request", id: r.id, folderId: r.folder_id ?? null, name: r.name, method: r.method, url: r.url, sortOrder: r.sort_order,
-      settings: nodeSettings(r),
+      settings: nodeSettings(r), auth: normalizeAuth(r.auth),
     };
     requests.set(r.id, node);
     place(node, node.folderId, "request");

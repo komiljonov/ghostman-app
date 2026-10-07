@@ -6,13 +6,13 @@ import { basicSetup, EditorView } from "codemirror";
 import { Annotation, Compartment, EditorState, Extension, Prec, RangeSetBuilder, StateEffect, StateField, Transaction } from "@codemirror/state";
 import {
   closeHoverTooltips, Decoration, DecorationSet, hoverTooltip, keymap, placeholder as placeholderExt, showTooltip, Tooltip,
-  ViewPlugin, ViewUpdate,
+  ViewPlugin, ViewUpdate, WidgetType,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { json } from "@codemirror/lang-json";
-import { classify, createFromTooltip, EnvDisplay, saveFromTooltip, tooltipActions, tooltipModel } from "./vars";
+import { classify, createFromTooltip, EnvDisplay, maskRanges, saveFromTooltip, tooltipActions, tooltipModel } from "./vars";
 import { runShortcut } from "./shortcuts";
 import { varEditApi } from "./varEdit";
 
@@ -298,6 +298,45 @@ export function createCodeEditor(
 
 // ---- Single-line editor (URL bar, table cells) ----
 
+// ---- Masked (password) single-line fields: literal text shows as bullets ----
+
+class Bullets extends WidgetType {
+  constructor(readonly n: number) {
+    super();
+  }
+  eq(other: Bullets) {
+    return other.n === this.n;
+  }
+  toDOM() {
+    const s = document.createElement("span");
+    s.className = "cm-masked";
+    s.textContent = "•".repeat(this.n);
+    return s;
+  }
+}
+
+function maskDecorations(view: EditorView): DecorationSet {
+  const b = new RangeSetBuilder<Decoration>();
+  for (const [from, to] of maskRanges(view.state.doc.toString())) {
+    b.add(from, to, Decoration.replace({ widget: new Bullets(to - from) }));
+  }
+  return b.finish();
+}
+
+const maskPlugin = ViewPlugin.fromClass(class {
+  decorations: DecorationSet;
+  constructor(view: EditorView) {
+    this.decorations = maskDecorations(view);
+  }
+  update(u: ViewUpdate) {
+    if (u.docChanged) this.decorations = maskDecorations(u.view);
+  }
+}, {
+  decorations: (v) => v.decorations,
+  // The cursor skips over a masked run as a whole (no caret inside the bullets).
+  provide: (p) => EditorView.atomicRanges.of((view) => view.plugin(p)?.decorations ?? Decoration.none),
+});
+
 // Marks a programmatic setDoc, so the update listener does not echo it back.
 const externalChange = Annotation.define<boolean>();
 
@@ -306,6 +345,7 @@ export interface LineEditorHandle {
   // Replaces the text programmatically: not reported to onChange, not in undo history.
   setDoc: (text: string) => void;
   getDoc: () => string;
+  setMasked: (masked: boolean) => void; // password fields: hide / reveal literal text
   focus: () => void;
   hasFocus: () => boolean;
   destroy: () => void;
@@ -319,12 +359,14 @@ export interface LineEditorOptions {
   onFocusChange?: (focused: boolean) => void;
   onPin?: PinListener;
   getEnv: () => EnvDisplay;
+  masked?: boolean; // password-style: literal text as bullets ({{vars}} stay visible)
 }
 
 // One factory for every single-line field: newlines are stripped (a pasted multi-line
 // value is joined), Tab/Shift+Tab move focus as in a normal input, and the shared
 // theme, shortcuts and {{var}} highlighting/hover apply.
 export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEditorOptions): LineEditorHandle {
+  const mask = new Compartment();
   const view = new EditorView({
     parent,
     state: EditorState.create({
@@ -348,6 +390,7 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
         placeholderExt(opts.placeholder),
         theme,
         varHighlighting(opts.getEnv, opts.onPin),
+        mask.of(opts.masked ? maskPlugin : []),
         EditorView.updateListener.of((u) => {
           const external = u.transactions.some((tr) => tr.annotation(externalChange));
           if (u.docChanged && !external) opts.onChange(u.state.doc.toString());
@@ -367,6 +410,7 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
       });
     },
     getDoc: () => view.state.doc.toString(),
+    setMasked: (masked) => view.dispatch({ effects: mask.reconfigure(masked ? maskPlugin : []) }),
     focus: () => view.focus(),
     hasFocus: () => view.hasFocus,
     destroy: () => view.destroy(),

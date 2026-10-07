@@ -3234,3 +3234,130 @@ input:disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ---- Auth sub-tab / folder modal (AuthEditor) ---- */
+
+.auth-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 620px;
+  padding: 10px 4px;
+}
+
+.folder-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.folder-settings .auth-editor {
+  padding: 0;
+}
+
+.auth-mode select {
+  max-width: 100%;
+}
+
+.auth-note {
+  margin: 0;
+  color: var(--muted);
+}
+
+.auth-note strong {
+  color: var(--text);
+}
+
+.auth-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.auth-field {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-field > span:first-child {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.auth-secret {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.auth-secret .var-field {
+  flex: 1;
+}
+
+.auth-preview {
+  margin: 0 0 0 100px;
+}
+
+.auth-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Standalone single-line {{var}} field (VarField): looks like an input. */
+.var-field {
+  display: flex;
+  min-width: 0;
+}
+
+.var-field-fallback {
+  flex: 1;
+  font: 13px/1.4 var(--mono);
+}
+
+.var-field-host {
+  flex: 1;
+  min-width: 0;
+}
+
+.var-field-host .cm-editor {
+  padding: 0 8px;
+  color: var(--text);
+  background: var(--field-bg);
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+}
+
+.var-field-host .cm-editor:hover {
+  border-color: var(--field-border-hover);
+}
+
+.var-field-host .cm-editor.cm-focused {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.var-field-host .cm-scroller {
+  font: 13px/1.4 var(--mono);
+  overflow: hidden;
+}
+
+.var-field-host .cm-content {
+  padding: 5px 0;
+  caret-color: var(--text);
+}
+
+.var-field-host .cm-line {
+  padding: 0;
+}
+
+.var-field-host .cm-cursor {
+  border-left-color: var(--text);
+}
+
+.cm-masked {
+  letter-spacing: 0.05em;
+}

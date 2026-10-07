@@ -112,7 +112,7 @@ Postman-style shell, logged in:
 - **Main pane**: the **tabs** by default, or Team settings / Project settings / Invitations
   when opened. Empty state without tabs. Tabs are typed (`src/tabModel.ts`):
   `request` (method | URL (stretches) | Send / Cancel in one fixed slot at the far right;
-  Params | Headers | Body | Settings | History with the save status at the row's right end; response below a
+  Params | Headers | Body | Auth | Settings | History with the save status at the row's right end; response below a
   draggable divider), `env` (that environment's variables table), `env_list`
   (create / rename / reorder / delete environments) and `history` (see History). There is no separate environments page.
 - **Tabs** are per project, persisted as typed refs in tab-bar order (`ui_tabs_<project_id>`;
@@ -272,6 +272,31 @@ Postman-style shell, logged in:
   request's sends (`ListHistory` with `request_id`, index from migration 00008); a row or
   "Open in History" opens the History tab filtered to the request (removable "Request: X"
   chip) with that entry selected, via `focusHistory` (consumed once).
+- **Authorization** (a cascading setting WITHOUT a global level): requests and folders store
+  `auth` = {type inherit | none | bearer | basic | api_key, bearer_token, basic_username,
+  basic_password, api_key_name, api_key_value, api_key_in header|query} **on the server**; values
+  may hold `{{vars}}` (a secret var is the recommended way — literal text is synced to the team).
+  Fields not matching the type are KEPT (server and UI; a mode switch changes only `type`).
+  **Resolver** `resolveAuth` (`src/settingsResolver.ts`): bearer/basic/api_key at a level → that
+  node's full config, stop; `none` → no auth, stop (source = that node); `inherit` → next folder;
+  past the root → no auth (source "default", "nothing set in parents"). A request tab resolves
+  its DRAFT's own config + its folders from the tree store (`effectiveAuthOf`), so labels follow
+  edits, folder changes and moves live. UI: the **Auth sub-tab** and the folder **Settings…**
+  modal share `AuthEditor` (mode select whose Inherit option names what it resolves to;
+  fields are `VarField`s — standalone single-line CM editors from the shared factory; the
+  basic password is masked (literal text as bullets, `{{vars}}` visible) with a reveal toggle).
+  Request auth rides the autosave (`api.BuildAuthPatch`: type + the changed fields); the folder
+  modal saves auth + follow_redirects in ONE PATCH (`SaveFolderSettings`). Sub-tab dots: Auth
+  when type ≠ inherit, Settings when follow ≠ inherit (`overridesSomething`). **Send**: TS passes
+  the effective config (template form) + source in `SendOptions.auth`; Go resolves `{{vars}}`
+  inside it (same env map, secret overlay, unresolved keys join the banner) and
+  `engine.ApplyAuth` adds ONE derived row: `Authorization: Bearer …` / `Basic base64(u:p)` /
+  the API key header, or `name=value` appended to the query. **User-written wins**: an enabled
+  header with the same name (case-insensitive), or the same query param in the rows or the URL,
+  means nothing is added. Being a plain header, a derived Authorization follows the cross-host
+  redirect drop rule. History: the resolved copy has the derived header/param; `req_auth_json`
+  (migration 00009) keeps the config as authored + its source; Restore sets that effective
+  config explicitly on the new root request.
 - **Current team/project** live in Go (`internal/workspace`), persisted in settings
   (`current_team_id`, `current_project_id`) and validated against fresh server lists on every
   load: a vanished team falls back to the first team with no project, a vanished project to no
@@ -295,7 +320,8 @@ environments.go          bound environment/variable methods + local secret acces
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
 responses.go             full response bodies per tab (Go-side), SaveResponseToFile, ReleaseResponse
-redirects.go             follow-redirects: local global value, node setters (server), legacy local→server push
+redirects.go             follow-redirects: local global value, node setters (server), SaveFolderSettings
+                         (folder auth + follow in one PATCH), legacy local→server push
 ui_tokens_test.go        fails on color literals outside frontend/src/tokens.css
 internal/engine/         HTTP request engine (the product core)
 internal/api/            typed client for the Ghostman server API (/api/v1)
@@ -326,10 +352,10 @@ frontend/                Vite + Solid + TS
 
 - `{{var}}` **autocomplete** on typing `{{`; variable usage search; env duplication;
   dynamic/generated variables.
-- More cascading settings through the same resolver (auth, proxy, timeout, TLS / insecure);
-  the Settings sub-tab and the folder Settings… modal are their home.
+- More cascading settings through the same resolver (proxy, timeout, TLS / insecure);
+  the Settings sub-tab and the folder Settings… modal are their home. Auth: OAuth 2.0, digest.
 - Response search: regex mode.
-- Per-request auth; cookies; multipart/file bodies; history export / sync.
+- Cookies; multipart/file bodies; history export / sync.
 - **Drag-and-drop for the project list**: for now projects use ↑/↓ in Project settings. Reorder
   endpoints need the full sibling set (every team project, so only the team owner and
   all-projects members get ↑/↓).

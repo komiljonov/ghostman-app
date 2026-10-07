@@ -1,3 +1,4 @@
+import { normalizeAuth } from "./auth";
 import { describe, expect, it, vi } from "vitest";
 import { clampSidebar, SIDEBAR_DEFAULT, SIDEBAR_MIN } from "./layout";
 import { MENU_MARGIN, menuPosition } from "./menuPosition";
@@ -45,10 +46,10 @@ describe("context menu position", () => {
 
 describe("tree keyboard model", () => {
   const req = (id: string, folderId: string | null = null): TreeNode =>
-    ({ kind: "request", id, folderId, name: id, method: "GET", url: "", sortOrder: 0, settings: { follow_redirects: "inherit" } });
+    ({ kind: "request", id, folderId, name: id, method: "GET", url: "", sortOrder: 0, settings: { follow_redirects: "inherit" }, auth: normalizeAuth() });
   const root: TreeNode[] = [
-    { kind: "folder", id: "f1", parentId: null, name: "f1", sortOrder: 0, settings: { follow_redirects: "inherit" }, children: [req("r1", "f1"), req("r2", "f1")] },
-    { kind: "folder", id: "f2", parentId: null, name: "f2", sortOrder: 1, settings: { follow_redirects: "inherit" }, children: [] },
+    { kind: "folder", id: "f1", parentId: null, name: "f1", sortOrder: 0, settings: { follow_redirects: "inherit" }, auth: normalizeAuth(), children: [req("r1", "f1"), req("r2", "f1")] },
+    { kind: "folder", id: "f2", parentId: null, name: "f2", sortOrder: 1, settings: { follow_redirects: "inherit" }, auth: normalizeAuth(), children: [] },
     req("r3"),
   ];
   const open = new Set(["f1"]);

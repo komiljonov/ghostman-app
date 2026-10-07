@@ -3,8 +3,8 @@ INSERT INTO history (
     created_at, project_id, request_id, request_name, method, url_template, url_resolved,
     env_id, env_name, req_headers_json, req_params_json, req_body_json,
     req_headers_resolved_json, req_body_resolved, status, duration_ms, error,
-    resp_headers_json, resp_body, resp_body_size, resp_truncated, timings_json
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    resp_headers_json, resp_body, resp_body_size, resp_truncated, timings_json, req_auth_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id;
 
 -- name: ListHistoryPage :many

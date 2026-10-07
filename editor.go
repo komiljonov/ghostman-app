@@ -107,6 +107,9 @@ func (t Tabs) normalize() Tabs {
 // SaveRequest autosaves a tab: it PATCHes only what differs between base (the
 // last saved state) and draft. Nothing changed means no request and Data nil.
 func (a *App) SaveRequest(id string, base, draft api.RequestDraft) RequestResult {
+	if !api.ValidAuth(draft.Auth) {
+		return RequestResult{Error: invalidAuth()}
+	}
 	patch, changed := api.BuildRequestPatch(base, draft)
 	if !changed {
 		return RequestResult{}
@@ -122,6 +125,21 @@ func (a *App) SaveRequest(id string, base, draft api.RequestDraft) RequestResult
 type SendOptions struct {
 	FollowRedirects bool   `json:"follow_redirects"`
 	RequestName     string `json:"request_name"`
+	// Auth is the effective auth config from the cascade (request draft, then its
+	// folders; settingsResolver.ts), still in template form; nil = no auth.
+	// AuthSource names where it came from ("this request", "folder ‘api’", ...).
+	Auth       *api.Auth `json:"auth"`
+	AuthSource string    `json:"auth_source"`
+}
+
+// engineAuth converts the effective config for the engine (nil = nothing to add).
+func engineAuth(a *api.Auth) *engine.Auth {
+	if a == nil {
+		return nil
+	}
+	n := api.NormalizeAuth(*a)
+	return &engine.Auth{Type: n.Type, BearerToken: n.BearerToken, BasicUsername: n.BasicUsername, BasicPassword: n.BasicPassword,
+		APIKeyName: n.APIKeyName, APIKeyValue: n.APIKeyValue, APIKeyIn: n.APIKeyIn}
 }
 
 // SendRequest executes a tab's current draft with {{vars}} resolved from the
@@ -173,7 +191,13 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 		a.sendsMu.Unlock()
 	}()
 
+	if opts.Auth != nil && !api.ValidAuth(*opts.Auth) {
+		return SendResult{Error: invalidAuth(), Unresolved: []string{}}
+	}
 	template := specFromDraft(draft)
+	template.Auth = engineAuth(opts.Auth)
+	// {{vars}} resolve inside the auth values too; the derived header / query param
+	// is added at send (engine.ApplyAuth): user-written rows win.
 	spec, unresolved := engine.ResolveSpec(template, rv.vars)
 	if unresolved == nil {
 		unresolved = []string{}
@@ -187,6 +211,7 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 	a.recordHistory(historyRecord{
 		projectID: projectID, requestID: requestID, requestName: opts.RequestName,
 		envID: rv.envID, envName: rv.env, draft: draft, template: template, resolved: spec,
+		auth: opts.Auth, authSource: opts.AuthSource,
 		resp: resp, err: err, start: start,
 	})
 	// The tab's active response (full body, Go-side) — unless a newer send of the

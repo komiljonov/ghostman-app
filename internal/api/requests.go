@@ -17,9 +17,11 @@ type RequestSummary struct {
 	URL       string  `json:"url"`
 	// FollowRedirects is the cascading setting: inherit|global|on|off (see ToggleValues).
 	FollowRedirects string `json:"follow_redirects"`
-	SortOrder       int32  `json:"sort_order"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
+	// Auth is the cascading auth setting (auth.go), stored values unresolved.
+	Auth      Auth   `json:"auth"`
+	SortOrder int32  `json:"sort_order"`
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 // Request is a full saved request.
@@ -50,6 +52,8 @@ type RequestPatch struct {
 	Body        *RequestBody `json:"body,omitempty"`
 	// FollowRedirects is set on its own (Settings tab), never by autosave.
 	FollowRedirects *string `json:"follow_redirects,omitempty"`
+	// Auth rides the autosave (BuildRequestPatch): type + the fields that changed.
+	Auth *AuthPatch `json:"auth,omitempty"`
 }
 
 func requestPath(id string) string { return "/api/v1/requests/" + url.PathEscape(id) }
@@ -72,6 +76,9 @@ func (c *APIClient) CreateRequest(ctx context.Context, projectID string, in NewR
 func (c *APIClient) ListRequests(ctx context.Context, projectID string) ([]RequestSummary, error) {
 	out := []RequestSummary{}
 	err := c.do(ctx, http.MethodGet, projectPath(projectID)+"/requests", nil, &out)
+	for i := range out {
+		out[i].Auth = NormalizeAuth(out[i].Auth)
+	}
 	return out, err
 }
 
@@ -90,12 +97,13 @@ func (r Request) withDefaults() Request {
 	if r.Body.Type == "" {
 		r.Body.Type = BodyNone
 	}
+	r.Auth = NormalizeAuth(r.Auth)
 	return r
 }
 
 // Draft returns the editable part of the request.
 func (r Request) Draft() RequestDraft {
-	return RequestDraft{Method: r.Method, URL: r.URL, Headers: r.Headers, QueryParams: r.QueryParams, Body: r.Body}
+	return RequestDraft{Method: r.Method, URL: r.URL, Headers: r.Headers, QueryParams: r.QueryParams, Body: r.Body, Auth: r.Auth}
 }
 
 // UpdateRequest applies a partial update (name / method / url).
@@ -124,7 +132,7 @@ func (c *APIClient) DeleteRequest(ctx context.Context, id string) error {
 	return c.do(ctx, http.MethodDelete, requestPath(id), nil, nil)
 }
 
-// Cascading per-node settings (follow_redirects now; auth, proxy later) live on
+// Cascading per-node settings (follow_redirects; auth in auth.go; proxy later) live on
 // folders and requests as one of these values; the client resolves them
 // (frontend/src/settingsResolver.ts), the server only stores them.
 const (

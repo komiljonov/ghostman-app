@@ -43,7 +43,7 @@ func TestFolderAndRequestEndpoints(t *testing.T) {
 			resp:       `[{"id":"f1","parent_id":null,"name":"A","sort_order":0,"created_at":"x"},{"id":"f2","parent_id":"f1","name":"B","sort_order":0,"created_at":"x"}]`,
 			call:       func(c *APIClient) (any, error) { return c.ListFolders(ctx, "p1") },
 			wantMethod: "GET", wantPath: "/api/v1/projects/p1/folders",
-			want: []Folder{{ID: "f1", Name: "A", CreatedAt: "x"}, {ID: "f2", ParentID: strPtr("f1"), Name: "B", CreatedAt: "x"}},
+			want: []Folder{{ID: "f1", Name: "A", Auth: defAuth, CreatedAt: "x"}, {ID: "f2", ParentID: strPtr("f1"), Name: "B", Auth: defAuth, CreatedAt: "x"}},
 		},
 		{
 			name: "rename folder", status: 200, resp: folder,
@@ -87,7 +87,7 @@ func TestFolderAndRequestEndpoints(t *testing.T) {
 			name: "list requests", status: 200, resp: `[` + summary + `]`,
 			call:       func(c *APIClient) (any, error) { return c.ListRequests(ctx, "p1") },
 			wantMethod: "GET", wantPath: "/api/v1/projects/p1/requests",
-			want: []RequestSummary{{ID: "r1", ProjectID: "p1", Name: "R1", Method: "GET", CreatedAt: "x", UpdatedAt: "y"}},
+			want: []RequestSummary{{ID: "r1", ProjectID: "p1", Name: "R1", Method: "GET", Auth: defAuth, CreatedAt: "x", UpdatedAt: "y"}},
 		},
 		{
 			name: "get request decodes rows and body", status: 200, resp: detail,
@@ -95,7 +95,8 @@ func TestFolderAndRequestEndpoints(t *testing.T) {
 			wantMethod: "GET", wantPath: "/api/v1/requests/r1",
 			want: Request{
 				RequestSummary: RequestSummary{ID: "r1", ProjectID: "p1", FolderID: strPtr("f1"), Name: "R1", Method: "POST",
-					URL: "https://x.io", CreatedAt: "x", UpdatedAt: "y"},
+					URL: "https://x.io", CreatedAt: "x", UpdatedAt: "y",
+					Auth: Auth{Type: AuthInherit, APIKeyIn: APIKeyInHeader}}, // absent (older server) -> defaults
 				Headers:     []KeyValue{{Key: "A", Value: "1", Enabled: true}},
 				QueryParams: []KeyValue{},
 				Body:        RequestBody{Type: BodyNone, Fields: []KeyValue{}},
@@ -185,3 +186,6 @@ func TestTreeEndpointErrors(t *testing.T) {
 		})
 	}
 }
+
+// defAuth is what an absent auth object (older server) decodes to in lists.
+var defAuth = Auth{Type: AuthInherit, APIKeyIn: APIKeyInHeader}

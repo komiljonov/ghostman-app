@@ -6,6 +6,8 @@ import BodyEditor from "./BodyEditor";
 import KeyValueTable from "./KeyValueTable";
 import RequestSettingsPanel from "./RequestSettingsPanel";
 import RequestHistoryPanel from "./RequestHistoryPanel";
+import AuthEditor from "./AuthEditor";
+import { effectiveAuthOf, modeOptions, overridesSomething } from "../auth";
 import { ownFollow } from "../requestSettings";
 import { currentTree } from "../treeStore";
 import ResponseView from "./ResponseView";
@@ -21,7 +23,7 @@ const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
 const countRows = (rows: Row[]) => rows.filter((r) => r.key.trim() !== "").length;
 
-// One tab's editor: method/URL/Send, Params | Headers | Body | Settings | History, and the response
+// One tab's editor: method/URL/Send, Params | Headers | Body | Auth | Settings | History, and the response
 // below a draggable divider. Every edit autosaves (see tabsController).
 export default function RequestEditor(props: Props) {
   let split!: HTMLDivElement;
@@ -44,10 +46,14 @@ export default function RequestEditor(props: Props) {
     window.addEventListener("pointerup", up);
   };
 
+  // One rule for the sub-tab dots: the request sets something itself.
+  const overrides = () => overridesSomething({ authType: props.tab.draft.auth.type, follow: ownFollow(currentTree(), props.tab.id) });
+
   const sections = [
     { id: "params" as const, label: "Params", count: () => countRows(props.tab.draft.query_params) },
     { id: "headers" as const, label: "Headers", count: () => countRows(props.tab.draft.headers) },
     { id: "body" as const, label: "Body", count: () => 0 },
+    { id: "auth" as const, label: "Auth", count: () => 0 },
     { id: "settings" as const, label: "Settings", count: () => 0 },
     { id: "history" as const, label: "History", count: () => 0 },
   ];
@@ -103,8 +109,8 @@ export default function RequestEditor(props: Props) {
                       <Show when={s.id === "body" && props.tab.draft.body.type !== "none"}>
                         <span class="muted"> {props.tab.draft.body.type}</span>
                       </Show>
-                      <Show when={s.id === "settings" && ownFollow(currentTree(), props.tab.id) !== "inherit"}>
-                        <span class="section-dot" title="This request overrides a default" />
+                      <Show when={(s.id === "settings" && overrides().settings) || (s.id === "auth" && overrides().auth)}>
+                        <span class="section-dot" title={s.id === "auth" ? "This request sets its own auth" : "This request overrides a default"} />
                       </Show>
                     </button>
                   )}
@@ -125,6 +131,12 @@ export default function RequestEditor(props: Props) {
                   </Match>
                   <Match when={props.tab.section === "body"}>
                     <BodyEditor body={props.tab.draft.body} onChange={(fn) => edit((d) => fn(d.body))} />
+                  </Match>
+                  <Match when={props.tab.section === "auth"}>
+                    <AuthEditor auth={props.tab.draft.auth} idPrefix={`req-${props.tab.id}`} noun="request"
+                      options={modeOptions(currentTree(), props.tab.id)}
+                      effective={effectiveAuthOf(currentTree(), props.tab.id, props.tab.draft.auth)}
+                      onChange={(next) => edit((d) => (d.auth = next))} />
                   </Match>
                   <Match when={props.tab.section === "settings"}>
                     <RequestSettingsPanel requestId={props.tab.id} />

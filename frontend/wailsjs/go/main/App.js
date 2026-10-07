@@ -270,6 +270,10 @@ export function RevokeInvitation(arg1) {
   return window['go']['main']['App']['RevokeInvitation'](arg1);
 }
 
+export function SaveFolderSettings(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['SaveFolderSettings'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function SaveRequest(arg1, arg2, arg3) {
   return window['go']['main']['App']['SaveRequest'](arg1, arg2, arg3);
 }

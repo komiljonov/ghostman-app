@@ -38,6 +38,20 @@ const SHAPES = {
   // Collapse all / expand all: chevrons pointing in / out.
   collapse: () => <path d="M5 2.75L8 5.75l3-3M5 13.25L8 10.25l3 3" />,
   expand: () => <path d="M5 5.75L8 2.75l3 3M5 10.25L8 13.25l3-3" />,
+  // Show / hide a password.
+  eye: () => (
+    <>
+      <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z" />
+      <circle cx="8" cy="8" r="2" />
+    </>
+  ),
+  "eye-off": () => (
+    <>
+      <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z" />
+      <circle cx="8" cy="8" r="2" />
+      <path d="M2.5 13.5l11-11" />
+    </>
+  ),
   // History: a clock face.
   history: () => (
     <>
