@@ -79,7 +79,7 @@ func Resolve(s string, vars map[string]string) (string, []string) {
 
 // ResolveSpec resolves every part of a request that is sent: the URL, enabled
 // header and query-param keys/values, a raw body's content and enabled form field
-// keys/values. Disabled rows are not sent, so they are left as they are and their
+// keys/values, and the auth config's values. Disabled rows are not sent, so they are left as they are and their
 // tokens are not reported. Unresolved keys are collected across all parts.
 func ResolveSpec(spec RequestSpec, vars map[string]string) (RequestSpec, []string) {
 	var all []string
@@ -114,6 +114,10 @@ func ResolveSpec(spec RequestSpec, vars map[string]string) (RequestSpec, []strin
 		out.Body.Content = res(spec.Body.Content)
 	case BodyForm:
 		out.Body.Fields = rows(spec.Body.Fields)
+	}
+	if spec.Auth != nil { // {{vars}} inside auth values, same map (auth.go)
+		a := resolveAuth(*spec.Auth, res)
+		out.Auth = &a
 	}
 	return out, all
 }

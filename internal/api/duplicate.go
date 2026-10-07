@@ -21,7 +21,7 @@ func (c *APIClient) DuplicateRequest(ctx context.Context, id string) (RequestSum
 
 // CreateRequestFrom creates a request with the given contents: create (name,
 // folder, method, URL), then patch in headers, query params and body. If the
-// patch fails, the half-made request is deleted (best effort) and the patch's
+// patch fails (auth included, every field), the half-made request is deleted (best effort) and the patch's
 // error is returned. Used by duplicate and by "restore from history".
 func (c *APIClient) CreateRequestFrom(ctx context.Context, projectID string, folderID *string, name string, d RequestDraft) (RequestSummary, error) {
 	created, err := c.CreateRequest(ctx, projectID, NewRequest{Name: name, FolderID: folderID, Method: d.Method, URL: d.URL})
@@ -31,7 +31,7 @@ func (c *APIClient) CreateRequestFrom(ctx context.Context, projectID string, fol
 	headers, query, body := NormalizeRows(d.Headers), NormalizeRows(d.QueryParams), NormalizeBody(d.Body)
 	method, url := d.Method, d.URL
 	updated, err := c.UpdateRequest(ctx, created.ID, RequestPatch{
-		Method: &method, URL: &url, Headers: &headers, QueryParams: &query, Body: &body,
+		Method: &method, URL: &url, Headers: &headers, QueryParams: &query, Body: &body, Auth: FullAuthPatch(d.Auth),
 	})
 	if err != nil {
 		if delErr := c.DeleteRequest(context.WithoutCancel(ctx), created.ID); delErr != nil {

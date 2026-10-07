@@ -12,6 +12,7 @@ type Folder struct {
 	ParentID        *string `json:"parent_id"`
 	Name            string  `json:"name"`
 	FollowRedirects string  `json:"follow_redirects"` // cascading setting: inherit|global|on|off
+	Auth            Auth    `json:"auth"`             // cascading auth setting (auth.go)
 	SortOrder       int32   `json:"sort_order"`
 	CreatedAt       string  `json:"created_at"`
 }
@@ -23,8 +24,15 @@ type FolderDetail struct {
 	ParentID        *string `json:"parent_id"`
 	Name            string  `json:"name"`
 	FollowRedirects string  `json:"follow_redirects"`
+	Auth            Auth    `json:"auth"`
 	SortOrder       int32   `json:"sort_order"`
 	CreatedAt       string  `json:"created_at"`
+}
+
+// FolderSettingsPatch updates a folder's cascading settings; nil = unchanged.
+type FolderSettingsPatch struct {
+	FollowRedirects *string    `json:"follow_redirects,omitempty"`
+	Auth            *AuthPatch `json:"auth,omitempty"`
 }
 
 func folderPath(id string) string { return "/api/v1/folders/" + url.PathEscape(id) }
@@ -41,6 +49,9 @@ func (c *APIClient) CreateFolder(ctx context.Context, projectID, name string, pa
 func (c *APIClient) ListFolders(ctx context.Context, projectID string) ([]Folder, error) {
 	out := []Folder{}
 	err := c.do(ctx, http.MethodGet, projectPath(projectID)+"/folders", nil, &out)
+	for i := range out {
+		out[i].Auth = NormalizeAuth(out[i].Auth)
+	}
 	return out, err
 }
 
@@ -55,6 +66,13 @@ func (c *APIClient) RenameFolder(ctx context.Context, id, name string) (FolderDe
 func (c *APIClient) SetFolderFollowRedirects(ctx context.Context, id, value string) (FolderDetail, error) {
 	var out FolderDetail
 	err := c.do(ctx, http.MethodPatch, folderPath(id), map[string]string{"follow_redirects": value}, &out)
+	return out, err
+}
+
+// UpdateFolderSettings patches a folder's cascading settings in one request.
+func (c *APIClient) UpdateFolderSettings(ctx context.Context, id string, patch FolderSettingsPatch) (FolderDetail, error) {
+	var out FolderDetail
+	err := c.do(ctx, http.MethodPatch, folderPath(id), patch, &out)
 	return out, err
 }
 

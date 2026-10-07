@@ -32,6 +32,7 @@ type History struct {
 	RespBodySize           int64          `json:"respBodySize"`
 	RespTruncated          int64          `json:"respTruncated"`
 	TimingsJson            sql.NullString `json:"timingsJson"`
+	ReqAuthJson            sql.NullString `json:"reqAuthJson"`
 }
 
 type RequestSetting struct {

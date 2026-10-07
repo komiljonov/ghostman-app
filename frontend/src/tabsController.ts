@@ -8,6 +8,8 @@ import { historyChanged } from "./historyStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
 import { BodyView, defaultView } from "./responseView";
 import { adoptUrlQuery } from "./urlParams";
+import { AuthConfig, normalizeAuth } from "./auth";
+import { sourceLabel, type ResolvedAuth } from "./settingsResolver";
 import { Row } from "./rows";
 import { restoreTabs, saveTabs, TabStorage } from "./tabPersistence";
 import { closeEach, CloseMode, cycleKey, ENV_LIST, HISTORY, reorder, sameTab, syncEnvTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
@@ -28,6 +30,7 @@ export interface Draft {
   headers: Row[];
   query_params: Row[];
   body: Body;
+  auth: AuthConfig; // the request's own auth setting (cascades: settingsResolver.resolveAuth)
 }
 
 export interface TabState {
@@ -46,7 +49,7 @@ export interface TabState {
   // {{keys}} the last send could not resolve (sent literally).
   unresolved: string[];
   // View state (not saved anywhere).
-  section: "params" | "headers" | "body" | "settings" | "history";
+  section: "params" | "headers" | "body" | "auth" | "settings" | "history";
   responseSection: "body" | "headers";
   // Pretty | Raw | Preview; reset to the response's default on every new response.
   responseView: BodyView;
@@ -59,6 +62,7 @@ export interface TabState {
 
 const emptyDraft = (): Draft => ({
   method: "GET", url: "", headers: [], query_params: [], body: { type: "none", content_type: "application/json", content: "", fields: [] },
+  auth: normalizeAuth(),
 });
 
 function draftFromRequest(r: api.Request): Draft {
@@ -73,6 +77,7 @@ function draftFromRequest(r: api.Request): Draft {
       content: r.body?.content ?? "",
       fields: (r.body?.fields ?? []).map((f) => ({ ...f })),
     },
+    auth: normalizeAuth(r.auth),
   };
 }
 
@@ -89,6 +94,8 @@ export interface TabsHooks {
   // The resolved follow-redirects value for a request (cascading setting, resolved
   // in the UI from the tree store + the global value).
   followRedirects: (requestId: string) => boolean;
+  // The effective auth of a request from its draft's own config + its folders.
+  auth: (requestId: string, own: AuthConfig) => ResolvedAuth;
 }
 
 export type TabsController = ReturnType<typeof createTabsController>;
@@ -146,7 +153,8 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
           return false;
         }
         bases.set(id, snapshot);
-        if (snapshot.method !== base.method) hooks.onTreeStale();
+        // The tree shows the method badge and holds every node's auth (for the cascade).
+        if (snapshot.method !== base.method || JSON.stringify(snapshot.auth) !== JSON.stringify(base.auth)) hooks.onTreeStale();
         return true;
       },
     });
@@ -332,11 +340,15 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       });
       await savers.get(id)?.flush(); // send what is saved
       const snapshot = clone(unwrap(tab(id)!.draft));
+      const auth = hooks.auth(id, snapshot.auth);
       const result = await SendRequest(
         projectId,
         id,
         api.RequestDraft.createFrom(snapshot),
-        main.SendOptions.createFrom({ follow_redirects: hooks.followRedirects(id), request_name: tab(id)!.name }),
+        main.SendOptions.createFrom({
+          follow_redirects: hooks.followRedirects(id), request_name: tab(id)!.name,
+          auth: auth.config, auth_source: sourceLabel(auth.source),
+        }),
       );
       handleProblem(result.error);
       historyChanged(); // every send is a new history entry (Go writes it)

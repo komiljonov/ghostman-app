@@ -48,6 +48,54 @@ export namespace api {
 		    return a;
 		}
 	}
+	export class Auth {
+	    type: string;
+	    bearer_token: string;
+	    basic_username: string;
+	    basic_password: string;
+	    api_key_name: string;
+	    api_key_value: string;
+	    api_key_in: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Auth(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.bearer_token = source["bearer_token"];
+	        this.basic_username = source["basic_username"];
+	        this.basic_password = source["basic_password"];
+	        this.api_key_name = source["api_key_name"];
+	        this.api_key_value = source["api_key_value"];
+	        this.api_key_in = source["api_key_in"];
+	    }
+	}
+	export class AuthPatch {
+	    type: string;
+	    bearer_token?: string;
+	    basic_username?: string;
+	    basic_password?: string;
+	    api_key_name?: string;
+	    api_key_value?: string;
+	    api_key_in?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AuthPatch(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.bearer_token = source["bearer_token"];
+	        this.basic_username = source["basic_username"];
+	        this.basic_password = source["basic_password"];
+	        this.api_key_name = source["api_key_name"];
+	        this.api_key_value = source["api_key_value"];
+	        this.api_key_in = source["api_key_in"];
+	    }
+	}
 	export class Environment {
 	    id: string;
 	    name: string;
@@ -91,6 +139,7 @@ export namespace api {
 	    parent_id?: string;
 	    name: string;
 	    follow_redirects: string;
+	    auth: Auth;
 	    sort_order: number;
 	    created_at: string;
 	
@@ -104,9 +153,28 @@ export namespace api {
 	        this.parent_id = source["parent_id"];
 	        this.name = source["name"];
 	        this.follow_redirects = source["follow_redirects"];
+	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class FolderDetail {
 	    id: string;
@@ -114,6 +182,7 @@ export namespace api {
 	    parent_id?: string;
 	    name: string;
 	    follow_redirects: string;
+	    auth: Auth;
 	    sort_order: number;
 	    created_at: string;
 	
@@ -128,9 +197,28 @@ export namespace api {
 	        this.parent_id = source["parent_id"];
 	        this.name = source["name"];
 	        this.follow_redirects = source["follow_redirects"];
+	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class Invitation {
 	    id: string;
@@ -399,6 +487,7 @@ export namespace api {
 	    method: string;
 	    url: string;
 	    follow_redirects: string;
+	    auth: Auth;
 	    sort_order: number;
 	    created_at: string;
 	    updated_at: string;
@@ -419,6 +508,7 @@ export namespace api {
 	        this.method = source["method"];
 	        this.url = source["url"];
 	        this.follow_redirects = source["follow_redirects"];
+	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	        this.updated_at = source["updated_at"];
@@ -452,6 +542,7 @@ export namespace api {
 	    headers: KeyValue[];
 	    query_params: KeyValue[];
 	    body: RequestBody;
+	    auth: Auth;
 	
 	    static createFrom(source: any = {}) {
 	        return new RequestDraft(source);
@@ -464,6 +555,7 @@ export namespace api {
 	        this.headers = this.convertValues(source["headers"], KeyValue);
 	        this.query_params = this.convertValues(source["query_params"], KeyValue);
 	        this.body = this.convertValues(source["body"], RequestBody);
+	        this.auth = this.convertValues(source["auth"], Auth);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -492,6 +584,7 @@ export namespace api {
 	    query_params?: KeyValue[];
 	    body?: RequestBody;
 	    follow_redirects?: string;
+	    auth?: AuthPatch;
 	
 	    static createFrom(source: any = {}) {
 	        return new RequestPatch(source);
@@ -506,6 +599,7 @@ export namespace api {
 	        this.query_params = this.convertValues(source["query_params"], KeyValue);
 	        this.body = this.convertValues(source["body"], RequestBody);
 	        this.follow_redirects = source["follow_redirects"];
+	        this.auth = this.convertValues(source["auth"], AuthPatch);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -534,6 +628,7 @@ export namespace api {
 	    method: string;
 	    url: string;
 	    follow_redirects: string;
+	    auth: Auth;
 	    sort_order: number;
 	    created_at: string;
 	    updated_at: string;
@@ -551,10 +646,29 @@ export namespace api {
 	        this.method = source["method"];
 	        this.url = source["url"];
 	        this.follow_redirects = source["follow_redirects"];
+	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	        this.updated_at = source["updated_at"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class TeamMember {
 	    user_id: string;
@@ -1218,6 +1332,8 @@ export namespace main {
 	    resolved: HistoryRequestForm;
 	    response?: HistoryResponse;
 	    hops: engine.Hop[];
+	    auth?: api.Auth;
+	    auth_source: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new HistoryEntry(source);
@@ -1231,6 +1347,8 @@ export namespace main {
 	        this.resolved = this.convertValues(source["resolved"], HistoryRequestForm);
 	        this.response = this.convertValues(source["response"], HistoryResponse);
 	        this.hops = this.convertValues(source["hops"], engine.Hop);
+	        this.auth = this.convertValues(source["auth"], api.Auth);
+	        this.auth_source = source["auth_source"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1887,6 +2005,8 @@ export namespace main {
 	export class SendOptions {
 	    follow_redirects: boolean;
 	    request_name: string;
+	    auth?: api.Auth;
+	    auth_source: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SendOptions(source);
@@ -1896,7 +2016,27 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.follow_redirects = source["follow_redirects"];
 	        this.request_name = source["request_name"];
+	        this.auth = this.convertValues(source["auth"], api.Auth);
+	        this.auth_source = source["auth_source"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class SendResult {
 	    data?: engine.Response;

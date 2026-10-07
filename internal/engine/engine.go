@@ -63,6 +63,9 @@ type RequestSpec struct {
 	Headers     []Header `json:"headers"`
 	QueryParams []Header `json:"queryParams"`
 	Body        Body     `json:"body"`
+	// Auth is the effective auth config (resolved by the UI's cascade), applied
+	// as a derived header / query row at send time (auth.go). nil = no auth.
+	Auth *Auth `json:"auth,omitempty"`
 }
 
 // Response is the result of a completed HTTP exchange (any status code).
@@ -167,7 +170,7 @@ func (e *Engine) SendRequest(ctx context.Context, spec RequestSpec) (*Response, 
 // Transport-level failures (bad URL, DNS, refused, timeout) and an over-long
 // redirect chain are returned as a *SendError with a human-readable message.
 func (e *Engine) Send(ctx context.Context, spec RequestSpec, opts SendOptions) (*Response, error) {
-	req, err := buildRequest(ctx, spec)
+	req, err := buildRequest(ctx, ApplyAuth(spec))
 	if err != nil {
 		return nil, err // nothing was sent: no hops
 	}
@@ -294,8 +297,9 @@ func PreviewBody(body []byte, total int64, contentType string) Preview {
 }
 
 // SentURL is the URL a spec is sent to: its URL with the enabled query params
-// appended (as buildRequest does). "" when the URL is unusable.
+// appended (as buildRequest does), an API key in the query included. "" when the URL is unusable.
 func SentURL(spec RequestSpec) string {
+	spec = ApplyAuth(spec)
 	u, err := url.Parse(strings.TrimSpace(spec.URL))
 	if err != nil {
 		return strings.TrimSpace(spec.URL)
@@ -315,10 +319,10 @@ func SentBody(b Body) (string, string) {
 	return string(raw), ct
 }
 
-// SentHeaders are the enabled header rows (as sent), plus the body's implied
+// SentHeaders are the enabled header rows (as sent, auth-derived included), plus the body's implied
 // Content-Type when no header sets one.
 func SentHeaders(spec RequestSpec) []Header {
-	out := enabled(spec.Headers)
+	out := enabled(ApplyAuth(spec).Headers)
 	if _, ct := SentBody(spec.Body); ct != "" {
 		has := false
 		for _, h := range out {

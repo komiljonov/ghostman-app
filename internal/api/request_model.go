@@ -63,6 +63,7 @@ type RequestDraft struct {
 	Headers     []KeyValue  `json:"headers"`
 	QueryParams []KeyValue  `json:"query_params"`
 	Body        RequestBody `json:"body"`
+	Auth        Auth        `json:"auth"`
 }
 
 // NormalizeRows drops rows without a key (the editor's trailing empty row, or a
@@ -115,6 +116,9 @@ func BuildRequestPatch(base, draft RequestDraft) (RequestPatch, bool) {
 	}
 	if b := NormalizeBody(draft.Body); !bodiesEqual(b, NormalizeBody(base.Body)) {
 		p.Body, changed = &b, true
+	}
+	if a, ok := BuildAuthPatch(base.Auth, draft.Auth); ok {
+		p.Auth, changed = a, true
 	}
 	return p, changed
 }
