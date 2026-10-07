@@ -8,6 +8,14 @@
 // only the matches inside its visible ranges (matchesIn: binary search over the
 // sorted offsets); scrolling re-decorates just the new viewport.
 //
+// Collapsed JSON nodes: folding never removes text from the document, so the
+// matches (and the "3/41" counter) always cover the FULL text, whatever is
+// collapsed. Jumping to a match hidden in collapsed nodes unfolds exactly the
+// folds that cover it (its collapsed ancestors; foldsCovering) in the same
+// transaction that scrolls to it; other collapsed nodes stay collapsed. Typing
+// never expands anything: the current match is the first one not hidden
+// (firstUnhidden), or none until Enter. Closing search leaves the expansion as is.
+//
 // Focus rule for Ctrl+F (responseFindTarget): the request body editor keeps
 // CodeMirror's own search (it handles Ctrl+F itself first); any other editable
 // field outside the response pane keeps the key; anywhere else, Ctrl+F opens the
@@ -33,11 +41,21 @@ export function findMatches(text: string, query: string, caseSensitive: boolean,
   return out;
 }
 
-// Matches hidden inside collapsed JSON nodes are not navigable (out of scope:
-// search does not auto-expand). Ranges are the folded (inner) ranges.
-export function visibleMatches(matches: Match[], folded: Match[]): Match[] {
-  if (folded.length === 0) return matches;
-  return matches.filter((m) => !folded.some((f) => m.from >= f.from && m.to <= f.to));
+// The folded ranges that hide (any part of) a match: what must be unfolded to show it.
+export function foldsCovering(folded: Match[], m: Match): Match[] {
+  return folded.filter((f) => f.from < m.to && m.from < f.to);
+}
+
+// The first match at/after pos that no fold hides (-1 if all are hidden): the
+// current match while typing, so typing never expands anything.
+export function firstUnhidden(matches: Match[], folded: Match[], pos = 0): number {
+  const start = firstAtOrAfter(matches, pos);
+  if (start < 0) return -1;
+  for (let k = 0; k < matches.length; k++) {
+    const i = (start + k) % matches.length;
+    if (foldsCovering(folded, matches[i]).length === 0) return i;
+  }
+  return -1;
 }
 
 // Next/previous with wrap-around; from "no current match" (-1) Enter goes to the
@@ -75,9 +93,11 @@ export function matchesIn(matches: Match[], from: number, to: number): Match[] {
   return out;
 }
 
+// "3/41"; "–/41" when there are matches but none is current (all hidden in
+// collapsed nodes until Enter jumps to one).
 export function counterText(current: number, count: number, capped = false): string {
   if (count === 0) return "0/0";
-  return `${current < 0 ? 0 : current + 1}/${count}${capped ? "+" : ""}`;
+  return `${current < 0 ? "–" : current + 1}/${count}${capped ? "+" : ""}`;
 }
 
 export interface FindContext {

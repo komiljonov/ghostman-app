@@ -190,8 +190,12 @@ Postman-style shell, logged in:
   All = the root's children, depth 1). Fold state is per tab (`responseFolds`), reset by a new
   response. **Search** (`src/responseSearch.ts`): plain text, case-insensitive by default (Aa),
   bar docked above the body, counter, Enter/Shift+Enter/▲▼ wrap, Escape closes and clears; all
-  offsets found in one pass, but only matches in the visible ranges are decorated; matches in
-  collapsed nodes are skipped. **Ctrl/Cmd+F rule** (`responseFindTarget`): the request body
+  offsets found in one pass, but only matches in the visible ranges are decorated. Matches and
+  the counter always cover the FULL text, collapsed or not (folding keeps the text in the
+  document); a jump to a hidden match unfolds exactly the folds covering it (its collapsed
+  ancestors, `jsonFold.revealEffects`) in the same transaction that scrolls to it. Typing never
+  expands anything (current = first unhidden match, else "–/N" until Enter); closing search
+  keeps whatever expansion navigation produced. **Ctrl/Cmd+F rule** (`responseFindTarget`): the request body
   editor keeps CodeMirror's own search (it handles the key first); with focus in the response
   pane, or the pointer over it while no other editable has focus, Ctrl+F opens this search.
   **Right-click**: body → Copy (needs a selection) / Copy All (text as displayed) / Search in
@@ -282,7 +286,7 @@ frontend/                Vite + Solid + TS
   dynamic/generated variables.
 - Request settings beyond follow-redirects: TLS details / insecure toggle, per-request timeout,
   a request Settings sub-tab, syncing the toggle to the server.
-- Response search: regex mode; searching inside collapsed JSON nodes (auto-expand on jump).
+- Response search: regex mode.
 - Per-request auth; cookies; response history UI
   (history rows are already written on every send); multipart/file bodies.
 - **Drag-and-drop for the project list**: for now projects use ↑/↓ in Project settings. Reorder

@@ -16,7 +16,7 @@ import { json } from "@codemirror/lang-json";
 import { EditorState, Extension, Prec, RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, keymap, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { appShortcuts, theme } from "./codemirror";
-import { childInfo, collapseRanges, foldRangeForLine, placeholderLabel, Range } from "./jsonFold";
+import { childInfo, collapseRanges, foldRangeForLine, foldsOf, placeholderLabel, Range, revealEffects } from "./jsonFold";
 import { Match, matchesIn } from "./responseSearch";
 
 export interface ResponseViewerOptions {
@@ -144,11 +144,7 @@ export function createResponseViewer(parent: HTMLElement, opts: ResponseViewerOp
   let structured = false;
   const view = new EditorView({ parent, state: EditorState.create({ doc: "", extensions: extensions(false) }) });
 
-  const rangesOf = (state: EditorState): Range[] => {
-    const out: Range[] = [];
-    foldedRanges(state).between(0, state.doc.length, (from, to) => void out.push({ from, to }));
-    return out;
-  };
+  const rangesOf = foldsOf;
 
   return {
     setContent(text, isStructured, folds) {
@@ -181,8 +177,12 @@ export function createResponseViewer(parent: HTMLElement, opts: ResponseViewerOp
     setSearch(matches, current) {
       view.dispatch({ effects: setSearchEffect.of({ matches, current }) });
     },
+    // Unfold the collapsed nodes hiding m (only those), select and scroll — one transaction.
     reveal(m) {
-      view.dispatch({ selection: { anchor: m.from, head: m.to }, effects: EditorView.scrollIntoView(m.from, { y: "center" }) });
+      view.dispatch({
+        selection: { anchor: m.from, head: m.to },
+        effects: [...revealEffects(view.state, m), EditorView.scrollIntoView(m.from, { y: "center" })],
+      });
     },
     selection() {
       const { from, to } = view.state.selection.main;

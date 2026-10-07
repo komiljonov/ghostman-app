@@ -5,8 +5,8 @@
 // collapsed node reads `{…} 12 keys` (the placeholder supplies "…}" and the badge);
 // foldRangeForLine is registered as the fold service so the gutter, Collapse All
 // and the badge all agree on that range.
-import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
-import type { EditorState } from "@codemirror/state";
+import { ensureSyntaxTree, foldedRanges, syntaxTree, unfoldEffect } from "@codemirror/language";
+import type { EditorState, StateEffect } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 
 export interface Range {
@@ -82,4 +82,17 @@ export function placeholderLabel(info: ChildInfo | null): { text: string; badge:
   if (!info) return { text: "…", badge: "" };
   const unit = info.kind === "object" ? (info.count === 1 ? "key" : "keys") : info.count === 1 ? "item" : "items";
   return { text: info.kind === "object" ? "…}" : "…]", badge: `${info.count} ${unit}` };
+}
+
+// The folds currently in a state, as plain ranges.
+export function foldsOf(state: EditorState): Range[] {
+  const out: Range[] = [];
+  foldedRanges(state).between(0, state.doc.length, (from, to) => void out.push({ from, to }));
+  return out;
+}
+
+// Unfold effects that reveal [from, to): every fold overlapping it — exactly its
+// collapsed ancestors; nothing else is touched.
+export function revealEffects(state: EditorState, m: Range): StateEffect<Range>[] {
+  return foldsOf(state).filter((f) => f.from < m.to && m.from < f.to).map((f) => unfoldEffect.of(f));
 }

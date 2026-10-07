@@ -3,7 +3,7 @@ import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 import type { Range } from "../jsonFold";
 import { bodyMenu } from "../responseView";
 import {
-  counterText, findMatches, firstAtOrAfter, Match, MAX_MATCHES, stepIndex, visibleMatches,
+  counterText, findMatches, firstUnhidden, Match, MAX_MATCHES, stepIndex,
 } from "../responseSearch";
 import type { ResponseViewerHandle } from "../responseViewer";
 import ContextMenu, { MenuEntry } from "./ContextMenu";
@@ -37,34 +37,30 @@ export default function ResponseBody(props: Props) {
   const [query, setQuery] = createSignal("");
   const [caseSensitive, setCaseSensitive] = createSignal(false);
   const [all, setAll] = createSignal<Match[]>([]);
-  const [visible, setVisible] = createSignal<Match[]>([]);
   const [current, setCurrent] = createSignal(-1);
   const [menu, setMenu] = createSignal<{ x: number; y: number; selection: string }>();
 
-  const paint = () => viewer?.setSearch(visible(), current());
+  // All matches of the full text count and are navigable, collapsed or not
+  // (folding keeps the text in the document); the viewer paints only the visible ones.
+  const paint = () => viewer?.setSearch(all(), current());
 
-  // Matches hidden in collapsed nodes are not navigable; keep the current match
-  // when it is still visible.
-  const refreshVisible = (keepFrom?: number) => {
-    const vis = visibleMatches(all(), viewer?.folds() ?? []);
-    setVisible(vis);
-    const at = keepFrom === undefined ? -1 : vis.findIndex((m) => m.from === keepFrom);
-    setCurrent(at >= 0 ? at : vis.length ? firstAtOrAfter(vis, keepFrom ?? 0) : -1);
-    paint();
-  };
-
+  // While typing: the first match not hidden in a collapsed node (nothing expands).
   const runSearch = () => {
-    setAll(searchOpen() ? findMatches(props.text, query(), caseSensitive()) : []);
-    refreshVisible();
-    const m = visible()[current()];
-    if (m) viewer?.reveal(m);
+    const matches = searchOpen() ? findMatches(props.text, query(), caseSensitive()) : [];
+    setAll(matches);
+    const i = firstUnhidden(matches, viewer?.folds() ?? []);
+    setCurrent(i);
+    paint();
+    if (i >= 0) viewer?.reveal(matches[i]);
   };
 
+  // Enter / Shift+Enter / arrows: any match in document order; the viewer unfolds
+  // exactly the collapsed nodes hiding it.
   const jump = (dir: 1 | -1) => {
-    const next = stepIndex(current(), visible().length, dir);
+    const next = stepIndex(current(), all().length, dir);
     setCurrent(next);
     paint();
-    const m = visible()[next];
+    const m = all()[next];
     if (m) viewer?.reveal(m);
   };
 
@@ -82,7 +78,6 @@ export default function ResponseBody(props: Props) {
     setSearchOpen(false);
     setQuery("");
     setAll([]);
-    setVisible([]);
     setCurrent(-1);
     viewer?.setSearch([], -1);
     viewer?.focus();
@@ -93,10 +88,9 @@ export default function ResponseBody(props: Props) {
     if (!host.isConnected) return;
     viewer = createResponseViewer(host, {
       onFind: () => openSearch(viewer?.selection()),
-      onFoldsChanged: () => {
-        props.onFolds(viewer!.folds());
-        refreshVisible(visible()[current()]?.from);
-      },
+      // Collapse/expand (incl. Collapse All) changes no count: matches stay; the
+      // next jump re-expands its path. Closing search keeps the expansion as is.
+      onFoldsChanged: () => props.onFolds(viewer!.folds()),
       onContextMenu: (e) => {
         e.preventDefault();
         setMenu({ x: e.clientX, y: e.clientY, selection: viewer?.selection() ?? "" });
@@ -157,14 +151,14 @@ export default function ResponseBody(props: Props) {
               }
             }} />
           <span class="response-search-count" aria-live="polite">
-            {query() ? counterText(current(), visible().length, all().length >= MAX_MATCHES) : ""}
+            {query() ? counterText(current(), all().length, all().length >= MAX_MATCHES) : ""}
           </span>
           <button type="button" classList={{ "response-search-btn": true, active: caseSensitive() }}
             aria-pressed={caseSensitive()} title="Match case" onClick={() => setCaseSensitive((v) => !v)}>Aa</button>
           <button type="button" class="response-search-btn" title="Previous (Shift+Enter)" aria-label="Previous match"
-            disabled={visible().length === 0} onClick={() => jump(-1)}>▲</button>
+            disabled={all().length === 0} onClick={() => jump(-1)}>▲</button>
           <button type="button" class="response-search-btn" title="Next (Enter)" aria-label="Next match"
-            disabled={visible().length === 0} onClick={() => jump(1)}>▼</button>
+            disabled={all().length === 0} onClick={() => jump(1)}>▼</button>
           <button type="button" class="response-search-btn" title="Close (Escape)" aria-label="Close search"
             onClick={closeSearch}><Icon name="close" size={14} /></button>
         </div>
