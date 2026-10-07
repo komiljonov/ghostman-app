@@ -22,7 +22,9 @@ Keyboard: Ctrl+Enter (Cmd+Enter on macOS) sends the active request, Ctrl+Tab / C
 switch tabs, Ctrl+W closes the active tab. In the sidebar tree: arrow keys select, Enter opens,
 Ctrl+E renames, Del deletes, Ctrl+D duplicates a request; folders and requests can also be
 dragged to move or reorder them. The URL field and the Params tab stay in sync both ways. The sidebar is resizable (drag its
-edge; double-click to reset). HTML responses can be previewed in a sandboxed frame (no scripts). Tabs can be reordered by dragging; right-click a tab
+edge; double-click to reset). HTML responses can be previewed in a sandboxed frame (no scripts). In the response: Ctrl+F searches the body,
+JSON objects/arrays collapse (gutter, or Collapse All / Expand All), right-click copies, and the
+download icon saves the full response (up to 20 MB, even when only 256 KB is shown). Tabs can be reordered by dragging; right-click a tab
 for Close / Close Others / Close All. Settings has a System / Dark / Light theme.
 
 The window is laid out Postman-style: a top bar with team and project switchers (their menus

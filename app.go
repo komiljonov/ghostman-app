@@ -36,6 +36,9 @@ type App struct {
 	sendsMu sync.Mutex
 	sends   map[string]*inflight // request id -> running send
 
+	responses  *responseStore // full bodies of the tabs' active responses (Go-side only)
+	saveDialog saveDialog     // native save dialog (tests replace it)
+
 	quitMu   sync.Mutex
 	quitting bool
 
@@ -57,6 +60,9 @@ func NewApp(eng *engine.Engine, defaultServerURL string) *App {
 		serverURL: defaultServerURL,
 		authReady: make(chan struct{}),
 		sends:     map[string]*inflight{},
+
+		responses:  newResponseStore(),
+		saveDialog: runtime.SaveFileDialog,
 	}
 }
 
@@ -140,6 +146,7 @@ func (a *App) Register(email, password, name string) session.Result {
 
 // Logout clears the local session (always) and tells the server (best-effort).
 func (a *App) Logout() session.AuthState {
+	a.responses.clear() // held response bodies belong to the session's data
 	return a.session.Logout(a.ctx)
 }
 

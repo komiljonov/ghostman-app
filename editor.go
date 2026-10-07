@@ -161,6 +161,17 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft) S
 	start := time.Now()
 	resp, err := a.engine.SendRequest(ctx, spec)
 	a.recordHistory(template, resp, err, start)
+	// The tab's active response (full body, Go-side) — unless a newer send of the
+	// same request has taken over meanwhile.
+	a.sendsMu.Lock()
+	if a.sends[requestID] == mine {
+		if err == nil {
+			a.responses.put(requestID, heldBody{projectID: projectID, data: resp.Full, capped: resp.FullCapped, contentType: resp.ContentType})
+		} else {
+			a.responses.release(requestID)
+		}
+	}
+	a.sendsMu.Unlock()
 	if err != nil {
 		return SendResult{Error: &session.Problem{Kind: KindRequest, Message: err.Error()}, Unresolved: unresolved, Environment: rv.env}
 	}
@@ -272,7 +283,16 @@ func (a *App) SetTabs(projectID string, tabs Tabs) EmptyResult {
 	if a.store == nil || projectID == "" {
 		return EmptyResult{}
 	}
-	raw, err := json.Marshal(tabs.normalize())
+	tabs = tabs.normalize()
+	// Closed request tabs (close / close others / close all) free their full bodies.
+	open := map[string]bool{}
+	for _, t := range tabs.Open {
+		if t.Kind == TabRequest {
+			open[t.ID] = true
+		}
+	}
+	a.responses.keepOnly(projectID, open)
+	raw, err := json.Marshal(tabs)
 	if err == nil {
 		err = a.store.PutSetting(a.ctx, tabsKey(projectID), string(raw))
 	}

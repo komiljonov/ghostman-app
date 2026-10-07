@@ -1,7 +1,9 @@
 package engine
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
@@ -134,4 +136,64 @@ func hasHeader(hs []Header, key, value string) bool {
 		}
 	}
 	return false
+}
+
+func TestSendRequest_KeepsFullBodyGoSide(t *testing.T) {
+	const size = MaxBodyPreview*4 + 5 // well past the preview, under the full cap
+	payload := bytes.Repeat([]byte{0x00, 0xff, 'x'}, size/3+1)[:size]
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(payload)
+	}))
+	defer srv.Close()
+
+	resp, err := New(DefaultTimeout).SendRequest(context.Background(), RequestSpec{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(resp.Full, payload) || resp.FullCapped {
+		t.Fatalf("full body: len=%d capped=%v, want %d bytes uncapped", len(resp.Full), resp.FullCapped, size)
+	}
+	if !resp.Truncated || len(resp.Body) > MaxBodyPreview {
+		t.Fatalf("preview must stay truncated: truncated=%v len=%d", resp.Truncated, len(resp.Body))
+	}
+	// The full body never crosses the bridge: the JSON is identical without it.
+	raw, _ := json.Marshal(resp)
+	stripped := *resp
+	stripped.Full, stripped.FullCapped = nil, true
+	rawStripped, _ := json.Marshal(&stripped)
+	if !bytes.Equal(raw, rawStripped) || bytes.Contains(raw, []byte(`"Full`)) {
+		t.Fatalf("Full leaked into the bridge JSON")
+	}
+}
+
+func TestSendRequest_FullBodyCappedAt20MB(t *testing.T) {
+	const size = MaxFullBody + 4096
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(bytes.Repeat([]byte("z"), size))
+	}))
+	defer srv.Close()
+
+	resp, err := New(DefaultTimeout).SendRequest(context.Background(), RequestSpec{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Full) != MaxFullBody || !resp.FullCapped || resp.BodySize != size {
+		t.Fatalf("len(full)=%d capped=%v size=%d", len(resp.Full), resp.FullCapped, resp.BodySize)
+	}
+}
+
+func TestSendRequest_PrettyBodyDoesNotAliasFull(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"a":[1,2]}`))
+	}))
+	defer srv.Close()
+	resp, err := New(DefaultTimeout).SendRequest(context.Background(), RequestSpec{URL: srv.URL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(resp.Full) != `{"a":[1,2]}` || !resp.Formatted || resp.Body == string(resp.Full) {
+		t.Fatalf("full=%q formatted=%v body=%q", resp.Full, resp.Formatted, resp.Body)
+	}
 }

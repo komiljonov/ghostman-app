@@ -104,6 +104,8 @@ export function Register(arg1:string,arg2:string,arg3:string):Promise<session.Re
 
 export function RejectInvitation(arg1:string):Promise<main.EmptyResult>;
 
+export function ReleaseResponse(arg1:string):Promise<void>;
+
 export function RemoveMember(arg1:string,arg2:string):Promise<main.EmptyResult>;
 
 export function RenameEnvironment(arg1:string,arg2:string):Promise<main.EnvironmentResult>;
@@ -119,6 +121,8 @@ export function ReorderRequests(arg1:string,arg2:string,arg3:Array<string>):Prom
 export function RevokeInvitation(arg1:string):Promise<main.EmptyResult>;
 
 export function SaveRequest(arg1:string,arg2:api.RequestDraft,arg3:api.RequestDraft):Promise<main.RequestResult>;
+
+export function SaveResponseToFile(arg1:string):Promise<main.SavedFileResult>;
 
 export function SelectProject(arg1:string):Promise<main.WorkspaceResult>;
 

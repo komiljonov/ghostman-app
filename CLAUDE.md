@@ -146,14 +146,41 @@ Postman-style shell, logged in:
 - **Sending** happens in Go (`internal/engine`): enabled rows only, query params appended to
   any query already in the URL, raw/form body with its Content-Type unless a header sets one,
   JSON responses pretty-printed in Go (`rawBody` carries the original, only then), 256 KB cap,
-  cancellable per request. Response state is per tab and never persisted.
+  cancellable per request. Response state is per tab and never persisted. The engine also
+  keeps the **full body** (`engine.Response.Full`, `json:"-"`, capped at 20 MB, `FullCapped`)
+  Go-side only: `responses.go` holds it per request tab for the ACTIVE response (replaced by
+  the next send — only if that send is still current —, dropped on a failed send, on tab close
+  via `ReleaseResponse`, when `SetTabs` no longer lists the tab, on controller dispose and on
+  logout). It never crosses the bridge.
 - **Response pane** (`ResponseView.tsx`, rules in `src/responseView.ts`): one toolbar row —
-  Body | Headers left; right: Pretty | Raw | Preview, Wrap, then status · duration · size in
-  fixed slots. Pretty only for formatted JSON; **Preview only for `text/html`**, rendered in an
+  Body | Headers left; right: Pretty | Raw | Preview, Wrap, search · collapse all · expand all ·
+  save icons, then status · duration · size as one fixed cluster (in a narrow pane the cluster
+  wraps to a second row — width-dependent, never mode-dependent). Pretty for formatted JSON
+  (collapsible) or truncated JSON (flat text + "structure view unavailable" notice); **Preview only for `text/html`**, rendered in an
   iframe with an **empty `sandbox`** (no scripts, opaque origin), `srcdoc` = the truncated
   body, `referrerpolicy=no-referrer`, white page in both themes (absolute URLs load, relative
   ones break — accepted). A new response resets the view (Preview for HTML, Pretty for JSON,
   else Raw); Wrap is global (`ui_response_wrap`).
+- **Response body viewer** (`src/responseViewer.ts`, `ResponseBody.tsx`): a read-only CodeMirror
+  6 view for Pretty and Raw (viewport rendering — smooth at 256 KB; native selection; keyboard
+  scrolling). Pretty JSON folds: gutter ▾/▸, collapsed nodes read `{…} 12 keys` / `[…] 48 items`
+  (`src/jsonFold.ts`: fold range = after the opening bracket through the closing one; Collapse
+  All = the root's children, depth 1). Fold state is per tab (`responseFolds`), reset by a new
+  response. **Search** (`src/responseSearch.ts`): plain text, case-insensitive by default (Aa),
+  bar docked above the body, counter, Enter/Shift+Enter/▲▼ wrap, Escape closes and clears; all
+  offsets found in one pass, but only matches in the visible ranges are decorated; matches in
+  collapsed nodes are skipped. **Ctrl/Cmd+F rule** (`responseFindTarget`): the request body
+  editor keeps CodeMirror's own search (it handles the key first); with focus in the response
+  pane, or the pointer over it while no other editable has focus, Ctrl+F opens this search.
+  **Right-click**: body → Copy (needs a selection) / Copy All (text as displayed) / Search in
+  response (prefilled); headers → Copy value / Copy "Key: value" / Copy All headers; none in
+  Preview. Clipboard via the Wails runtime (`ClipboardSetText`).
+- **Save response to file**: toolbar download icon (any view, once a response exists) → bound
+  `SaveResponseToFile(tabID)`: native save dialog (`runtime.SaveFileDialog`, behind the
+  `saveDialog` field so tests mock it), default name = request name (sanitized) + extension
+  by Content-Type (json/html/xml/txt/bin), writes the full Go-side bytes; returns
+  `{path, bytes_written, truncated_at_cap}`; cancel = no data, no error. The UI shows a toast
+  (no layout shift), mentioning the 20 MB cap when it applied.
 - **Controls never vanish or move on a mode/type switch**: what does not apply is disabled
   (muted, tooltip says why), not hidden — response toolbar, body content-type controls,
   Send/Cancel slot. New UI follows the same rule.
@@ -200,6 +227,7 @@ editor.go                bound editor methods: SaveRequest (autosave patch), Sen
 environments.go          bound environment/variable methods + local secret access
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
+responses.go             full response bodies per tab (Go-side), SaveResponseToFile, ReleaseResponse
 ui_tokens_test.go        fails on color literals outside frontend/src/tokens.css
 internal/engine/         HTTP request engine (the product core)
 internal/api/            typed client for the Ghostman server API (/api/v1)
@@ -230,6 +258,7 @@ frontend/                Vite + Solid + TS
 
 - `{{var}}` **autocomplete** on typing `{{`; variable usage search; env duplication;
   dynamic/generated variables.
+- Response search: regex mode; searching inside collapsed JSON nodes (auto-expand on jump).
 - Per-request auth; cookies; response history UI
   (history rows are already written on every send); multipart/file bodies.
 - **Drag-and-drop for the project list**: for now projects use ↑/↓ in Project settings. Reorder

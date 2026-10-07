@@ -42,12 +42,12 @@ const tokenHighlight = HighlightStyle.define([
   { tag: tags.invalid, color: "var(--syn-invalid)" },
 ]);
 
-const theme: Extension = [tokenTheme, syntaxHighlighting(tokenHighlight)];
+export const theme: Extension = [tokenTheme, syntaxHighlighting(tokenHighlight)];
 
 // ---- App shortcuts: highest precedence, so no editor binding swallows them ----
 // (basicSetup maps Mod-Enter to "insert blank line"; CM marks the event handled,
 // so the window-level handler does not run the action a second time.)
-const appShortcuts = Prec.highest(keymap.of([
+export const appShortcuts = Prec.highest(keymap.of([
   { key: "Mod-Enter", run: () => runShortcut("send"), preventDefault: true },
   { key: "Ctrl-Tab", run: () => runShortcut("next"), preventDefault: true },
   { key: "Ctrl-Shift-Tab", run: () => runShortcut("prev"), preventDefault: true },
