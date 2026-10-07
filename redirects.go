@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 
@@ -65,9 +66,14 @@ func (a *App) SetFolderFollowRedirects(id, value string) FolderResult {
 
 // LegacyMigration reports the one-time push of old local per-request overrides.
 type LegacyMigration struct {
-	Pushed    int `json:"pushed"`    // PATCHed to the server
-	Dropped   int `json:"dropped"`   // request gone / no access: nothing to push
-	Remaining int `json:"remaining"` // left for the next run (server unreachable, ...)
+	Pushed  int `json:"pushed"`  // PATCHed to the server
+	Dropped int `json:"dropped"` // request gone / no access: nothing to push
+	Failed  int `json:"failed"`  // the server refused or could not be reached
+}
+
+type LegacyMigrationResult struct {
+	Data  LegacyMigration  `json:"data"`
+	Error *session.Problem `json:"error,omitempty"`
 }
 
 // legacyValue maps an old local override to the server value: the old
@@ -81,46 +87,50 @@ func legacyValue(follow bool) string {
 }
 
 // MigrateLegacyRequestSettings pushes the old local request_settings rows to
-// the server once, then drops the table. Each row is deleted right after its
-// PATCH succeeds, so an interrupted run just resumes (re-PATCHing is harmless).
-// Rows whose request is gone or not accessible (404/403) are dropped; any other
-// failure stops the run and keeps the rest for next time — including a 400: the
-// ids are real request ids, so a 400 means a server that does not know
-// follow_redirects yet (an older build), and the overrides must survive until
-// the server is updated.
-func (a *App) MigrateLegacyRequestSettings() LegacyMigration {
-	var out LegacyMigration
+// the server ONCE, then drops the table — a single attempt, no retries. Rows
+// whose request is gone or not accessible (404/403) are skipped silently; any
+// other failure is reported as the result's error (the UI shows it) and those
+// values are not kept.
+func (a *App) MigrateLegacyRequestSettings() LegacyMigrationResult {
+	var out LegacyMigrationResult
 	if a.store == nil || !a.session.IsLoggedIn() {
 		return out
 	}
 	rows, err := a.store.LegacyRequestSettings(a.ctx)
-	if err != nil {
-		slog.Warn("read legacy request settings", "err", err)
+	if err != nil || len(rows) == 0 {
+		if err != nil {
+			slog.Warn("read legacy request settings", "err", err)
+		}
+		_ = a.store.DropLegacyRequestSettings(a.ctx)
 		return out
 	}
-	for i, r := range rows {
+	var first *session.Problem
+	for _, r := range rows {
 		value := legacyValue(r.Follow)
 		_, p := call(a, func(ctx context.Context, c *api.APIClient) (api.Request, error) {
 			return c.UpdateRequest(ctx, r.RequestID, api.RequestPatch{FollowRedirects: &value})
 		})
 		switch {
 		case p == nil:
-			out.Pushed++
+			out.Data.Pushed++
 		case p.Kind == session.KindServer && (p.Status == http.StatusNotFound || p.Status == http.StatusForbidden):
-			out.Dropped++
+			out.Data.Dropped++
 		default:
-			out.Remaining = len(rows) - i
-			slog.Warn("push legacy request setting; will retry", "remaining", out.Remaining, "err", p.Message)
-			return out
-		}
-		if err := a.store.DoneLegacyRequestSetting(a.ctx, r.RequestID); err != nil {
-			slog.Warn("forget pushed request setting", "err", err)
+			out.Data.Failed++
+			if first == nil {
+				first = p
+			}
 		}
 	}
 	if err := a.store.DropLegacyRequestSettings(a.ctx); err != nil {
 		slog.Warn("drop request_settings", "err", err)
-	} else if len(rows) > 0 {
-		slog.Info("pushed local request settings to the server", "pushed", out.Pushed, "dropped", out.Dropped)
+	}
+	slog.Info("moved local request settings to the server", "pushed", out.Data.Pushed, "dropped", out.Data.Dropped, "failed", out.Data.Failed)
+	if first != nil {
+		out.Error = &session.Problem{
+			Kind: first.Kind, Status: first.Status, Code: first.Code,
+			Message: fmt.Sprintf("Could not move %d redirect setting(s) to the server: %s", out.Data.Failed, first.Message),
+		}
 	}
 	return out
 }

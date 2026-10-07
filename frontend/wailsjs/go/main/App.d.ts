@@ -90,7 +90,7 @@ export function Login(arg1:string,arg2:string):Promise<session.Result>;
 
 export function Logout():Promise<session.AuthState>;
 
-export function MigrateLegacyRequestSettings():Promise<main.LegacyMigration>;
+export function MigrateLegacyRequestSettings():Promise<main.LegacyMigrationResult>;
 
 export function MoveEnvironment(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
 

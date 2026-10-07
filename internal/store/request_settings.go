@@ -8,9 +8,9 @@ import (
 // Redirect settings on this machine:
 //   - the global follow-redirects setting (settings key follow_redirects_default;
 //     true when unset) — still local;
-//   - request_settings: the old per-request overrides, now only read once to push
-//     them to the server (follow_redirects lives on requests/folders there), then
-//     the table is dropped.
+//   - request_settings: the old per-request overrides, read once to push them to
+//     the server (follow_redirects lives on requests/folders there); the table is
+//     dropped right after that single attempt.
 
 const settingFollowRedirectsDefault = "follow_redirects_default"
 
@@ -43,11 +43,6 @@ func (s *Store) LegacyRequestSettings(ctx context.Context) ([]LegacyRequestSetti
 		out = append(out, LegacyRequestSetting{RequestID: r.RequestID, Follow: r.FollowRedirects != 0})
 	}
 	return out, nil
-}
-
-// DoneLegacyRequestSetting forgets one old override (pushed, or no longer applicable).
-func (s *Store) DoneLegacyRequestSetting(ctx context.Context, requestID string) error {
-	return s.DeleteFollowRedirects(ctx, requestID)
 }
 
 // DropLegacyRequestSettings removes the table once every row was handled.

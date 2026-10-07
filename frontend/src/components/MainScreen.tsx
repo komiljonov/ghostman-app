@@ -11,6 +11,7 @@ import TeamSwitcher from "./TeamSwitcher";
 import ProjectSwitcher from "./ProjectSwitcher";
 import ProfileMenu from "./ProfileMenu";
 import ProjectSidebar from "./ProjectSidebar";
+import Icon from "./Icon";
 import ProjectTree from "./ProjectTree";
 import { MigrateLegacyRequestSettings } from "../../wailsjs/go/main/App";
 import { redirectDefault } from "../redirectDefault";
@@ -111,10 +112,12 @@ export default function MainScreen(props: Props) {
     },
   });
   // One time after the update: old local per-request redirect overrides move to
-  // the server (Go deletes each once pushed, then the table; idempotent).
+  // the server — a single attempt; a failure is just shown.
+  const [migrationError, setMigrationError] = createSignal<string>();
   onMount(async () => {
     const result = await MigrateLegacyRequestSettings();
-    if (result.pushed > 0) setTreeTick((n) => n + 1);
+    if (result.data.pushed > 0) setTreeTick((n) => n + 1);
+    setMigrationError(result.error?.message);
   });
 
   onMount(() => {
@@ -240,6 +243,14 @@ export default function MainScreen(props: Props) {
       </header>
       <Show when={wsError()}>
         <p class="form-error banner">{wsError()}</p>
+      </Show>
+      <Show when={migrationError()}>
+        <p class="form-error banner banner-dismissible" role="alert">
+          <span>{migrationError()}</span>
+          <button type="button" class="icon-button" aria-label="Dismiss" onClick={() => setMigrationError(undefined)}>
+            <Icon name="close" size={14} />
+          </button>
+        </p>
       </Show>
       <div class="shell">
         <Show when={currentProject()} fallback={<ProjectSidebar />}>

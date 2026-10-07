@@ -1086,7 +1086,7 @@ export namespace main {
 	export class LegacyMigration {
 	    pushed: number;
 	    dropped: number;
-	    remaining: number;
+	    failed: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new LegacyMigration(source);
@@ -1096,8 +1096,40 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.pushed = source["pushed"];
 	        this.dropped = source["dropped"];
-	        this.remaining = source["remaining"];
+	        this.failed = source["failed"];
 	    }
+	}
+	export class LegacyMigrationResult {
+	    data: LegacyMigration;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new LegacyMigrationResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], LegacyMigration);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class MemberAccessResult {
 	    data?: api.MemberAccess;

@@ -9,15 +9,6 @@ import (
 	"context"
 )
 
-const deleteFollowRedirects = `-- name: DeleteFollowRedirects :exec
-DELETE FROM request_settings WHERE request_id = ?
-`
-
-func (q *Queries) DeleteFollowRedirects(ctx context.Context, requestID string) error {
-	_, err := q.db.ExecContext(ctx, deleteFollowRedirects, requestID)
-	return err
-}
-
 const listRequestSettings = `-- name: ListRequestSettings :many
 
 SELECT request_id, follow_redirects FROM request_settings ORDER BY request_id
@@ -25,7 +16,8 @@ SELECT request_id, follow_redirects FROM request_settings ORDER BY request_id
 
 // The request_settings table held per-request follow-redirects overrides before
 // the setting moved to the server. These queries only serve the one-time push of
-// leftover rows to the server (then the table is dropped).
+// leftover rows to the server (then the table is dropped). PutFollowRedirects
+// only seeds tests.
 func (q *Queries) ListRequestSettings(ctx context.Context) ([]RequestSetting, error) {
 	rows, err := q.db.QueryContext(ctx, listRequestSettings)
 	if err != nil {
