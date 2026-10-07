@@ -53,7 +53,9 @@ main.defaultServerURL=...`); `task build SERVER_URL=https://...` overrides it. A
   variable writes go through `internal/envs`, which re-reads the variable's type from the
   server before writing a value and routes secrets to local storage; `api.UpdateVariable`
   also refuses a value together with type secret, and `api.NewVariable` has no value field.
-  Never log secret values; history rows and logs keep the unresolved `{{template}}` URL.
+  Never log secret values; logs keep the unresolved `{{template}}` URL. Exception, on purpose:
+  local history rows also store the RESOLVED request (secrets included) — local only, never
+  synced, documented in README "History and secrets".
 
 ## UI layout (the standard — new features must fit into it)
 
@@ -63,7 +65,7 @@ Postman-style shell, logged in:
   member count, "+ New team", "Team settings") · **Project switcher** (accessible projects of
   the current team in sort order, "+ New project", "Project settings") · refresh (↻) · on the
   right the **env switcher** and then the **profile badge** (initials) whose menu holds user
-  name/email, Invitations (count badge), Settings (server URL modal), Log out.
+  name/email, Invitations (count badge), History, Settings (server URL modal), Log out.
 - **Left sidebar**: only the current project's folders/requests tree (`ProjectTree`). Never
   teams, invitations or other navigation. The tree is built client-side (`src/tree.ts`, unit
   tested) from ONE ListFolders + ONE ListRequests call and rebuilt after every mutation;
@@ -111,8 +113,8 @@ Postman-style shell, logged in:
   when opened. Empty state without tabs. Tabs are typed (`src/tabModel.ts`):
   `request` (method | URL (stretches) | Send / Cancel in one fixed slot at the far right;
   Params | Headers | Body | Settings with the save status at the row's right end; response below a
-  draggable divider), `env` (that environment's variables table) and `env_list`
-  (create / rename / reorder / delete environments). There is no separate environments page.
+  draggable divider), `env` (that environment's variables table), `env_list`
+  (create / rename / reorder / delete environments) and `history` (see History). There is no separate environments page.
 - **Tabs** are per project, persisted as typed refs in tab-bar order (`ui_tabs_<project_id>`;
   the old bare-id format is read as request tabs and rewritten) and restored on startup (gone
   targets dropped silently). Tree renames/deletes relabel/close request tabs; environment
@@ -251,6 +253,22 @@ Postman-style shell, logged in:
   "system" follows `prefers-color-scheme` live (`src/theme.ts`). **Every color is a design
   token in `src/tokens.css`** (CodeMirror theme and syntax colors included): no hex/rgb/hsl/
   white/black literals anywhere else in `frontend/src` — `ui_tokens_test.go` fails the build.
+- **History** (local only, `history.go` + `internal/store/history.go`): Go writes one row at the
+  end of every send (success or failure) from what it already has — template form (draft rows,
+  body), resolved form (`engine.SentURL/SentHeaders/SentBody`), env id/name, response headers,
+  body up to `history_max_response_bytes` (+ `resp_truncated`), size, error, hops. No extra
+  bridge traffic. Settings keys `history_max_entries` (100/500/1000/5000/0, default 1000;
+  pruned after every insert and when lowered — the UI asks "delete M oldest?" first) and
+  `history_max_response_bytes` (1/10/50 MB or 0, default 10 MB); the engine's Go-side body cap
+  is max(20 MB, setting), uncapped for 0. Deletes run `ReclaimSpace` (incremental_vacuum +
+  TRUNCATE checkpoint; auto_vacuum INCREMENTAL since migration 00007) so the file shrinks.
+  The History tab (typed tab `history`, profile menu → History; rules in `src/historyModel.ts`)
+  lists SUMMARY columns only (`ListHistory`: filters in SQL, keyset pages of 100); the full
+  entry (`GetHistoryEntry`, 256 KB body preview) is fetched on select. Detail: Template |
+  Resolved, response (the shared viewer), timing; actions Restore to new request (project root,
+  template form, `api.CreateRequestFrom`), Open original (disabled when gone from the tree),
+  Copy resolved URL, Delete. `src/historyStore.ts` ticks after sends/clears so an open list
+  re-fetches.
 - **Current team/project** live in Go (`internal/workspace`), persisted in settings
   (`current_team_id`, `current_project_id`) and validated against fresh server lists on every
   load: a vanished team falls back to the first team with no project, a vanished project to no
@@ -268,6 +286,8 @@ workspace.go             bound current-team/project selection (LoadWorkspace, Se
 tree.go                  bound folder/request methods + local tree state (GetTreeState/SetTreeState)
 editor.go                bound editor methods: SaveRequest (autosave patch), SendRequest/CancelRequest,
                          GetTabs/SetTabs (typed tab refs, legacy migration), quit handshake
+history.go               history write path (recordHistory) + bound history methods (list, entry,
+                         delete, clear, storage info, retention settings, restore)
 environments.go          bound environment/variable methods + local secret access
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
@@ -306,8 +326,7 @@ frontend/                Vite + Solid + TS
 - More cascading settings through the same resolver (auth, proxy, timeout, TLS / insecure);
   the Settings sub-tab and the folder Settings… modal are their home.
 - Response search: regex mode.
-- Per-request auth; cookies; response history UI
-  (history rows are already written on every send); multipart/file bodies.
+- Per-request auth; cookies; multipart/file bodies; history export / sync.
 - **Drag-and-drop for the project list**: for now projects use ↑/↓ in Project settings. Reorder
   endpoints need the full sibling set (every team project, so only the team owner and
   all-projects members get ↑/↓).

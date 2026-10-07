@@ -10,32 +10,32 @@ import (
 const CopySuffix = " copy"
 
 // DuplicateRequest copies a request into the same folder as "<name> copy". The
-// server has no copy endpoint, so it is composed: read the original, create the
-// copy (name, folder, method, URL), then patch in headers, query params and body.
-// If a step after the create fails, the half-made copy is deleted (best effort)
-// and the error of the failed step is returned.
+// server has no copy endpoint, so it is composed (CreateRequestFrom).
 func (c *APIClient) DuplicateRequest(ctx context.Context, id string) (RequestSummary, error) {
 	orig, err := c.GetRequest(ctx, id)
 	if err != nil {
 		return RequestSummary{}, err
 	}
-	created, err := c.CreateRequest(ctx, orig.ProjectID, NewRequest{
-		Name:     strings.TrimSpace(orig.Name) + CopySuffix,
-		FolderID: orig.FolderID,
-		Method:   orig.Method,
-		URL:      orig.URL,
-	})
+	return c.CreateRequestFrom(ctx, orig.ProjectID, orig.FolderID, strings.TrimSpace(orig.Name)+CopySuffix, orig.Draft())
+}
+
+// CreateRequestFrom creates a request with the given contents: create (name,
+// folder, method, URL), then patch in headers, query params and body. If the
+// patch fails, the half-made request is deleted (best effort) and the patch's
+// error is returned. Used by duplicate and by "restore from history".
+func (c *APIClient) CreateRequestFrom(ctx context.Context, projectID string, folderID *string, name string, d RequestDraft) (RequestSummary, error) {
+	created, err := c.CreateRequest(ctx, projectID, NewRequest{Name: name, FolderID: folderID, Method: d.Method, URL: d.URL})
 	if err != nil {
 		return RequestSummary{}, err
 	}
-	headers, query, body := orig.Headers, orig.QueryParams, orig.Body
-	method, url := orig.Method, orig.URL
+	headers, query, body := NormalizeRows(d.Headers), NormalizeRows(d.QueryParams), NormalizeBody(d.Body)
+	method, url := d.Method, d.URL
 	updated, err := c.UpdateRequest(ctx, created.ID, RequestPatch{
 		Method: &method, URL: &url, Headers: &headers, QueryParams: &query, Body: &body,
 	})
 	if err != nil {
 		if delErr := c.DeleteRequest(context.WithoutCancel(ctx), created.ID); delErr != nil {
-			slog.Warn("duplicate: could not remove the partial copy", "request", created.ID, "err", delErr)
+			slog.Warn("create request: could not remove the partial copy", "request", created.ID, "err", delErr)
 		}
 		return RequestSummary{}, err
 	}

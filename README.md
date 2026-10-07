@@ -30,6 +30,9 @@ redirects are followed cascades: a request or folder can follow, not follow, use
 (Settings, this machine) or inherit from its folder — set in the request's Settings tab or a
 folder's Settings…, shared with the team. Tabs can be reordered by dragging; right-click a tab
 for Close / Close Others / Close All. Settings has a System / Dark / Light theme.
+**History** (profile menu → History) lists every request sent from this computer, newest first,
+grouped by day, with search and method / status / project filters; an entry shows the request
+as authored and as sent, the response and its timing, and can be restored as a new request.
 
 The window is laid out Postman-style: a top bar with team and project switchers (their menus
 also hold "+ New …" and the team/project settings) and a profile menu (invitations, settings,
@@ -128,6 +131,22 @@ build/               Wails platform assets (icons, manifests); build/bin/ is out
 ```
 
 See [CLAUDE.md](CLAUDE.md) for the architectural rules.
+
+## History and secrets
+
+History is **local only**: it lives in the SQLite file above and is never sent to the server or
+synced. Each entry stores the request twice: in **template** form (as authored, `{{vars}}`
+unresolved) and in **resolved** form (as sent). The resolved form **includes secret variable
+values on purpose** — it is what was actually sent, which is what you need when debugging. So
+the database file holds secrets in plain text; treat it like any local credential store.
+To remove them: Settings → History → Clear (the space is freed on disk right away). Logs never
+contain resolved URLs, headers or secret values.
+
+Retention (Settings → History): at most 100 / 500 / **1,000** / 5,000 entries or unlimited
+(oldest pruned after each send), and responses stored up to 1 MB / **10 MB** / 50 MB or whole
+(bigger ones keep their first part, marked truncated). A response is held in memory up to
+max(20 MB, that setting) while it downloads; with **Unlimited**, a huge response is held in
+memory completely.
 
 ## Debugging
 

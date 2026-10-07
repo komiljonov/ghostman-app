@@ -7,55 +7,253 @@ package store
 
 import (
 	"context"
+	"database/sql"
 )
 
-const insertHistory = `-- name: InsertHistory :exec
-INSERT INTO history (method, url, status, duration_ms, created_at)
-VALUES (?, ?, ?, ?, ?)
+const countHistory = `-- name: CountHistory :one
+SELECT count(*) FROM history
+`
+
+func (q *Queries) CountHistory(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countHistory)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteAllHistory = `-- name: DeleteAllHistory :execrows
+DELETE FROM history
+`
+
+func (q *Queries) DeleteAllHistory(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteAllHistory)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteHistoryBefore = `-- name: DeleteHistoryBefore :execrows
+DELETE FROM history WHERE created_at < ?
+`
+
+func (q *Queries) DeleteHistoryBefore(ctx context.Context, createdAt int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteHistoryBefore, createdAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteHistoryEntry = `-- name: DeleteHistoryEntry :execrows
+DELETE FROM history WHERE id = ?
+`
+
+func (q *Queries) DeleteHistoryEntry(ctx context.Context, id int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteHistoryEntry, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteHistoryForProject = `-- name: DeleteHistoryForProject :execrows
+DELETE FROM history WHERE project_id = ?
+`
+
+func (q *Queries) DeleteHistoryForProject(ctx context.Context, projectID sql.NullString) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteHistoryForProject, projectID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const getHistoryEntry = `-- name: GetHistoryEntry :one
+SELECT id, created_at, project_id, request_id, request_name, method, url_template, url_resolved, env_id, env_name, req_headers_json, req_params_json, req_body_json, req_headers_resolved_json, req_body_resolved, status, duration_ms, error, resp_headers_json, resp_body, resp_body_size, resp_truncated, timings_json FROM history WHERE id = ?
+`
+
+func (q *Queries) GetHistoryEntry(ctx context.Context, id int64) (History, error) {
+	row := q.db.QueryRowContext(ctx, getHistoryEntry, id)
+	var i History
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.ProjectID,
+		&i.RequestID,
+		&i.RequestName,
+		&i.Method,
+		&i.UrlTemplate,
+		&i.UrlResolved,
+		&i.EnvID,
+		&i.EnvName,
+		&i.ReqHeadersJson,
+		&i.ReqParamsJson,
+		&i.ReqBodyJson,
+		&i.ReqHeadersResolvedJson,
+		&i.ReqBodyResolved,
+		&i.Status,
+		&i.DurationMs,
+		&i.Error,
+		&i.RespHeadersJson,
+		&i.RespBody,
+		&i.RespBodySize,
+		&i.RespTruncated,
+		&i.TimingsJson,
+	)
+	return i, err
+}
+
+const insertHistory = `-- name: InsertHistory :one
+INSERT INTO history (
+    created_at, project_id, request_id, request_name, method, url_template, url_resolved,
+    env_id, env_name, req_headers_json, req_params_json, req_body_json,
+    req_headers_resolved_json, req_body_resolved, status, duration_ms, error,
+    resp_headers_json, resp_body, resp_body_size, resp_truncated, timings_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+RETURNING id
 `
 
 type InsertHistoryParams struct {
-	Method     string `json:"method"`
-	Url        string `json:"url"`
-	Status     int64  `json:"status"`
-	DurationMs int64  `json:"durationMs"`
-	CreatedAt  int64  `json:"createdAt"`
+	CreatedAt              int64          `json:"createdAt"`
+	ProjectID              sql.NullString `json:"projectId"`
+	RequestID              sql.NullString `json:"requestId"`
+	RequestName            sql.NullString `json:"requestName"`
+	Method                 string         `json:"method"`
+	UrlTemplate            string         `json:"urlTemplate"`
+	UrlResolved            sql.NullString `json:"urlResolved"`
+	EnvID                  sql.NullString `json:"envId"`
+	EnvName                sql.NullString `json:"envName"`
+	ReqHeadersJson         sql.NullString `json:"reqHeadersJson"`
+	ReqParamsJson          sql.NullString `json:"reqParamsJson"`
+	ReqBodyJson            sql.NullString `json:"reqBodyJson"`
+	ReqHeadersResolvedJson sql.NullString `json:"reqHeadersResolvedJson"`
+	ReqBodyResolved        sql.NullString `json:"reqBodyResolved"`
+	Status                 int64          `json:"status"`
+	DurationMs             int64          `json:"durationMs"`
+	Error                  sql.NullString `json:"error"`
+	RespHeadersJson        sql.NullString `json:"respHeadersJson"`
+	RespBody               []byte         `json:"respBody"`
+	RespBodySize           int64          `json:"respBodySize"`
+	RespTruncated          int64          `json:"respTruncated"`
+	TimingsJson            sql.NullString `json:"timingsJson"`
 }
 
-func (q *Queries) InsertHistory(ctx context.Context, arg InsertHistoryParams) error {
-	_, err := q.db.ExecContext(ctx, insertHistory,
+func (q *Queries) InsertHistory(ctx context.Context, arg InsertHistoryParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, insertHistory,
+		arg.CreatedAt,
+		arg.ProjectID,
+		arg.RequestID,
+		arg.RequestName,
 		arg.Method,
-		arg.Url,
+		arg.UrlTemplate,
+		arg.UrlResolved,
+		arg.EnvID,
+		arg.EnvName,
+		arg.ReqHeadersJson,
+		arg.ReqParamsJson,
+		arg.ReqBodyJson,
+		arg.ReqHeadersResolvedJson,
+		arg.ReqBodyResolved,
 		arg.Status,
 		arg.DurationMs,
-		arg.CreatedAt,
+		arg.Error,
+		arg.RespHeadersJson,
+		arg.RespBody,
+		arg.RespBodySize,
+		arg.RespTruncated,
+		arg.TimingsJson,
 	)
-	return err
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
-const listHistory = `-- name: ListHistory :many
-SELECT id, method, url, status, duration_ms, created_at
+const listHistoryPage = `-- name: ListHistoryPage :many
+SELECT id, created_at, project_id, request_id, request_name, method, url_template, url_resolved,
+       env_name, status, duration_ms, error, resp_body_size, resp_truncated
 FROM history
+WHERE (CAST(?1 AS TEXT) = '' OR project_id = ?1)
+  AND (CAST(?2 AS TEXT) = '' OR method = ?2)
+  AND (CAST(?3 AS INTEGER) = 0
+       OR (?3 = -1 AND status = 0)
+       OR (status BETWEEN ?3 AND CAST(?4 AS INTEGER)))
+  AND (CAST(?5 AS TEXT) = ''
+       OR instr(lower(coalesce(url_resolved, '')), lower(?5)) > 0
+       OR instr(lower(url_template), lower(?5)) > 0
+       OR instr(lower(coalesce(request_name, '')), lower(?5)) > 0)
+  AND (CAST(?6 AS INTEGER) = 0
+       OR created_at < ?6
+       OR (created_at = ?6 AND id < CAST(?7 AS INTEGER)))
 ORDER BY created_at DESC, id DESC
-LIMIT ?
+LIMIT CAST(?8 AS INTEGER)
 `
 
-func (q *Queries) ListHistory(ctx context.Context, limit int64) ([]History, error) {
-	rows, err := q.db.QueryContext(ctx, listHistory, limit)
+type ListHistoryPageParams struct {
+	ProjectID     string `json:"projectId"`
+	Method        string `json:"method"`
+	StatusMin     int64  `json:"statusMin"`
+	StatusMax     int64  `json:"statusMax"`
+	Needle        string `json:"needle"`
+	BeforeCreated int64  `json:"beforeCreated"`
+	BeforeID      int64  `json:"beforeId"`
+	PageLimit     int64  `json:"pageLimit"`
+}
+
+type ListHistoryPageRow struct {
+	ID            int64          `json:"id"`
+	CreatedAt     int64          `json:"createdAt"`
+	ProjectID     sql.NullString `json:"projectId"`
+	RequestID     sql.NullString `json:"requestId"`
+	RequestName   sql.NullString `json:"requestName"`
+	Method        string         `json:"method"`
+	UrlTemplate   string         `json:"urlTemplate"`
+	UrlResolved   sql.NullString `json:"urlResolved"`
+	EnvName       sql.NullString `json:"envName"`
+	Status        int64          `json:"status"`
+	DurationMs    int64          `json:"durationMs"`
+	Error         sql.NullString `json:"error"`
+	RespBodySize  int64          `json:"respBodySize"`
+	RespTruncated int64          `json:"respTruncated"`
+}
+
+// SUMMARY COLUMNS ONLY: never resp_body or the request JSON / resolved blobs
+// (rows can carry tens of MB). Filters run here (text: plain, case-insensitive
+// substring via instr - no wildcards to escape); keyset pagination on
+// (created_at, id) - before_created = 0 starts at the newest.
+func (q *Queries) ListHistoryPage(ctx context.Context, arg ListHistoryPageParams) ([]ListHistoryPageRow, error) {
+	rows, err := q.db.QueryContext(ctx, listHistoryPage,
+		arg.ProjectID,
+		arg.Method,
+		arg.StatusMin,
+		arg.StatusMax,
+		arg.Needle,
+		arg.BeforeCreated,
+		arg.BeforeID,
+		arg.PageLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []History
+	var items []ListHistoryPageRow
 	for rows.Next() {
-		var i History
+		var i ListHistoryPageRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.CreatedAt,
+			&i.ProjectID,
+			&i.RequestID,
+			&i.RequestName,
 			&i.Method,
-			&i.Url,
+			&i.UrlTemplate,
+			&i.UrlResolved,
+			&i.EnvName,
 			&i.Status,
 			&i.DurationMs,
-			&i.CreatedAt,
+			&i.Error,
+			&i.RespBodySize,
+			&i.RespTruncated,
 		); err != nil {
 			return nil, err
 		}
@@ -68,4 +266,19 @@ func (q *Queries) ListHistory(ctx context.Context, limit int64) ([]History, erro
 		return nil, err
 	}
 	return items, nil
+}
+
+const pruneHistory = `-- name: PruneHistory :execrows
+DELETE FROM history WHERE id IN (
+    SELECT id FROM history ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET ?
+)
+`
+
+// Keep the newest n entries.
+func (q *Queries) PruneHistory(ctx context.Context, offset int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, pruneHistory, offset)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

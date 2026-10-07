@@ -8,6 +8,8 @@ export function AcceptInvitation(arg1:string):Promise<main.AcceptedInvitationRes
 
 export function CancelRequest(arg1:string):Promise<void>;
 
+export function ClearHistory(arg1:string,arg2:string):Promise<main.DeletedResult>;
+
 export function ConfirmQuit():Promise<void>;
 
 export function CreateEnvironment(arg1:string,arg2:string):Promise<main.EnvironmentResult>;
@@ -28,6 +30,8 @@ export function DeleteEnvironment(arg1:string,arg2:string):Promise<main.EmptyRes
 
 export function DeleteFolder(arg1:string):Promise<main.EmptyResult>;
 
+export function DeleteHistoryEntry(arg1:number):Promise<main.EmptyResult>;
+
 export function DeleteProject(arg1:string):Promise<main.EmptyResult>;
 
 export function DeleteRequest(arg1:string):Promise<main.EmptyResult>;
@@ -45,6 +49,12 @@ export function GetAuthState():Promise<session.AuthState>;
 export function GetEnvContext(arg1:string):Promise<main.EnvContextResult>;
 
 export function GetFollowRedirectsDefault():Promise<boolean>;
+
+export function GetHistoryEntry(arg1:number):Promise<main.HistoryEntryResult>;
+
+export function GetHistorySettings():Promise<main.HistorySettings>;
+
+export function GetHistoryStorageInfo():Promise<main.HistoryStorageResult>;
 
 export function GetMemberAccess(arg1:string,arg2:string):Promise<main.MemberAccessViewResult>;
 
@@ -71,6 +81,8 @@ export function GetTreeState(arg1:string):Promise<Array<string>>;
 export function GetUIPrefs():Promise<main.UIPrefs>;
 
 export function ListFolders(arg1:string):Promise<main.FolderListResult>;
+
+export function ListHistory(arg1:main.HistoryFilter):Promise<main.HistoryPageResult>;
 
 export function ListMyInvitations():Promise<main.MyInvitationListResult>;
 
@@ -122,6 +134,8 @@ export function ReorderProjects(arg1:string,arg2:Array<string>):Promise<main.Emp
 
 export function ReorderRequests(arg1:string,arg2:string,arg3:Array<string>):Promise<main.EmptyResult>;
 
+export function RestoreHistoryEntry(arg1:number,arg2:string):Promise<main.RequestSummaryResult>;
+
 export function RevokeInvitation(arg1:string):Promise<main.EmptyResult>;
 
 export function SaveRequest(arg1:string,arg2:api.RequestDraft,arg3:api.RequestDraft):Promise<main.RequestResult>;
@@ -132,13 +146,17 @@ export function SelectProject(arg1:string):Promise<main.WorkspaceResult>;
 
 export function SelectTeam(arg1:string):Promise<main.WorkspaceResult>;
 
-export function SendRequest(arg1:string,arg2:string,arg3:api.RequestDraft,arg4:boolean):Promise<main.SendResult>;
+export function SendRequest(arg1:string,arg2:string,arg3:api.RequestDraft,arg4:main.SendOptions):Promise<main.SendResult>;
 
 export function SetActiveEnvironment(arg1:string,arg2:string):Promise<main.EnvContextResult>;
 
 export function SetFolderFollowRedirects(arg1:string,arg2:string):Promise<main.FolderResult>;
 
 export function SetFollowRedirectsDefault(arg1:boolean):Promise<main.EmptyResult>;
+
+export function SetHistoryMaxEntries(arg1:number):Promise<main.DeletedResult>;
+
+export function SetHistoryMaxResponseBytes(arg1:number):Promise<main.EmptyResult>;
 
 export function SetMemberAccess(arg1:string,arg2:string,arg3:boolean,arg4:Array<string>):Promise<main.MemberAccessResult>;
 

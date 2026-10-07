@@ -25,6 +25,8 @@ import TabBar from "./TabBar";
 import EnvSwitcher from "./EnvSwitcher";
 import EnvListView from "./EnvListView";
 import EnvVariablesView from "./EnvVariablesView";
+import HistoryView from "./HistoryView";
+import { publishProjectId } from "../workspaceStore";
 import RequestEditor from "./RequestEditor";
 
 interface Props {
@@ -71,7 +73,12 @@ export default function MainScreen(props: Props) {
   }));
 
   // The env switcher / highlighting follow the selected project.
-  createEffect(on(projectId, (id) => void loadEnvContext(id)));
+  createEffect(on(projectId, (id) => {
+    publishProjectId(id);
+    void loadEnvContext(id);
+  }));
+  // "Open original request" needs the current tree's request ids.
+  const requestIds = createMemo(() => new Set(currentTree().requests.keys()));
 
   // Env tabs follow the environment list: renames relabel, deletes close.
   createEffect(() => {
@@ -86,6 +93,14 @@ export default function MainScreen(props: Props) {
   };
   const openEnvList = () => {
     tabs()?.openEnvList();
+    setPane("editor");
+  };
+  const openHistory = () => {
+    tabs()?.openHistory();
+    setPane("editor");
+  };
+  const openRequest = (id: string) => {
+    tabs()?.open(id);
     setPane("editor");
   };
 
@@ -236,6 +251,8 @@ export default function MainScreen(props: Props) {
             setPane("invitations");
             void refreshInvitations();
           }}
+          onHistory={openHistory}
+          historyDisabled={!projectId()}
           onSettings={props.onOpenSettings}
           onLogout={logout}
         />
@@ -259,10 +276,7 @@ export default function MainScreen(props: Props) {
               projectId={project().id}
               refreshTick={refreshTick() + treeTick()}
               selectedRequestId={pane() === "editor" ? tabs()?.activeRequestId() : undefined}
-              onOpenRequest={(id) => {
-                tabs()?.open(id);
-                setPane("editor");
-              }}
+              onOpenRequest={openRequest}
               onLoaded={(pid, requests) => {
                 if (pid === projectId()) tabs()?.syncWithTree(requests);
               }}
@@ -326,6 +340,9 @@ export default function MainScreen(props: Props) {
                         </Match>
                         <Match when={tab.kind === "env_list"}>
                           <EnvListView projectId={projectId()} onOpenEnv={openEnvTab} />
+                        </Match>
+                        <Match when={tab.kind === "history"}>
+                          <HistoryView projectId={projectId()} requestIds={requestIds()} onOpenRequest={openRequest} />
                         </Match>
                       </Switch>
                     )}

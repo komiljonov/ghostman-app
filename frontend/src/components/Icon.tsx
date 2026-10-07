@@ -38,6 +38,13 @@ const SHAPES = {
   // Collapse all / expand all: chevrons pointing in / out.
   collapse: () => <path d="M5 2.75L8 5.75l3-3M5 13.25L8 10.25l3 3" />,
   expand: () => <path d="M5 5.75L8 2.75l3 3M5 10.25L8 13.25l3-3" />,
+  // History: a clock face.
+  history: () => (
+    <>
+      <circle cx="8" cy="8" r="5.75" />
+      <path d="M8 4.75V8l2.25 1.5" />
+    </>
+  ),
   download: () => <path d="M8 2.5v7.5M4.75 6.75L8 10l3.25-3.25M3 12.75h10" />,
   // The 24-unit gear outline, scaled onto the 16 grid (stroke 2 → 1.33 px).
   settings: () => (

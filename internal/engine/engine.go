@@ -118,6 +118,23 @@ func New(timeout time.Duration) *Engine {
 // SendOptions are per-send client settings.
 type SendOptions struct {
 	FollowRedirects bool
+	// FullBodyCap bounds the Go-side copy of the body (Response.Full, used by
+	// Save-to-file and history): 0 = MaxFullBody (20 MB), > 0 = that many bytes,
+	// < 0 = no cap. No cap means a response is held in memory WHOLE for as long
+	// as it is the tab's active response — a 2 GB download takes 2 GB of RAM.
+	// The UI preview stays capped at MaxBodyPreview either way.
+	FullBodyCap int64
+}
+
+func (o SendOptions) fullBodyCap() int64 {
+	switch {
+	case o.FullBodyCap == 0:
+		return MaxFullBody
+	case o.FullBodyCap < 0:
+		return -1
+	default:
+		return o.FullBodyCap
+	}
 }
 
 // SendError is a failed send: the readable reason plus the hops made so far
@@ -181,7 +198,7 @@ func (e *Engine) Send(ctx context.Context, spec RequestSpec, opts SendOptions) (
 			}
 		}
 		if next == nil {
-			return e.finish(req, resp, tr, hops, start)
+			return e.finish(req, resp, tr, hops, start, opts.fullBodyCap())
 		}
 		drainRedirectBody(resp)
 		tr.markBodyDone()
@@ -204,11 +221,15 @@ func drainRedirectBody(resp *http.Response) {
 }
 
 // finish reads the final response's body and builds the Response.
-func (e *Engine) finish(req *http.Request, resp *http.Response, tr *hopTrace, hops []Hop, start time.Time) (*Response, error) {
+func (e *Engine) finish(req *http.Request, resp *http.Response, tr *hopTrace, hops []Hop, start time.Time, fullCap int64) (*Response, error) {
 	defer resp.Body.Close()
 
 	var full bytes.Buffer
-	n, err := io.Copy(&full, io.LimitReader(resp.Body, MaxFullBody))
+	var src io.Reader = resp.Body
+	if fullCap >= 0 {
+		src = io.LimitReader(resp.Body, fullCap)
+	}
+	n, err := io.Copy(&full, src)
 	if err == nil {
 		// Count (and discard) whatever is left so BodySize reflects the full body.
 		var rest int64
@@ -224,22 +245,8 @@ func (e *Engine) finish(req *http.Request, resp *http.Response, tr *hopTrace, ho
 	duration := time.Since(start)
 
 	kept := full.Bytes()
-	// The preview is a copy: Body must not alias Full (prettyJSON may replace it).
-	body := append([]byte(nil), kept[:min(len(kept), MaxBodyPreview)]...)
-	truncated := n > int64(len(body))
-	if truncated {
-		body = trimPartialRune(body)
-	}
-
 	contentType := resp.Header.Get("Content-Type")
-	formatted := false
-	rawBody := ""
-	if !truncated && isJSONContentType(contentType) {
-		if pretty, ok := prettyJSON(body); ok {
-			rawBody = string(body)
-			body, formatted = pretty, true
-		}
-	}
+	pv := PreviewBody(kept, n, contentType)
 
 	return &Response{
 		Status:      resp.StatusCode,
@@ -248,15 +255,82 @@ func (e *Engine) finish(req *http.Request, resp *http.Response, tr *hopTrace, ho
 		Headers:     flattenHeaders(resp.Header),
 		DurationMs:  duration.Round(time.Millisecond).Milliseconds(), // rounded, like the hop totals
 		BodySize:    n,
-		Body:        string(body),
-		Truncated:   truncated,
+		Body:        pv.Body,
+		Truncated:   pv.Truncated,
 		ContentType: contentType,
-		Formatted:   formatted,
-		RawBody:     rawBody,
+		Formatted:   pv.Formatted,
+		RawBody:     pv.RawBody,
 		Hops:        hops,
 		Full:        kept,
 		FullCapped:  n > int64(len(kept)),
 	}, nil
+}
+
+// Preview is the bounded, displayable form of a body (what crosses the bridge).
+type Preview struct {
+	Body      string
+	RawBody   string // set only when Formatted
+	Truncated bool   // the body was longer than the preview (or than what is held)
+	Formatted bool
+}
+
+// PreviewBody builds the UI preview of a body: at most MaxBodyPreview bytes (cut
+// on a rune boundary), JSON pretty-printed when complete. total is the body's
+// full size, which may exceed len(body) when only a prefix is held.
+func PreviewBody(body []byte, total int64, contentType string) Preview {
+	// A copy: the preview must not alias the held body (prettyJSON may replace it).
+	p := append([]byte(nil), body[:min(len(body), MaxBodyPreview)]...)
+	truncated := total > int64(len(p))
+	if truncated {
+		p = trimPartialRune(p)
+	}
+	out := Preview{Body: string(p), Truncated: truncated}
+	if !truncated && isJSONContentType(contentType) {
+		if pretty, ok := prettyJSON(p); ok {
+			out.RawBody, out.Body, out.Formatted = string(p), string(pretty), true
+		}
+	}
+	return out
+}
+
+// SentURL is the URL a spec is sent to: its URL with the enabled query params
+// appended (as buildRequest does). "" when the URL is unusable.
+func SentURL(spec RequestSpec) string {
+	u, err := url.Parse(strings.TrimSpace(spec.URL))
+	if err != nil {
+		return strings.TrimSpace(spec.URL)
+	}
+	appendQuery(u, spec.QueryParams)
+	return u.String()
+}
+
+// SentBody is the body a spec sends, as text (form fields urlencoded), and its
+// implied Content-Type.
+func SentBody(b Body) (string, string) {
+	r, ct := encodeBody(b)
+	if r == nil {
+		return "", ""
+	}
+	raw, _ := io.ReadAll(r)
+	return string(raw), ct
+}
+
+// SentHeaders are the enabled header rows (as sent), plus the body's implied
+// Content-Type when no header sets one.
+func SentHeaders(spec RequestSpec) []Header {
+	out := enabled(spec.Headers)
+	if _, ct := SentBody(spec.Body); ct != "" {
+		has := false
+		for _, h := range out {
+			if strings.EqualFold(strings.TrimSpace(h.Key), "Content-Type") {
+				has = true
+			}
+		}
+		if !has {
+			out = append(out, Header{Key: "Content-Type", Value: ct, Enabled: true})
+		}
+	}
+	return out
 }
 
 func isJSONContentType(ct string) bool {

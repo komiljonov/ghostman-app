@@ -10,6 +10,10 @@ export function CancelRequest(arg1) {
   return window['go']['main']['App']['CancelRequest'](arg1);
 }
 
+export function ClearHistory(arg1, arg2) {
+  return window['go']['main']['App']['ClearHistory'](arg1, arg2);
+}
+
 export function ConfirmQuit() {
   return window['go']['main']['App']['ConfirmQuit']();
 }
@@ -50,6 +54,10 @@ export function DeleteFolder(arg1) {
   return window['go']['main']['App']['DeleteFolder'](arg1);
 }
 
+export function DeleteHistoryEntry(arg1) {
+  return window['go']['main']['App']['DeleteHistoryEntry'](arg1);
+}
+
 export function DeleteProject(arg1) {
   return window['go']['main']['App']['DeleteProject'](arg1);
 }
@@ -84,6 +92,18 @@ export function GetEnvContext(arg1) {
 
 export function GetFollowRedirectsDefault() {
   return window['go']['main']['App']['GetFollowRedirectsDefault']();
+}
+
+export function GetHistoryEntry(arg1) {
+  return window['go']['main']['App']['GetHistoryEntry'](arg1);
+}
+
+export function GetHistorySettings() {
+  return window['go']['main']['App']['GetHistorySettings']();
+}
+
+export function GetHistoryStorageInfo() {
+  return window['go']['main']['App']['GetHistoryStorageInfo']();
 }
 
 export function GetMemberAccess(arg1, arg2) {
@@ -136,6 +156,10 @@ export function GetUIPrefs() {
 
 export function ListFolders(arg1) {
   return window['go']['main']['App']['ListFolders'](arg1);
+}
+
+export function ListHistory(arg1) {
+  return window['go']['main']['App']['ListHistory'](arg1);
 }
 
 export function ListMyInvitations() {
@@ -238,6 +262,10 @@ export function ReorderRequests(arg1, arg2, arg3) {
   return window['go']['main']['App']['ReorderRequests'](arg1, arg2, arg3);
 }
 
+export function RestoreHistoryEntry(arg1, arg2) {
+  return window['go']['main']['App']['RestoreHistoryEntry'](arg1, arg2);
+}
+
 export function RevokeInvitation(arg1) {
   return window['go']['main']['App']['RevokeInvitation'](arg1);
 }
@@ -272,6 +300,14 @@ export function SetFolderFollowRedirects(arg1, arg2) {
 
 export function SetFollowRedirectsDefault(arg1) {
   return window['go']['main']['App']['SetFollowRedirectsDefault'](arg1);
+}
+
+export function SetHistoryMaxEntries(arg1) {
+  return window['go']['main']['App']['SetHistoryMaxEntries'](arg1);
+}
+
+export function SetHistoryMaxResponseBytes(arg1) {
+  return window['go']['main']['App']['SetHistoryMaxResponseBytes'](arg1);
 }
 
 export function SetMemberAccess(arg1, arg2, arg3, arg4) {

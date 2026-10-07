@@ -4,12 +4,13 @@ import {
 } from "../wailsjs/go/main/App";
 import { api, engine, main } from "../wailsjs/go/models";
 import { handleProblem } from "./authStore";
+import { historyChanged } from "./historyStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
 import { BodyView, defaultView } from "./responseView";
 import { adoptUrlQuery } from "./urlParams";
 import { Row } from "./rows";
 import { restoreTabs, saveTabs, TabStorage } from "./tabPersistence";
-import { closeEach, CloseMode, cycleKey, ENV_LIST, reorder, sameTab, syncEnvTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
+import { closeEach, CloseMode, cycleKey, ENV_LIST, HISTORY, reorder, sameTab, syncEnvTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
 
 export const AUTOSAVE_DELAY_MS = 600;
 
@@ -190,6 +191,8 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
   };
   const requestKey = (id: string) => tabKey({ kind: "request", id });
   const ENV_LIST_NAME = "Environments";
+  const HISTORY_NAME = "History";
+  const fixedName = (ref: TabRef) => (ref.kind === "env_list" ? ENV_LIST_NAME : ref.kind === "history" ? HISTORY_NAME : "");
 
   const controller = {
     state,
@@ -209,7 +212,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       const saved = await restoreTabs(storage, projectId, async (ref) => {
         if (ref.kind !== "request") {
           // Env tabs are checked against the environment list by syncWithEnvs.
-          addTab(ref, ref.kind === "env_list" ? ENV_LIST_NAME : "", "ready");
+          addTab(ref, fixedName(ref), "ready");
           return true;
         }
         addLoadingTab(ref.id);
@@ -244,6 +247,11 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     openEnvList() {
       addTab(ENV_LIST, ENV_LIST_NAME, "ready");
       controller.activate(tabKey(ENV_LIST));
+    },
+
+    openHistory() {
+      addTab(HISTORY, HISTORY_NAME, "ready");
+      controller.activate(tabKey(HISTORY));
     },
 
     activate(key: string) {
@@ -324,8 +332,14 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       });
       await savers.get(id)?.flush(); // send what is saved
       const snapshot = clone(unwrap(tab(id)!.draft));
-      const result = await SendRequest(projectId, id, api.RequestDraft.createFrom(snapshot), hooks.followRedirects(id));
+      const result = await SendRequest(
+        projectId,
+        id,
+        api.RequestDraft.createFrom(snapshot),
+        main.SendOptions.createFrom({ follow_redirects: hooks.followRedirects(id), request_name: tab(id)!.name }),
+      );
       handleProblem(result.error);
+      historyChanged(); // every send is a new history entry (Go writes it)
       update(id, (t) => {
         t.sending = false;
         t.response = result.data ?? undefined;

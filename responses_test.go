@@ -47,7 +47,7 @@ func TestFullBodyRetainedPerTabAndReplacedOnResend(t *testing.T) {
 	target := bodyTarget(t, size)
 	a := newTestApp(t, true, nil)
 
-	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: target.URL + "/bin"}, true)
+	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: target.URL + "/bin"}, SendOptions{FollowRedirects: true})
 	if res.Error != nil || !res.Data.Truncated || len(res.Data.Body) > engine.MaxBodyPreview {
 		t.Fatalf("preview must stay capped: %+v", res.Error)
 	}
@@ -57,14 +57,14 @@ func TestFullBodyRetainedPerTabAndReplacedOnResend(t *testing.T) {
 	}
 
 	// The next send replaces it.
-	a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: target.URL + "/json"}, true)
+	a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: target.URL + "/json"}, SendOptions{FollowRedirects: true})
 	held, _ = a.responses.get("r1")
 	if string(held.data) != `{"token":"abc","n":[1,2,3]}` {
 		t.Fatalf("not replaced: %q", held.data[:min(40, len(held.data))])
 	}
 
 	// A failed send leaves no active response.
-	a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: "not a url"}, true)
+	a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: "not a url"}, SendOptions{FollowRedirects: true})
 	if _, ok := a.responses.get("r1"); ok {
 		t.Fatal("a failed send must drop the previous body")
 	}
@@ -74,7 +74,7 @@ func TestFullBodyFreedOnTabCloseAndLogout(t *testing.T) {
 	target := bodyTarget(t, 1000)
 	a := newTestApp(t, true, nil)
 	for _, id := range []string{"r1", "r2", "r3"} {
-		a.SendRequest("p1", id, api.RequestDraft{Method: "GET", URL: target.URL}, true)
+		a.SendRequest("p1", id, api.RequestDraft{Method: "GET", URL: target.URL}, SendOptions{FollowRedirects: true})
 	}
 	a.responses.put("o1", heldBody{projectID: "p2", data: []byte("other project")})
 
@@ -110,7 +110,7 @@ func TestSaveResponseToFileWritesFullBytes(t *testing.T) {
 		return filepath.Join(dir, opts.DefaultFilename), nil
 	}
 
-	a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: target.URL}, true)
+	a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: target.URL}, SendOptions{FollowRedirects: true})
 	res := a.SaveResponseToFile("r1")
 	if res.Error != nil || res.Data == nil {
 		t.Fatalf("save: %+v", res.Error)

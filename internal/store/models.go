@@ -4,13 +4,34 @@
 
 package store
 
+import (
+	"database/sql"
+)
+
 type History struct {
-	ID         int64  `json:"id"`
-	Method     string `json:"method"`
-	Url        string `json:"url"`
-	Status     int64  `json:"status"`
-	DurationMs int64  `json:"durationMs"`
-	CreatedAt  int64  `json:"createdAt"`
+	ID                     int64          `json:"id"`
+	CreatedAt              int64          `json:"createdAt"`
+	ProjectID              sql.NullString `json:"projectId"`
+	RequestID              sql.NullString `json:"requestId"`
+	RequestName            sql.NullString `json:"requestName"`
+	Method                 string         `json:"method"`
+	UrlTemplate            string         `json:"urlTemplate"`
+	UrlResolved            sql.NullString `json:"urlResolved"`
+	EnvID                  sql.NullString `json:"envId"`
+	EnvName                sql.NullString `json:"envName"`
+	ReqHeadersJson         sql.NullString `json:"reqHeadersJson"`
+	ReqParamsJson          sql.NullString `json:"reqParamsJson"`
+	ReqBodyJson            sql.NullString `json:"reqBodyJson"`
+	ReqHeadersResolvedJson sql.NullString `json:"reqHeadersResolvedJson"`
+	ReqBodyResolved        sql.NullString `json:"reqBodyResolved"`
+	Status                 int64          `json:"status"`
+	DurationMs             int64          `json:"durationMs"`
+	Error                  sql.NullString `json:"error"`
+	RespHeadersJson        sql.NullString `json:"respHeadersJson"`
+	RespBody               []byte         `json:"respBody"`
+	RespBodySize           int64          `json:"respBodySize"`
+	RespTruncated          int64          `json:"respTruncated"`
+	TimingsJson            sql.NullString `json:"timingsJson"`
 }
 
 type RequestSetting struct {
