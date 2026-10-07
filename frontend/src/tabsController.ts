@@ -1,8 +1,7 @@
 import { createStore, produce, unwrap } from "solid-js/store";
 import {
-  CancelRequest, GetRequest, GetRequestRedirects, GetTabs, ReleaseResponse, SaveRequest, SendRequest, SetRequestRedirects, SetTabs,
+  CancelRequest, GetRequest, GetTabs, ReleaseResponse, SaveRequest, SendRequest, SetTabs,
 } from "../wailsjs/go/main/App";
-import { changeRedirectMode, loadRedirectMode, RedirectMode } from "./requestSettings";
 import { api, engine, main } from "../wailsjs/go/models";
 import { handleProblem } from "./authStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
@@ -54,8 +53,6 @@ export interface TabState {
   responseFolds?: { from: number; to: number }[];
   // Timing of the last send's hops (also after a failed send); reset by every send.
   hops: engine.Hop[];
-  // Local per-request redirect mode (SQLite): "default" uses the global setting.
-  redirectMode: RedirectMode;
   responseShare: number; // fraction of the editor height given to the response
 }
 
@@ -88,6 +85,9 @@ const storage: TabStorage = {
 export interface TabsHooks {
   // A save changed something the tree shows (the method badge).
   onTreeStale: () => void;
+  // The resolved follow-redirects value for a request (cascading setting, resolved
+  // in the UI from the tree store + the global value).
+  followRedirects: (requestId: string) => boolean;
 }
 
 export type TabsController = ReturnType<typeof createTabsController>;
@@ -117,7 +117,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
   const newTab = (ref: TabRef, name: string, status: TabState["status"]): TabState => ({
     kind: ref.kind, id: ref.id, key: tabKey(ref), name, status, draft: emptyDraft(), save: "idle", sending: false,
     unresolved: [], section: "params", responseSection: "body", responseView: "raw", responseShare: 0.45,
-    hops: [], redirectMode: "default",
+    hops: [],
   });
   const addTab = (ref: TabRef, name: string, status: TabState["status"]) => {
     if (byKey(tabKey(ref))) return;
@@ -168,7 +168,6 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     bases.set(id, clone(loaded));
     const adopted = adoptUrlQuery(loaded.url, loaded.query_params);
     const draft = { ...loaded, url: adopted.url, query_params: adopted.rows };
-    void loadRedirectMode(id, { get: GetRequestRedirects, show: (m) => update(id, (t) => (t.redirectMode = m)) });
     savers.set(id, makeSaver(id));
     update(id, (t) => {
       t.status = "ready";
@@ -314,12 +313,6 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
 
     retrySave: (id: string) => savers.get(id)?.retry(),
 
-    // The request's redirect mode (Settings sub-tab): shown at once, saved immediately.
-    setRedirectMode: (id: string, mode: RedirectMode) =>
-      changeRedirectMode(id, tab(id)?.redirectMode ?? "default", mode, {
-        set: SetRequestRedirects,
-        show: (m) => update(id, (t) => (t.redirectMode = m)),
-      }),
 
     async send(id: string) {
       const current = tab(id);
@@ -331,7 +324,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       });
       await savers.get(id)?.flush(); // send what is saved
       const snapshot = clone(unwrap(tab(id)!.draft));
-      const result = await SendRequest(projectId, id, api.RequestDraft.createFrom(snapshot));
+      const result = await SendRequest(projectId, id, api.RequestDraft.createFrom(snapshot), hooks.followRedirects(id));
       handleProblem(result.error);
       update(id, (t) => {
         t.sending = false;

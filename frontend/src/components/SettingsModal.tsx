@@ -79,9 +79,12 @@ export default function SettingsModal(props: Props) {
         <label class="choice settings-check">
           <input type="checkbox" checked={redirectDefault()}
             onChange={(e) => void setRedirectDefault(e.currentTarget.checked).then((err) => setRedirectError(err?.message))} />
-          Follow redirects by default
+          Follow redirects (global setting)
         </label>
-        <p class="settings-hint">Up to 10. A request can override this in its Settings tab. Applies right away.</p>
+        <p class="settings-hint">
+          Used by requests and folders set to “Use global”, and wherever “Inherit” reaches the top.
+          On this machine only; applies right away.
+        </p>
         <FormError message={redirectError()} />
         <label class="field">
           <span>Server URL</span>

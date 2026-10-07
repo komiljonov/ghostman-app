@@ -28,6 +28,7 @@ export interface TreeCtx {
   consumeDragClick: () => boolean;
   openRequest: (id: string) => void;
   askMove: (node: TreeNode) => void;
+  askFolderSettings: (folderId: string) => void;
   askDelete: (node: TreeNode) => void;
   // Creates "New folder"/"New request" inside parentId ("" = root) and starts renaming it.
   create: (kind: "folder" | "request", parentId: string) => Promise<session.Problem | undefined>;

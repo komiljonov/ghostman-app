@@ -9,6 +9,8 @@ import { duplicateAndOpen } from "../treeActions";
 import { TreeContext, TreeCtx } from "../treeContext";
 import { canUseTreeKeys, navigate, shortcutApplies, treeShortcut, visibleRows } from "../treeNav";
 import { createTreeDrag } from "../treeDrag";
+import { clearTree, publishTree, treeReloadTick } from "../treeStore";
+import FolderSettingsModal from "./FolderSettingsModal";
 import Dropdown from "./Dropdown";
 import FormError from "./FormError";
 import Icon from "./Icon";
@@ -42,6 +44,7 @@ export default function ProjectTree(props: Props) {
   const [renamingId, setRenamingId] = createSignal<string>();
   const [moving, setMoving] = createSignal<TreeNode>();
   const [deleting, setDeleting] = createSignal<TreeNode>();
+  const [folderSettings, setFolderSettings] = createSignal<string>(); // folder id
   const [selectedId, setSelectedId] = createSignal<string>();
   const [menu, setMenu] = createSignal<{ id: string; x: number; y: number }>();
   let treeEl: HTMLUListElement | undefined;
@@ -68,6 +71,7 @@ export default function ProjectTree(props: Props) {
     if (problem) return;
     const tree = buildTree(folders.data, requests.data);
     setLookup(tree);
+    publishTree(tree); // open tabs re-resolve cascading settings from it
     setView("root", reconcile(tree.root, { key: "id" }));
     setLoaded(true);
     // Forget expanded state of folders that no longer exist (deleted here or elsewhere).
@@ -89,6 +93,7 @@ export default function ProjectTree(props: Props) {
   const projectId = createMemo(() => props.projectId);
   createEffect(on(projectId, async (projectId) => {
     setLoaded(false);
+    clearTree();
     setRenamingId(undefined);
     setSelectedId(props.selectedRequestId);
     setMenu(undefined);
@@ -98,6 +103,8 @@ export default function ProjectTree(props: Props) {
     await reload();
   }));
   createEffect(on(() => props.refreshTick, () => void reload(), { defer: true }));
+  // Something outside the tree saved a node setting (a request's Settings tab).
+  createEffect(on(treeReloadTick, () => void reload(), { defer: true }));
 
   const ctx: TreeCtx = {
     projectId: () => props.projectId,
@@ -142,6 +149,7 @@ export default function ProjectTree(props: Props) {
     },
     consumeDragClick: () => drag.consumeClick(),
     askMove: setMoving,
+    askFolderSettings: (id) => setFolderSettings(id),
     askDelete: setDeleting,
     create: async (kind, parentId) => {
       const result = kind === "folder"
@@ -265,6 +273,9 @@ export default function ProjectTree(props: Props) {
             </Show>
           </Portal>
         )}
+      </Show>
+      <Show when={folderSettings()}>
+        {(id) => <FolderSettingsModal folderId={id()} onSaved={reload} onClose={() => setFolderSettings(undefined)} />}
       </Show>
       <Show when={moving()}>
         {(node) => <MoveToModal node={node()} onClose={() => setMoving(undefined)} />}

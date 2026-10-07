@@ -18,15 +18,35 @@ func (q *Queries) DeleteFollowRedirects(ctx context.Context, requestID string) e
 	return err
 }
 
-const getFollowRedirects = `-- name: GetFollowRedirects :one
-SELECT follow_redirects FROM request_settings WHERE request_id = ?
+const listRequestSettings = `-- name: ListRequestSettings :many
+
+SELECT request_id, follow_redirects FROM request_settings ORDER BY request_id
 `
 
-func (q *Queries) GetFollowRedirects(ctx context.Context, requestID string) (int64, error) {
-	row := q.db.QueryRowContext(ctx, getFollowRedirects, requestID)
-	var follow_redirects int64
-	err := row.Scan(&follow_redirects)
-	return follow_redirects, err
+// The request_settings table held per-request follow-redirects overrides before
+// the setting moved to the server. These queries only serve the one-time push of
+// leftover rows to the server (then the table is dropped).
+func (q *Queries) ListRequestSettings(ctx context.Context) ([]RequestSetting, error) {
+	rows, err := q.db.QueryContext(ctx, listRequestSettings)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []RequestSetting
+	for rows.Next() {
+		var i RequestSetting
+		if err := rows.Scan(&i.RequestID, &i.FollowRedirects); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const putFollowRedirects = `-- name: PutFollowRedirects :exec

@@ -59,7 +59,7 @@ func TestSendRequestUsesDraftAndRecordsHistory(t *testing.T) {
 		Headers:     []api.KeyValue{{Key: "X-On", Value: "1", Enabled: true}, {Key: "X-Off", Value: "1"}},
 		QueryParams: []api.KeyValue{{Key: "b", Value: "2", Enabled: true}, {Key: "b", Value: "3", Enabled: true}},
 		Body:        api.RequestBody{Type: "none"},
-	})
+	}, true)
 	if res.Error != nil || res.Data.Status != 200 || !res.Data.Formatted {
 		t.Fatalf("send = %s", toJSON(t, res))
 	}
@@ -71,7 +71,7 @@ func TestSendRequestUsesDraftAndRecordsHistory(t *testing.T) {
 		t.Errorf("history = %+v, %v", rows, err)
 	}
 
-	bad := a.SendRequest("p1", "r1", api.RequestDraft{URL: "not a url"})
+	bad := a.SendRequest("p1", "r1", api.RequestDraft{URL: "not a url"}, true)
 	if bad.Error == nil || bad.Error.Kind != KindRequest || bad.Data != nil {
 		t.Errorf("bad url = %s", toJSON(t, bad))
 	}
@@ -95,18 +95,18 @@ func TestCancelRequest(t *testing.T) {
 		}
 		a.CancelRequest("r1")
 	}()
-	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: slow.URL})
+	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: slow.URL}, true)
 	if res.Error == nil || res.Error.Message != "request cancelled" {
 		t.Fatalf("cancelled send = %s", toJSON(t, res))
 	}
 
 	// A second send of the same request cancels the first.
 	done := make(chan SendResult)
-	go func() { done <- a.SendRequest("p1", "r2", api.RequestDraft{Method: "GET", URL: slow.URL}) }()
+	go func() { done <- a.SendRequest("p1", "r2", api.RequestDraft{Method: "GET", URL: slow.URL}, true) }()
 	for started.Load() < 2 {
 		time.Sleep(10 * time.Millisecond)
 	}
-	go a.SendRequest("p1", "r2", api.RequestDraft{Method: "GET", URL: "not a url"})
+	go a.SendRequest("p1", "r2", api.RequestDraft{Method: "GET", URL: "not a url"}, true)
 	if first := <-done; first.Error == nil || first.Error.Message != "request cancelled" {
 		t.Fatalf("superseded send = %s", toJSON(t, first))
 	}
@@ -190,7 +190,7 @@ func TestSendResolvesActiveEnvironmentWithLocalSecrets(t *testing.T) {
 	}
 
 	// No active environment: everything literal and reported unresolved.
-	res := a.SendRequest("p1", "r1", draft)
+	res := a.SendRequest("p1", "r1", draft, true)
 	if res.Error == nil || toJSON(t, res.Unresolved) != `["BASE_URL","API_TOKEN","OTHER_SECRET","missing"]` || res.Environment != "" {
 		t.Fatalf("without env = %s", toJSON(t, res))
 	}
@@ -198,7 +198,7 @@ func TestSendResolvesActiveEnvironmentWithLocalSecrets(t *testing.T) {
 	if r := a.SetActiveEnvironment("p1", "dev"); r.Error != nil {
 		t.Fatal(r.Error.Message)
 	}
-	res = a.SendRequest("p1", "r1", draft)
+	res = a.SendRequest("p1", "r1", draft, true)
 	if res.Error != nil || res.Data.Status != http.StatusNoContent {
 		t.Fatalf("send = %s", toJSON(t, res))
 	}

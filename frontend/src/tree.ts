@@ -1,11 +1,18 @@
 // Builds the sidebar tree from the server's two flat lists (folders, requests).
 // Pure functions only — no Solid, no bindings — so it is unit-testable.
 
+// Cascading per-node settings as the server stores them (settingsResolver.ts
+// resolves them). Keyed by the server's field name; absent = "inherit".
+export const NODE_SETTINGS = ["follow_redirects"] as const;
+export type NodeSettingKey = (typeof NODE_SETTINGS)[number];
+export type NodeSettings = Record<NodeSettingKey, string>;
+
 export interface FolderInput {
   id: string;
   parent_id?: string | null; // null/undefined = project root
   name: string;
   sort_order: number;
+  follow_redirects?: string;
 }
 
 export interface RequestInput {
@@ -15,6 +22,7 @@ export interface RequestInput {
   method: string;
   url: string;
   sort_order: number;
+  follow_redirects?: string;
 }
 
 export interface FolderNode {
@@ -23,6 +31,7 @@ export interface FolderNode {
   parentId: string | null;
   name: string;
   sortOrder: number;
+  settings: NodeSettings;
   children: TreeNode[]; // folders first, then requests, each by sort_order
 }
 
@@ -34,6 +43,7 @@ export interface RequestNode {
   method: string;
   url: string;
   sortOrder: number;
+  settings: NodeSettings;
 }
 
 export type TreeNode = FolderNode | RequestNode;
@@ -62,7 +72,10 @@ export function buildTree(
 ): Tree {
   const folders = new Map<string, FolderNode>();
   for (const f of folderList) {
-    folders.set(f.id, { kind: "folder", id: f.id, parentId: f.parent_id ?? null, name: f.name, sortOrder: f.sort_order, children: [] });
+    folders.set(f.id, {
+      kind: "folder", id: f.id, parentId: f.parent_id ?? null, name: f.name, sortOrder: f.sort_order,
+      settings: nodeSettings(f), children: [],
+    });
   }
 
   const root: TreeNode[] = [];
@@ -110,6 +123,7 @@ export function buildTree(
   for (const r of requestList) {
     const node: RequestNode = {
       kind: "request", id: r.id, folderId: r.folder_id ?? null, name: r.name, method: r.method, url: r.url, sortOrder: r.sort_order,
+      settings: nodeSettings(r),
     };
     requests.set(r.id, node);
     place(node, node.folderId, "request");
@@ -174,4 +188,8 @@ export function flattenFolders(tree: Tree): { folder: FolderNode; depth: number 
   };
   walk(tree.root, 0);
   return out;
+}
+
+function nodeSettings(n: { follow_redirects?: string }): NodeSettings {
+  return { follow_redirects: n.follow_redirects || "inherit" };
 }

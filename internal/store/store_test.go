@@ -82,7 +82,7 @@ func TestSettingsRoundtrip(t *testing.T) {
 	}
 }
 
-func TestFollowRedirectsDefaultAndOverrides(t *testing.T) {
+func TestFollowRedirectsGlobalDefault(t *testing.T) {
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "ghostman.db")
 	s, err := Open(ctx, path)
@@ -90,64 +90,55 @@ func TestFollowRedirectsDefaultAndOverrides(t *testing.T) {
 		t.Fatal(err)
 	}
 	if def, err := s.FollowRedirectsDefault(ctx); err != nil || !def {
-		t.Fatalf("global default: %v %v, want true", def, err)
-	}
-	if o, err := s.FollowRedirectsOverride(ctx, "r1"); err != nil || o != nil {
-		t.Fatalf("untouched request: override=%v err=%v, want none", o, err)
-	}
-	off, on := false, true
-	if err := s.SetFollowRedirectsOverride(ctx, "r1", &off); err != nil {
-		t.Fatal(err)
-	}
-	if err := s.SetFollowRedirectsOverride(ctx, "r2", &on); err != nil {
-		t.Fatal(err)
+		t.Fatalf("default: %v %v, want true", def, err)
 	}
 	if err := s.SetFollowRedirectsDefault(ctx, false); err != nil {
 		t.Fatal(err)
 	}
 	_ = s.Close()
-
-	// Survives a restart.
 	s, err = Open(ctx, path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
 	if def, _ := s.FollowRedirectsDefault(ctx); def {
-		t.Fatal("default must stay off")
-	}
-	if o, _ := s.FollowRedirectsOverride(ctx, "r1"); o == nil || *o {
-		t.Fatalf("r1 override must stay off, got %v", o)
-	}
-	if o, _ := s.FollowRedirectsOverride(ctx, "r2"); o == nil || !*o {
-		t.Fatalf("r2 override must stay on, got %v", o)
-	}
-	// Back to "use the default".
-	if err := s.SetFollowRedirectsOverride(ctx, "r1", nil); err != nil {
-		t.Fatal(err)
-	}
-	if o, _ := s.FollowRedirectsOverride(ctx, "r1"); o != nil {
-		t.Fatal("r1 must use the default again")
+		t.Fatal("must stay off after reopen")
 	}
 	_ = s.PutSetting(ctx, settingFollowRedirectsDefault, "garbage")
 	if def, _ := s.FollowRedirectsDefault(ctx); !def {
-		t.Fatal("a corrupt default falls back to true")
+		t.Fatal("a corrupt value falls back to true")
 	}
 }
 
-func TestMigrationDropsOldFollowOnRows(t *testing.T) {
+func TestLegacyRequestSettingsLifecycle(t *testing.T) {
 	ctx := context.Background()
 	s, err := Open(ctx, filepath.Join(t.TempDir(), "ghostman.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	// After all migrations, an override written now is kept (the cleanup ran once, earlier).
-	on := true
-	if err := s.SetFollowRedirectsOverride(ctx, "r1", &on); err != nil {
+	for id, v := range map[string]int64{"a": 0, "b": 1} {
+		if err := s.PutFollowRedirects(ctx, PutFollowRedirectsParams{RequestID: id, FollowRedirects: v}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, err := s.LegacyRequestSettings(ctx)
+	if err != nil || len(rows) != 2 || rows[0] != (LegacyRequestSetting{RequestID: "a", Follow: false}) || !rows[1].Follow {
+		t.Fatalf("rows = %+v %v", rows, err)
+	}
+	if err := s.DoneLegacyRequestSetting(ctx, "a"); err != nil {
 		t.Fatal(err)
 	}
-	if o, _ := s.FollowRedirectsOverride(ctx, "r1"); o == nil || !*o {
-		t.Fatal("a new 'always' override must persist")
+	if rows, _ := s.LegacyRequestSettings(ctx); len(rows) != 1 {
+		t.Fatalf("after done: %+v", rows)
+	}
+	if err := s.DropLegacyRequestSettings(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if rows, err := s.LegacyRequestSettings(ctx); err != nil || rows != nil {
+		t.Fatalf("after drop: %+v %v (no table = nothing to push)", rows, err)
+	}
+	if err := s.DropLegacyRequestSettings(ctx); err != nil {
+		t.Fatal("dropping twice is fine")
 	}
 }

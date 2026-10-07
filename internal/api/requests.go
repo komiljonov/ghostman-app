@@ -15,9 +15,11 @@ type RequestSummary struct {
 	Name      string  `json:"name"`
 	Method    string  `json:"method"`
 	URL       string  `json:"url"`
-	SortOrder int32   `json:"sort_order"`
-	CreatedAt string  `json:"created_at"`
-	UpdatedAt string  `json:"updated_at"`
+	// FollowRedirects is the cascading setting: inherit|global|on|off (see ToggleValues).
+	FollowRedirects string `json:"follow_redirects"`
+	SortOrder       int32  `json:"sort_order"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
 }
 
 // Request is a full saved request.
@@ -46,6 +48,8 @@ type RequestPatch struct {
 	Headers     *[]KeyValue  `json:"headers,omitempty"`
 	QueryParams *[]KeyValue  `json:"query_params,omitempty"`
 	Body        *RequestBody `json:"body,omitempty"`
+	// FollowRedirects is set on its own (Settings tab), never by autosave.
+	FollowRedirects *string `json:"follow_redirects,omitempty"`
 }
 
 func requestPath(id string) string { return "/api/v1/requests/" + url.PathEscape(id) }
@@ -118,4 +122,27 @@ func (c *APIClient) ReorderRequests(ctx context.Context, projectID string, folde
 // DeleteRequest deletes a request.
 func (c *APIClient) DeleteRequest(ctx context.Context, id string) error {
 	return c.do(ctx, http.MethodDelete, requestPath(id), nil, nil)
+}
+
+// Cascading per-node settings (follow_redirects now; auth, proxy later) live on
+// folders and requests as one of these values; the client resolves them
+// (frontend/src/settingsResolver.ts), the server only stores them.
+const (
+	SettingInherit = "inherit" // ask the parent folder (then the global setting)
+	SettingGlobal  = "global"  // use the global setting, skip the ancestors
+	SettingOn      = "on"
+	SettingOff     = "off"
+)
+
+// ToggleValues are the valid values of a toggle setting.
+var ToggleValues = []string{SettingInherit, SettingGlobal, SettingOn, SettingOff}
+
+// ValidToggle reports whether v is a valid toggle setting value.
+func ValidToggle(v string) bool {
+	for _, t := range ToggleValues {
+		if v == t {
+			return true
+		}
+	}
+	return false
 }
