@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  canOpenOriginal, defaultFilter, entriesToDelete, filterToQuery, formRows, groupByDay, nextCursor,
+  canOpenOriginal, defaultFilter, requestFilter, requestHistoryQuery, entriesToDelete, filterToQuery, formRows, groupByDay, nextCursor,
   restoreAndOpen, rowLabel, statusChip, storageLine, SummaryLike,
 } from "./historyModel";
 
@@ -12,12 +12,21 @@ const summary = (over: Partial<SummaryLike>): SummaryLike => ({
 describe("filter -> query", () => {
   it("defaults: current project only, nothing else, first page", () => {
     expect(filterToQuery(defaultFilter(), "p1")).toEqual({
-      project_id: "p1", query: "", method: "", status_class: "", before_created: 0, before_id: 0, limit: 100,
+      project_id: "p1", request_id: "", query: "", method: "", status_class: "", before_created: 0, before_id: 0, limit: 100,
     });
   });
   it("maps every control and the cursor", () => {
-    const q = filterToQuery({ text: "  users ", method: "POST", status: "err", currentProjectOnly: false }, "p1", { created_at: 5, id: 9 });
-    expect(q).toEqual({ project_id: "", query: "users", method: "POST", status_class: "err", before_created: 5, before_id: 9, limit: 100 });
+    const q = filterToQuery({ ...defaultFilter(), text: "  users ", method: "POST", status: "err", currentProjectOnly: false }, "p1", { created_at: 5, id: 9 });
+    expect(q).toEqual({ project_id: "", request_id: "", query: "users", method: "POST", status_class: "err", before_created: 5, before_id: 9, limit: 100 });
+  });
+  it("one request: its sends only, no other filter; the History tab keeps the project scope", () => {
+    expect(requestHistoryQuery("r1")).toEqual({
+      project_id: "", request_id: "r1", query: "", method: "", status_class: "", before_created: 0, before_id: 0, limit: 100,
+    });
+    expect(requestHistoryQuery("r1", { created_at: 4, id: 3 }).before_id).toBe(3);
+    const f = requestFilter("r1", "Login");
+    expect(f).toEqual({ ...defaultFilter(), requestId: "r1", requestName: "Login" });
+    expect(filterToQuery(f, "p1")).toMatchObject({ project_id: "p1", request_id: "r1" });
   });
   it("next cursor is the last item", () => {
     expect(nextCursor([])).toBeUndefined();

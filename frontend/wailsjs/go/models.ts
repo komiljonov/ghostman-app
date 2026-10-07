@@ -1285,6 +1285,7 @@ export namespace main {
 	}
 	export class HistoryFilter {
 	    project_id: string;
+	    request_id: string;
 	    query: string;
 	    method: string;
 	    status_class: string;
@@ -1299,6 +1300,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.project_id = source["project_id"];
+	        this.request_id = source["request_id"];
 	        this.query = source["query"];
 	        this.method = source["method"];
 	        this.status_class = source["status_class"];

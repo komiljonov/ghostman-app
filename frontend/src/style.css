@@ -3148,3 +3148,89 @@ input:disabled {
 .settings-confirm span {
   flex: 1;
 }
+
+/* History tab: the one-request filter chip. */
+.history-request-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 8px;
+  font-size: 12px;
+  background: var(--accent-soft);
+  border-radius: 6px;
+}
+
+.history-request-chip-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Request editor: History sub-tab. */
+.req-history {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.req-history-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 6px;
+}
+
+.req-history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.req-history-day {
+  position: sticky;
+  top: 0;
+  padding: 6px 8px 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--bg);
+  border-bottom: 1px solid var(--row-border);
+}
+
+.req-history-row {
+  display: grid;
+  grid-template-columns: 64px 40px 64px 64px minmax(80px, 140px) 1fr;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--row-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.req-history-row:hover {
+  background: var(--hover);
+}
+
+.req-history-row .history-status {
+  text-align: left;
+}
+
+.req-history-env,
+.req-history-note {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

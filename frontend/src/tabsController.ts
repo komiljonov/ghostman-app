@@ -46,7 +46,7 @@ export interface TabState {
   // {{keys}} the last send could not resolve (sent literally).
   unresolved: string[];
   // View state (not saved anywhere).
-  section: "params" | "headers" | "body" | "settings";
+  section: "params" | "headers" | "body" | "settings" | "history";
   responseSection: "body" | "headers";
   // Pretty | Raw | Preview; reset to the response's default on every new response.
   responseView: BodyView;

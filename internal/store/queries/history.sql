@@ -16,6 +16,7 @@ SELECT id, created_at, project_id, request_id, request_name, method, url_templat
        env_name, status, duration_ms, error, resp_body_size, resp_truncated
 FROM history
 WHERE (CAST(sqlc.arg(project_id) AS TEXT) = '' OR project_id = sqlc.arg(project_id))
+  AND (CAST(sqlc.arg(request_id) AS TEXT) = '' OR request_id = sqlc.arg(request_id))
   AND (CAST(sqlc.arg(method) AS TEXT) = '' OR method = sqlc.arg(method))
   AND (CAST(sqlc.arg(status_min) AS INTEGER) = 0
        OR (sqlc.arg(status_min) = -1 AND status = 0)
