@@ -1,5 +1,5 @@
 import { createStore, produce, unwrap } from "solid-js/store";
-import { CancelRequest, GetRequest, GetTabs, SaveRequest, SendRequest, SetTabs } from "../wailsjs/go/main/App";
+import { CancelRequest, GetRequest, GetTabs, ReleaseResponse, SaveRequest, SendRequest, SetTabs } from "../wailsjs/go/main/App";
 import { api, engine, main } from "../wailsjs/go/models";
 import { handleProblem } from "./authStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
@@ -47,6 +47,8 @@ export interface TabState {
   responseSection: "body" | "headers";
   // Pretty | Raw | Preview; reset to the response's default on every new response.
   responseView: BodyView;
+  // Collapsed JSON nodes of the Pretty view; cleared by every new response.
+  responseFolds?: { from: number; to: number }[];
   responseShare: number; // fraction of the editor height given to the response
 }
 
@@ -259,6 +261,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       savers.delete(id);
       closing.set(id, clone(unwrap(target.draft)));
       void CancelRequest(id);
+      void ReleaseResponse(id); // the full body kept Go-side for "Save to file"
       removeTab(key);
       persist();
       await saver?.flush(); // pending edits still reach the server
@@ -316,6 +319,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       update(id, (t) => {
         t.sending = false;
         t.response = result.data ?? undefined;
+        t.responseFolds = undefined;
         if (result.data) t.responseView = defaultView(result.data);
         t.responseError = result.error?.message;
         t.unresolved = result.unresolved ?? [];
@@ -332,6 +336,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
         const node = requests.get(t.id);
         if (!node) {
           savers.get(t.id)?.dispose(); // the request is gone: nothing to save into
+          void ReleaseResponse(t.id);
           savers.delete(t.id);
           removeTab(t.key);
           persist();
@@ -358,6 +363,8 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     // Project switch: flush pending saves in the background, then stop.
     dispose() {
       disposed = true;
+      // Responses are per tab and in memory: drop their Go-side full bodies too.
+      for (const t of state.tabs) if (t.kind === "request") void ReleaseResponse(t.id);
       const pending = [...savers.values()];
       savers.clear();
       void Promise.all(pending.map((s) => s.flush())).then(() => pending.forEach((s) => s.dispose()));

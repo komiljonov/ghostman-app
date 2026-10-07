@@ -41,6 +41,11 @@
   --shadow: rgba(0, 0, 0, 0.45);
   --backdrop: rgba(0, 0, 0, 0.55);
 
+  /* Response search */
+  --search-match: rgba(230, 180, 80, 0.28);
+  --search-current: rgba(230, 180, 80, 0.75);
+  --search-current-text: #16181d;
+
   /* Tables (params / headers / form fields) */
   --row-border: #272b34;
   --field-bg: #1f232b;
@@ -92,6 +97,11 @@
   --server: #c4302b;
   --warn: var(--client);
   --preview-bg: #ffffff;
+
+  /* Response search */
+  --search-match: rgba(255, 196, 0, 0.32);
+  --search-current: rgba(255, 140, 0, 0.75);
+  --search-current-text: #1c2230;
 
   /* Tables (params / headers / form fields) */
   --row-border: #e2e5ea;

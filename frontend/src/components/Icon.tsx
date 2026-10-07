@@ -29,6 +29,16 @@ const SHAPES = {
     </>
   ),
   close: () => <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />,
+  search: () => (
+    <>
+      <circle cx="7" cy="7" r="4.25" />
+      <path d="M10.25 10.25L13.5 13.5" />
+    </>
+  ),
+  // Collapse all / expand all: chevrons pointing in / out.
+  collapse: () => <path d="M5 2.75L8 5.75l3-3M5 13.25L8 10.25l3 3" />,
+  expand: () => <path d="M5 5.75L8 2.75l3 3M5 10.25L8 13.25l3-3" />,
+  download: () => <path d="M8 2.5v7.5M4.75 6.75L8 10l3.25-3.25M3 12.75h10" />,
   // The 24-unit gear outline, scaled onto the 16 grid (stroke 2 → 1.33 px).
   settings: () => (
     <g transform="scale(0.6667)" stroke-width="2">

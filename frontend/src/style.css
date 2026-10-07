@@ -2099,11 +2099,6 @@ button.danger-outline {
   background: var(--border);
 }
 
-.response-toolbar > .resp-status {
-  flex: 0 1 130px;
-  min-width: 56px;
-}
-
 .resp-status {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2279,4 +2274,233 @@ input:disabled {
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
+}
+
+/* ---- Response pane: viewer, search, folding, actions, toast ---- */
+
+.response-view {
+  position: relative;
+}
+
+.response-body-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 6px;
+}
+
+.response-viewer {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--cm-bg);
+}
+
+.response-viewer .cm-editor {
+  height: 100%;
+}
+
+.response-viewer .cm-gutters {
+  border-right: none;
+  background: var(--cm-gutter);
+}
+
+/* Search bar: docked above the body (the body scrolls under it, nothing covered). */
+.response-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+  background: var(--field-bg);
+  color: var(--muted);
+}
+
+.response-search-input {
+  flex: 1;
+  min-width: 80px;
+  padding: 3px 4px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: 13px var(--mono);
+}
+
+.response-search-input:focus {
+  outline: none;
+}
+
+.response-search:focus-within {
+  border-color: var(--accent);
+}
+
+.response-search-count {
+  min-width: 56px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.response-search-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.response-search-btn:hover:not(:disabled) {
+  background: var(--hover-strong);
+  color: var(--text);
+}
+
+.response-search-btn.active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.response-search-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cm-resp-match {
+  border-radius: 2px;
+  background: var(--search-match);
+}
+
+.cm-resp-current {
+  background: var(--search-current);
+  color: var(--search-current-text);
+  outline: 1px solid var(--search-current);
+}
+
+/* JSON folding: gutter toggles and the collapsed placeholder with its count badge. */
+.cm-resp-fold-marker {
+  display: inline-block;
+  width: 14px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.cm-resp-fold-marker:hover {
+  color: var(--text);
+}
+
+.cm-resp-folded {
+  cursor: pointer;
+}
+
+.cm-resp-folded-text {
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.cm-resp-folded-badge {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--hover-strong);
+  color: var(--muted);
+  font: 11px var(--mono);
+}
+
+/* Toolbar action icons (search, collapse/expand all, save). */
+.toolbar-icons {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.toolbar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.toolbar-icon:hover:not(:disabled) {
+  border-color: var(--border);
+  background: var(--hover-strong);
+  color: var(--text);
+}
+
+.toolbar-icon:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Save confirmation: floats over the bottom-right corner, no layout shift. */
+.response-toast {
+  position: absolute;
+  right: 4px;
+  bottom: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(560px, calc(100% - 8px));
+  padding: 8px 6px 8px 12px;
+  border: 1px solid var(--ok-line);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 6px 18px var(--shadow);
+  color: var(--text);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.response-toast.error {
+  border-color: var(--server);
+  color: var(--server);
+}
+
+.response-toast-close {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 2px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* Response toolbar in a narrow pane: the indicator cluster wraps below, right-aligned. */
+.response-toolbar {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.resp-indicators {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.resp-indicators .resp-status {
+  flex: 0 0 110px;
+  width: 110px;
 }

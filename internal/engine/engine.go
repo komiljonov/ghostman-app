@@ -26,6 +26,10 @@ const (
 	// MaxBodyPreview is the largest body slice returned to callers. Larger bodies
 	// are counted but not held, so multi-MB payloads never cross the Wails bridge.
 	MaxBodyPreview = 256 * 1024
+	// MaxFullBody is how much of a body is kept (Go-side only, never sent to the
+	// UI) for "Save response to file". Bigger bodies keep their first MaxFullBody
+	// bytes and are flagged FullCapped.
+	MaxFullBody = 20 * 1024 * 1024
 )
 
 // Header is a single request or response header.
@@ -77,6 +81,12 @@ type Response struct {
 	// RawBody is the body exactly as received, set only when Formatted (for the
 	// Raw view); otherwise Body already is the raw text. Both are within the cap.
 	RawBody string `json:"rawBody,omitempty"`
+
+	// Full is the complete body as received (bytes, any content), up to
+	// MaxFullBody; FullCapped is set when the body was larger. Never crosses the
+	// Wails bridge (json:"-"): only saving to a file reads it.
+	Full       []byte `json:"-"`
+	FullCapped bool   `json:"-"`
 }
 
 // Engine sends requests. It is safe for concurrent use.
@@ -108,8 +118,8 @@ func (e *Engine) SendRequest(ctx context.Context, spec RequestSpec) (*Response, 
 	}
 	defer resp.Body.Close()
 
-	var preview bytes.Buffer
-	n, err := io.Copy(&preview, io.LimitReader(resp.Body, MaxBodyPreview))
+	var full bytes.Buffer
+	n, err := io.Copy(&full, io.LimitReader(resp.Body, MaxFullBody))
 	if err == nil {
 		// Count (and discard) whatever is left so BodySize reflects the full body.
 		var rest int64
@@ -121,7 +131,9 @@ func (e *Engine) SendRequest(ctx context.Context, spec RequestSpec) (*Response, 
 	}
 	duration := time.Since(start)
 
-	body := preview.Bytes()
+	kept := full.Bytes()
+	// The preview is a copy: Body must not alias Full (prettyJSON may replace it).
+	body := append([]byte(nil), kept[:min(len(kept), MaxBodyPreview)]...)
 	truncated := n > int64(len(body))
 	if truncated {
 		body = trimPartialRune(body)
@@ -149,6 +161,8 @@ func (e *Engine) SendRequest(ctx context.Context, spec RequestSpec) (*Response, 
 		ContentType: contentType,
 		Formatted:   formatted,
 		RawBody:     rawBody,
+		Full:        kept,
+		FullCapped:  n > int64(len(kept)),
 	}, nil
 }
 

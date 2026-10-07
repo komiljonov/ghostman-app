@@ -202,6 +202,10 @@ export function RejectInvitation(arg1) {
   return window['go']['main']['App']['RejectInvitation'](arg1);
 }
 
+export function ReleaseResponse(arg1) {
+  return window['go']['main']['App']['ReleaseResponse'](arg1);
+}
+
 export function RemoveMember(arg1, arg2) {
   return window['go']['main']['App']['RemoveMember'](arg1, arg2);
 }
@@ -232,6 +236,10 @@ export function RevokeInvitation(arg1) {
 
 export function SaveRequest(arg1, arg2, arg3) {
   return window['go']['main']['App']['SaveRequest'](arg1, arg2, arg3);
+}
+
+export function SaveResponseToFile(arg1) {
+  return window['go']['main']['App']['SaveResponseToFile'](arg1);
 }
 
 export function SelectProject(arg1) {
