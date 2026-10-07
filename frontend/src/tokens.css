@@ -13,6 +13,7 @@
   --border: #2c313b;
   --text: #e3e6ec;
   --muted: #8b93a3;
+  --var-unavailable: #5f6675; /* {{var}} completion: keys only in other environments */
   --accent: #6c8cff;
   --on-accent: #0d1020;
   --danger: #d9534f;
@@ -92,6 +93,7 @@
   --border: #d6dae1;
   --text: #1c2230;
   --muted: #5b6474;
+  --var-unavailable: #9aa1ad;
   --accent: #3653d4;
   --on-accent: #ffffff;
   --danger: #c62828;

@@ -9,6 +9,13 @@ import {
   ViewPlugin, ViewUpdate, WidgetType,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import {
+  acceptCompletion, autocompletion, Completion, CompletionContext, CompletionResult, completionStatus, pickedCompletion,
+} from "@codemirror/autocomplete";
+import {
+  applyCompletion, completionSpot, EMPTY_LINE, enterAction, groupLabel, OptionGroup, tabAction, varOptions,
+} from "./varComplete";
+import { LOCK_PATH } from "./iconPaths";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { json } from "@codemirror/lang-json";
@@ -31,6 +38,38 @@ const tokenTheme = EditorView.theme({
   ".cm-selectionMatch, .cm-matchingBracket": { backgroundColor: "var(--cm-match)" },
   ".cm-placeholder": { color: "var(--muted)" },
   ".cm-tooltip": { border: "none", backgroundColor: "transparent" },
+  // {{var}} completion popup (varCompletion): ~8 rows, then it scrolls.
+  ".cm-tooltip.cm-tooltip-autocomplete": {
+    backgroundColor: "var(--panel)", border: "1px solid var(--border)", borderRadius: "6px",
+    boxShadow: "0 6px 18px var(--shadow)", padding: "3px 0", overflow: "hidden",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": {
+    fontFamily: "var(--mono)", fontSize: "12px", maxHeight: "15em", minWidth: "260px", maxWidth: "460px",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": {
+    display: "flex", alignItems: "center", gap: "6px", padding: "3px 10px", lineHeight: "18px", color: "var(--text)",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li:hover": { backgroundColor: "var(--hover-strong)" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "var(--selection)", color: "var(--text)" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > completion-section": {
+    display: "block", padding: "5px 10px 2px", fontFamily: "system-ui, sans-serif", fontSize: "10.5px", fontWeight: "600",
+    letterSpacing: "0.04em", textTransform: "uppercase", color: "var(--muted)", borderBottom: "none", opacity: "1",
+  },
+  ".cm-completionLabel": { flex: "0 1 auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  ".cm-completionDetail": {
+    marginLeft: "auto", paddingLeft: "16px", fontStyle: "normal", color: "var(--muted)",
+    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+  },
+  ".cm-completionMatchedText": { textDecoration: "none", fontWeight: "700" },
+  ".cm-var-lock": { flexShrink: "0", color: "var(--muted)" },
+  // As specific as the row rule above, so the dimmed / empty rows win.
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li.cm-var-opt-unavailable, .cm-tooltip.cm-tooltip-autocomplete > ul > li.cm-var-opt-unavailable .cm-completionDetail, .cm-tooltip.cm-tooltip-autocomplete > ul > li.cm-var-opt-unavailable .cm-var-lock": {
+    color: "var(--var-unavailable)",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li.cm-var-opt-unavailable[aria-selected], .cm-tooltip.cm-tooltip-autocomplete > ul > li.cm-var-opt-unavailable[aria-selected] .cm-completionDetail": {
+    color: "var(--muted)",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li.cm-var-opt-empty": { color: "var(--muted)", fontStyle: "italic", cursor: "default" },
 });
 
 const tokenHighlight = HighlightStyle.define([
@@ -277,6 +316,7 @@ export function createCodeEditor(
         theme,
         language.of(isJSON ? json() : []),
         varHighlighting(getEnv),
+        varCompletion(getEnv),
         EditorView.lineWrapping,
         EditorView.updateListener.of((u) => {
           if (u.docChanged) onChange(u.state.doc.toString());
@@ -297,6 +337,109 @@ export function createCodeEditor(
 }
 
 // ---- Single-line editor (URL bar, table cells) ----
+
+// ---- {{var}} autocompletion (rules: varComplete.ts) ----
+// One extension for every var-highlighting editor (line editors and the raw body).
+// The source answers ONLY inside an unclosed "{{partial" (anything else: null, so
+// normal typing never opens the popup) and reads the env store snapshot — no
+// bridge calls. filter: false keeps our order (groups absolute); no validFor, so
+// it re-runs on every keystroke ("}}" typed → no context → the popup closes).
+
+type VarCompletion = Completion & { group?: OptionGroup; secret?: boolean; empty?: boolean };
+
+export function varSource(getEnv: () => EnvDisplay) {
+  return (ctx: CompletionContext): CompletionResult | null => {
+    const line = ctx.state.doc.lineAt(ctx.pos);
+    const at = ctx.pos - line.from;
+    const spot = completionSpot(line.text.slice(0, at), line.text.slice(at), ctx.pos);
+    if (!spot) return null;
+    const env = getEnv();
+    const { options, empty } = varOptions({ env, keys: env.keys ?? [] }, spot.prefix);
+    if (empty) {
+      const none: VarCompletion = { label: EMPTY_LINE, empty: true, apply: () => undefined };
+      return { from: spot.from, to: spot.to, filter: false, options: [none] };
+    }
+    if (options.length === 0) return null;
+    return {
+      from: spot.from,
+      to: spot.to,
+      filter: false,
+      options: options.map((o): VarCompletion => ({
+        label: o.key,
+        detail: o.detail,
+        group: o.group,
+        secret: o.secret,
+        section: { name: groupLabel(o.group, env.envName), rank: o.group === "available" ? 0 : 1 },
+        apply: (view, completion, from, to) => {
+          const { insert } = applyCompletion(spot, o.key);
+          view.dispatch({
+            changes: { from, to, insert },
+            selection: { anchor: from + o.key.length + 2 }, // past the closing braces
+            annotations: pickedCompletion.of(completion),
+            userEvent: "input.complete",
+          });
+        },
+      })),
+    };
+  };
+}
+
+function lockIcon(c: Completion): Node | null {
+  if (!(c as VarCompletion).secret) return null;
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 16 16");
+  svg.setAttribute("width", "12");
+  svg.setAttribute("height", "12");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.4");
+  svg.setAttribute("aria-label", "secret");
+  svg.classList.add("cm-var-lock");
+  const path = document.createElementNS(ns, "path");
+  path.setAttribute("d", LOCK_PATH);
+  svg.appendChild(path);
+  return svg;
+}
+
+// Tab accepts while a completion is active (or swallows it while pending); with
+// none, Tab keeps its normal focus movement. Above every other keymap.
+const completionTab = Prec.highest(keymap.of([{
+  key: "Tab",
+  run: (view) => {
+    const action = tabAction(completionStatus(view.state));
+    if (action === "accept") return acceptCompletion(view) || true;
+    return action === "swallow";
+  },
+}]));
+
+export function varCompletion(getEnv: () => EnvDisplay): Extension {
+  return [
+    autocompletion({
+      override: [varSource(getEnv)],
+      activateOnTyping: true,
+      activateOnTypingDelay: 0, // "{{" opens the popup at once
+      interactionDelay: 0, // Enter right after it opens accepts (never falls through to Send)
+      icons: false,
+      maxRenderedOptions: 200,
+      tooltipClass: () => "cm-var-complete",
+      optionClass: (c) => ((c as VarCompletion).empty ? "cm-var-opt-empty" : (c as VarCompletion).group === "unavailable" ? "cm-var-opt-unavailable" : ""),
+      addToOptions: [{ render: lockIcon, position: 45 }],
+    }),
+    completionTab,
+  ];
+}
+
+// The line editors' Enter: accept / swallow while completing, else the editor's
+// own action (Send in the URL bar).
+function lineEnter(onEnter?: () => void) {
+  return (view: EditorView) => {
+    const action = enterAction(completionStatus(view.state));
+    if (action === "accept") return acceptCompletion(view) || true;
+    if (action === "default") onEnter?.();
+    return true;
+  };
+}
 
 // ---- Masked (password) single-line fields: literal text shows as bullets ----
 
@@ -375,7 +518,7 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
         appShortcuts,
         history(),
         keymap.of([
-          { key: "Enter", run: () => (opts.onEnter?.(), true) },
+          { key: "Enter", run: lineEnter(opts.onEnter) },
           ...defaultKeymap.filter((b) => b.key !== "Enter"),
           ...historyKeymap,
         ]),
@@ -390,6 +533,7 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
         placeholderExt(opts.placeholder),
         theme,
         varHighlighting(opts.getEnv, opts.onPin),
+        varCompletion(opts.getEnv),
         mask.of(opts.masked ? maskPlugin : []),
         EditorView.updateListener.of((u) => {
           const external = u.transactions.some((tr) => tr.annotation(externalChange));

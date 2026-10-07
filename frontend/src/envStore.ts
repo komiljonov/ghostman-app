@@ -36,14 +36,19 @@ export async function selectEnvironment(envId: string) {
 
 export const refreshEnvContext = () => loadEnvContext(projectId());
 
-// The highlighter's view of the active environment.
-// (Module-level, so it lives in its own root for the app's lifetime.)
-export const envDisplay = createRoot(() => createMemo<EnvDisplay>(() => {
-  const ctx = context();
-  if (!ctx || !ctx.active_id) return NO_ENV;
+// The highlighter's (and completion's) view of the active environment, from a
+// context snapshot. The project's keys across ALL environments (names + types
+// only; Go strips the values) ride along for {{var}} completion.
+export function displayOf(ctx: envs.EnvContext | undefined): EnvDisplay {
+  const keys = (ctx?.keys ?? []).map((k) => ({ key: k.key, envs: k.envs ?? [], secret: k.secret }));
+  if (!ctx || !ctx.active_id) return { ...NO_ENV, keys };
   const vars = new Map<string, VarInfo>();
   for (const v of ctx.variables) {
     vars.set(v.key, { id: v.id, key: v.key, value: v.value, secret: v.type === "secret", hasValue: v.has_value });
   }
-  return { envId: ctx.active_id, envName: ctx.active_name, vars };
-}));
+  return { envId: ctx.active_id, envName: ctx.active_name, vars, keys };
+}
+
+// (Module-level, so it lives in its own root for the app's lifetime.) Completion
+// reads this snapshot; nothing calls the bridge on a keystroke.
+export const envDisplay = createRoot(() => createMemo<EnvDisplay>(() => displayOf(context())));

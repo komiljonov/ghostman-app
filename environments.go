@@ -36,7 +36,11 @@ type VariableResult struct {
 // (secret values from this machine). A deleted active environment falls back to none.
 func (a *App) GetEnvContext(projectID string) EnvContextResult {
 	v, p := call(a, func(ctx context.Context, c *api.APIClient) (envs.EnvContext, error) {
-		return a.envs.Context(ctx, c, projectID)
+		ec, err := a.envs.Context(ctx, c, projectID)
+		if err != nil {
+			return ec, err
+		}
+		return a.envs.WithKeys(ctx, c, ec), nil // the UI's context also indexes every env's keys
 	})
 	return EnvContextResult{Data: ptr(v, p), Error: p}
 }
@@ -44,7 +48,11 @@ func (a *App) GetEnvContext(projectID string) EnvContextResult {
 // SetActiveEnvironment selects the project's environment ("" = No environment).
 func (a *App) SetActiveEnvironment(projectID, envID string) EnvContextResult {
 	v, p := call(a, func(ctx context.Context, c *api.APIClient) (envs.EnvContext, error) {
-		return a.envs.SetActive(ctx, c, projectID, envID)
+		ec, err := a.envs.SetActive(ctx, c, projectID, envID)
+		if err != nil {
+			return ec, err
+		}
+		return a.envs.WithKeys(ctx, c, ec), nil
 	})
 	return EnvContextResult{Data: ptr(v, p), Error: p}
 }

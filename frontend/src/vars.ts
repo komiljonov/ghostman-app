@@ -19,6 +19,8 @@ export interface EnvDisplay {
   envId?: string;
   envName: string | null;
   vars: Map<string, VarInfo>;
+  // Every environment's variable KEYS (no values), for {{var}} completion.
+  keys?: { key: string; envs: string[]; secret: boolean }[];
 }
 
 export interface VarToken {

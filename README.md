@@ -18,6 +18,8 @@ tabs next to request tabs. **Secret** variables keep their values on this machin
 they are never sent to the server. `{{KEY}}` tokens are highlighted in the URL, body and the
 params/headers/form tables; hovering one shows its value and lets you edit it in place (secrets
 after Reveal, saved locally only) or create a missing one in the active environment.
+Typing `{{` suggests the project's variables: those of the active environment first (with a value
+preview; secrets show a lock), then keys that exist only in other environments (dimmed, "in prod").
 Keyboard: Ctrl+Enter (Cmd+Enter on macOS) sends the active request, Ctrl+Tab / Ctrl+Shift+Tab
 switch tabs, Ctrl+W closes the active tab. In the sidebar tree: arrow keys select, Enter opens,
 Ctrl+E renames, Del deletes, Ctrl+D duplicates a request; folders and requests can also be
