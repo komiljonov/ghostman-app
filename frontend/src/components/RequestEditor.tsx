@@ -3,7 +3,7 @@ import { Row } from "../rows";
 import { applyUrlInput, serializeUrl } from "../urlParams";
 import { TabsController, TabState } from "../tabsController";
 import BodyEditor from "./BodyEditor";
-import KeyValueTable from "./KeyValueTable";
+import KeyValueEditor from "./KeyValueEditor";
 import RequestSettingsPanel from "./RequestSettingsPanel";
 import RequestHistoryPanel from "./RequestHistoryPanel";
 import AuthEditor from "./AuthEditor";
@@ -122,11 +122,11 @@ export default function RequestEditor(props: Props) {
               <div class="section-content">
                 <Switch>
                   <Match when={props.tab.section === "params"}>
-                    <KeyValueTable rows={props.tab.draft.query_params}
+                    <KeyValueEditor kind="params" rows={props.tab.draft.query_params}
                       onChange={(rows) => edit((d) => (d.query_params = rows))} />
                   </Match>
                   <Match when={props.tab.section === "headers"}>
-                    <KeyValueTable rows={props.tab.draft.headers} keyPlaceholder="Header"
+                    <KeyValueEditor kind="headers" rows={props.tab.draft.headers} keyPlaceholder="Header"
                       onChange={(rows) => edit((d) => (d.headers = rows))} />
                   </Match>
                   <Match when={props.tab.section === "body"}>

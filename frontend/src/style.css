@@ -3416,3 +3416,61 @@ input:disabled {
   min-height: 0;
   overflow: auto;
 }
+
+/* Key/value tables with a bulk text view (KeyValueEditor). The bar exists in both
+   views and the toggle has a fixed width, right-aligned: nothing moves on toggle. */
+.kv-editor {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+.kv-editor-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  margin-bottom: 4px;
+}
+
+.kv-editor-hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kv-editor-toggle {
+  width: 104px;
+  padding: 2px 6px;
+  font-size: 12px;
+  text-align: right;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.kv-editor-toggle:hover {
+  color: var(--accent-strong);
+  background: var(--hover);
+}
+
+.kv-editor-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.bulk-editor {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 160px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}

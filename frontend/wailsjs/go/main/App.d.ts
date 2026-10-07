@@ -154,6 +154,8 @@ export function SendRequest(arg1:string,arg2:string,arg3:api.RequestDraft,arg4:m
 
 export function SetActiveEnvironment(arg1:string,arg2:string):Promise<main.EnvContextResult>;
 
+export function SetBulkMode(arg1:string,arg2:boolean):Promise<main.EmptyResult>;
+
 export function SetFolderFollowRedirects(arg1:string,arg2:string):Promise<main.FolderResult>;
 
 export function SetFollowRedirectsDefault(arg1:boolean):Promise<main.EmptyResult>;

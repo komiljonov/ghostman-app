@@ -23,7 +23,7 @@ preview; secrets show a lock), then keys that exist only in other environments (
 Keyboard: Ctrl+Enter (Cmd+Enter on macOS) sends the active request, Ctrl+Tab / Ctrl+Shift+Tab
 switch tabs, Ctrl+W closes the active tab. In the sidebar tree: arrow keys select, Enter opens,
 Ctrl+E renames, Del deletes, Ctrl+D duplicates a request; folders and requests can also be
-dragged to move or reorder them. The URL field and the Params tab stay in sync both ways. The sidebar is resizable (drag its
+dragged to move or reorder them. The URL field and the Params tab stay in sync both ways. Params, headers and form fields have a **Bulk edit** view: one `key:value` per line (Postman's format; everything after the first colon is the value, so JSON values survive; `//key:value` is a disabled row; a space after the colon is part of the value). The choice is remembered per kind for all requests. The sidebar is resizable (drag its
 edge; double-click to reset). HTML responses can be previewed in a sandboxed frame (no scripts); images, audio and video play in Preview, PDFs and other binary data can be saved. In the response: Ctrl+F searches the body,
 JSON objects/arrays collapse (gutter, or Collapse All / Expand All), right-click copies, and the
 download icon saves the full response (up to 20 MB, even when only 256 KB is shown). Click the

@@ -302,6 +302,10 @@ export function SetActiveEnvironment(arg1, arg2) {
   return window['go']['main']['App']['SetActiveEnvironment'](arg1, arg2);
 }
 
+export function SetBulkMode(arg1, arg2) {
+  return window['go']['main']['App']['SetBulkMode'](arg1, arg2);
+}
+
 export function SetFolderFollowRedirects(arg1, arg2) {
   return window['go']['main']['App']['SetFolderFollowRedirects'](arg1, arg2);
 }

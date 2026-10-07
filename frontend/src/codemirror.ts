@@ -295,6 +295,9 @@ export function varHighlighting(getEnv: () => EnvDisplay, onPin?: PinListener): 
 export interface CodeEditorHandle {
   setJSON: (on: boolean) => void;
   refreshVars: () => void;
+  // Replaces the text programmatically: not reported to onChange, not in undo history.
+  setDoc: (text: string) => void;
+  getDoc: () => string;
   destroy: () => void;
 }
 
@@ -319,7 +322,8 @@ export function createCodeEditor(
         varCompletion(getEnv),
         EditorView.lineWrapping,
         EditorView.updateListener.of((u) => {
-          if (u.docChanged) onChange(u.state.doc.toString());
+          const external = u.transactions.some((tr) => tr.annotation(externalChange));
+          if (u.docChanged && !external) onChange(u.state.doc.toString());
         }),
         EditorView.theme({
           "&": { height: "100%", fontSize: "13px" },
@@ -332,6 +336,14 @@ export function createCodeEditor(
   return {
     setJSON: (on) => view.dispatch({ effects: language.reconfigure(on ? json() : []) }),
     refreshVars: () => view.dispatch({ effects: refreshVars.of(null) }),
+    setDoc: (text) => {
+      if (view.state.doc.toString() === text) return;
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: text },
+        annotations: [externalChange.of(true), Transaction.addToHistory.of(false)],
+      });
+    },
+    getDoc: () => view.state.doc.toString(),
     destroy: () => view.destroy(),
   };
 }
