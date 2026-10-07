@@ -96,7 +96,7 @@ func TestMediaResponsesAreStoredAndServed(t *testing.T) {
 		{"/doc.pdf", "Doc", engine.MediaPDF, pdfBytes, false},
 		{"/blob", "Blob", engine.MediaBinary, binBytes, false},
 	}
-	handler := a.historyMediaMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := a.mediaMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(299) // "the frontend assets"
 	}))
 	get := func(url string, hdr map[string]string) *httptest.ResponseRecorder {
@@ -206,5 +206,47 @@ func TestSaveHistoryResponseToFile(t *testing.T) {
 	}
 	if r := a.SaveHistoryResponseToFile(99999); r.Error == nil {
 		t.Fatal("missing entry must fail")
+	}
+}
+
+func TestLiveResponseMediaPreview(t *testing.T) {
+	srv := mediaServer(t)
+	a := newTestApp(t, true, nil)
+	handler := a.mediaMiddleware(http.NotFoundHandler())
+	get := func(url string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, url, nil))
+		return rec
+	}
+
+	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: srv.URL + "/logo.png"}, SendOptions{})
+	if res.Error != nil || res.Data.Media != engine.MediaImage || res.Data.Body != "" || res.Data.MediaURL == "" {
+		t.Fatalf("image response = media %q url %q body %d", res.Data.Media, res.Data.MediaURL, len(res.Data.Body))
+	}
+	rec := get(res.Data.MediaURL)
+	if rec.Code != http.StatusOK || !bytes.Equal(rec.Body.Bytes(), pngBytes) || rec.Header().Get("Content-Type") != "image/png" {
+		t.Fatalf("served %d %q", rec.Code, rec.Header().Get("Content-Type"))
+	}
+	// A re-send gets a new URL (no stale image in the webview).
+	again := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: srv.URL + "/logo.png"}, SendOptions{})
+	if again.Data.MediaURL == res.Data.MediaURL {
+		t.Fatalf("media url must change per response: %q", again.Data.MediaURL)
+	}
+	// Video is served too; PDF / binary / text are not (no URL, 404).
+	if v := a.SendRequest("p1", "r2", api.RequestDraft{Method: "GET", URL: srv.URL + "/clip.mp4"}, SendOptions{}); v.Data.Media != engine.MediaVideo || get(v.Data.MediaURL).Code != http.StatusOK {
+		t.Fatalf("video: %+v", v.Data.Media)
+	}
+	pdf := a.SendRequest("p1", "r3", api.RequestDraft{Method: "GET", URL: srv.URL + "/doc.pdf"}, SendOptions{})
+	if pdf.Data.Media != engine.MediaPDF || pdf.Data.MediaURL != "" || pdf.Data.Body != "" || get(responseMediaURL("r3", 1)).Code != http.StatusNotFound {
+		t.Fatalf("pdf: %+v", pdf.Data)
+	}
+	page := a.SendRequest("p1", "r4", api.RequestDraft{Method: "GET", URL: srv.URL + "/page"}, SendOptions{})
+	if page.Data.Media != "" || page.Data.Body != "<h1>hi</h1>" || page.Data.MediaURL != "" {
+		t.Fatalf("html: %+v", page.Data)
+	}
+	// Closing the tab drops the body: the URL is gone.
+	a.ReleaseResponse("r1")
+	if rec := get(again.Data.MediaURL); rec.Code != http.StatusNotFound {
+		t.Fatalf("released tab still served: %d", rec.Code)
 	}
 }

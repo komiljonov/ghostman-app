@@ -12,7 +12,22 @@ export interface ResponseLike {
   body: string;
   rawBody?: string; // the body as received, set only when formatted
   truncated?: boolean;
+  // "" for text; image | audio | video | pdf | binary (Go's MediaKind). A media
+  // body is never sent as text: Preview shows it (mediaUrl streams the bytes Go
+  // holds for image / audio / video) or a file card (pdf, binary).
+  media?: string;
+  mediaUrl?: string;
 }
+
+export const isMedia = (resp: ResponseLike) => !!resp.media;
+
+const MEDIA_PREVIEW_TITLE: Record<string, string> = {
+  image: "Show the image",
+  audio: "Play the audio",
+  video: "Play the video",
+  pdf: "PDF document — save it to a file",
+  binary: "Binary data — save it to a file",
+};
 
 export const BODY_VIEWS: { id: BodyView; label: string }[] = [
   { id: "pretty", label: "Pretty" },
@@ -40,6 +55,14 @@ export function viewAvailability(resp: ResponseLike | undefined): Record<BodyVie
     const none = { enabled: false, title: "Send the request first" };
     return { pretty: none, raw: none, preview: none };
   }
+  if (isMedia(resp)) {
+    const notText = { enabled: false, title: "Not a text response — see Preview" };
+    return {
+      pretty: notText,
+      raw: notText,
+      preview: { enabled: true, title: MEDIA_PREVIEW_TITLE[resp.media!] ?? "Show the response" },
+    };
+  }
   return {
     pretty: resp.formatted
       ? { enabled: true, title: "Formatted JSON" }
@@ -49,13 +72,13 @@ export function viewAvailability(resp: ResponseLike | undefined): Record<BodyVie
     raw: { enabled: true, title: "Body as received" },
     preview: isHTML(resp.contentType)
       ? { enabled: true, title: "Render the HTML (sandboxed, no scripts)" }
-      : { enabled: false, title: "Only for HTML responses" },
+      : { enabled: false, title: "Only for HTML, image, audio and video responses" },
   };
 }
 
-// A new response starts in: Preview for HTML, Pretty for formatted JSON, else Raw.
+// A new response starts in: Preview for HTML and media, Pretty for formatted JSON, else Raw.
 export function defaultView(resp: ResponseLike): BodyView {
-  if (isHTML(resp.contentType)) return "preview";
+  if (isMedia(resp) || isHTML(resp.contentType)) return "preview";
   return resp.formatted || prettyFallback(resp) ? "pretty" : "raw";
 }
 

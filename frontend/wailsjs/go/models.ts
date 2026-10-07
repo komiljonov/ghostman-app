@@ -867,6 +867,8 @@ export namespace engine {
 	    contentType: string;
 	    formatted: boolean;
 	    rawBody?: string;
+	    media: string;
+	    mediaUrl?: string;
 	    hops: Hop[];
 	
 	    static createFrom(source: any = {}) {
@@ -886,6 +888,8 @@ export namespace engine {
 	        this.contentType = source["contentType"];
 	        this.formatted = source["formatted"];
 	        this.rawBody = source["rawBody"];
+	        this.media = source["media"];
+	        this.mediaUrl = source["mediaUrl"];
 	        this.hops = this.convertValues(source["hops"], Hop);
 	    }
 	

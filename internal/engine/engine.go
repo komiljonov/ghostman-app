@@ -85,6 +85,11 @@ type Response struct {
 	// RawBody is the body exactly as received, set only when Formatted (for the
 	// Raw view); otherwise Body already is the raw text. Both are within the cap.
 	RawBody string `json:"rawBody,omitempty"`
+	// Media is "" for text, else image | audio | video | pdf | binary (MediaKind).
+	// A media body is NOT sent as text (Body empty): the UI shows it from MediaURL
+	// (set by the app for image / audio / video) or offers it as a file.
+	Media    string `json:"media"`
+	MediaURL string `json:"mediaUrl,omitempty"`
 
 	// Hops is every exchange of this send in order: the initial request and each
 	// followed redirect, with its phase timings. DurationMs is their total.
@@ -249,7 +254,11 @@ func (e *Engine) finish(req *http.Request, resp *http.Response, tr *hopTrace, ho
 
 	kept := full.Bytes()
 	contentType := resp.Header.Get("Content-Type")
-	pv := PreviewBody(kept, n, contentType)
+	media := MediaKind(contentType, kept)
+	var pv Preview
+	if media == MediaNone {
+		pv = PreviewBody(kept, n, contentType) // media bodies never cross the bridge as text
+	}
 
 	return &Response{
 		Status:      resp.StatusCode,
@@ -263,6 +272,7 @@ func (e *Engine) finish(req *http.Request, resp *http.Response, tr *hopTrace, ho
 		ContentType: contentType,
 		Formatted:   pv.Formatted,
 		RawBody:     pv.RawBody,
+		Media:       media,
 		Hops:        hops,
 		Full:        kept,
 		FullCapped:  n > int64(len(kept)),

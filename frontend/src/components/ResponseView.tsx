@@ -16,6 +16,7 @@ import ResponseBody, { ResponseBodyApi } from "./ResponseBody";
 import Dropdown from "./Dropdown";
 import StatusBadge from "./StatusBadge";
 import TimingPanel from "./TimingPanel";
+import MediaPreview from "./MediaPreview";
 import { triggerLabel } from "../timingModel";
 
 interface Props {
@@ -220,6 +221,12 @@ export default function ResponseView(props: Props) {
                           </For>
                         </tbody>
                       </table>
+                    </div>
+                  </Match>
+                  <Match when={view() === "preview" && resp().media}>
+                    <div class="response-media">
+                      <MediaPreview media={resp().media} url={resp().mediaUrl ?? ""} contentType={resp().contentType}
+                        bytes={resp().bodySize} onSave={() => void save()} />
                     </div>
                   </Match>
                   <Match when={view() === "preview"}>

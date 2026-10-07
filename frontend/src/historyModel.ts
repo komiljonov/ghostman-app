@@ -257,10 +257,10 @@ export type MediaKind = "" | "image" | "audio" | "video" | "pdf" | "binary";
 // How the detail pane shows a stored response body.
 export type BodyDisplay = "text" | "image" | "audio" | "video" | "file";
 
-export function bodyDisplay(r: { media: string; media_url: string }): BodyDisplay {
-  if (!r.media) return "text";
-  if ((r.media === "image" || r.media === "audio" || r.media === "video") && r.media_url) return r.media;
-  return "file"; // pdf, binary, or nothing stored: offer Save to file
+export function bodyDisplay(media: string | undefined, url: string | undefined): BodyDisplay {
+  if (!media) return "text";
+  if ((media === "image" || media === "audio" || media === "video") && url) return media;
+  return "file"; // pdf, binary, or nothing held: offer Save to file
 }
 
 // "PNG image", "MP4 video", "PDF document", "Binary data (application/zip)".

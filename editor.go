@@ -219,7 +219,10 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 	a.sendsMu.Lock()
 	if a.sends[requestID] == mine {
 		if err == nil {
-			a.responses.put(requestID, heldBody{projectID: projectID, data: resp.Full, capped: resp.FullCapped, contentType: resp.ContentType})
+			v := a.responses.put(requestID, heldBody{projectID: projectID, data: resp.Full, capped: resp.FullCapped, contentType: resp.ContentType})
+			if servableMedia(resp.Media) && len(resp.Full) > 0 {
+				resp.MediaURL = responseMediaURL(requestID, v) // Preview streams it (history_media.go)
+			}
 		} else {
 			a.responses.release(requestID)
 		}

@@ -37,8 +37,8 @@ func main() {
 		MinHeight: 480,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
-			// /history-media/{id}: stored image / audio / video bodies (history_media.go).
-			Middleware: app.historyMediaMiddleware,
+			// /history-media/{id} and /response-media/{tab}: image / audio / video bodies (history_media.go).
+			Middleware: app.mediaMiddleware,
 		},
 		BackgroundColour: &options.RGBA{R: 22, G: 24, B: 29, A: 1},
 		OnStartup:        app.startup,
