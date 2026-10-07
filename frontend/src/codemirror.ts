@@ -3,7 +3,9 @@
 // (raw body; single-line for the URL bar and the params/headers/form tables).
 // Imported lazily (dynamic import), so CodeMirror stays out of the startup bundle.
 import { basicSetup, EditorView } from "codemirror";
-import { Annotation, Compartment, EditorState, Extension, Prec, RangeSetBuilder, StateEffect, StateField, Transaction } from "@codemirror/state";
+import {
+  Annotation, Compartment, EditorState, Extension, Facet, Prec, RangeSetBuilder, StateCommand, StateEffect, StateField, Transaction,
+} from "@codemirror/state";
 import {
   closeHoverTooltips, Decoration, DecorationSet, hoverTooltip, keymap, placeholder as placeholderExt, showTooltip, Tooltip,
   ViewPlugin, ViewUpdate, WidgetType,
@@ -62,6 +64,7 @@ const tokenTheme = EditorView.theme({
   },
   ".cm-completionMatchedText": { textDecoration: "none", fontWeight: "700" },
   ".cm-var-lock": { flexShrink: "0", color: "var(--muted)" },
+  ".cm-bulk-disabled": { color: "var(--muted)", opacity: "0.7" },
   // As specific as the row rule above, so the dimmed / empty rows win.
   ".cm-tooltip.cm-tooltip-autocomplete > ul > li.cm-var-opt-unavailable, .cm-tooltip.cm-tooltip-autocomplete > ul > li.cm-var-opt-unavailable .cm-completionDetail, .cm-tooltip.cm-tooltip-autocomplete > ul > li.cm-var-opt-unavailable .cm-var-lock": {
     color: "var(--var-unavailable)",
@@ -307,6 +310,7 @@ export function createCodeEditor(
   isJSON: boolean,
   onChange: (text: string) => void,
   getEnv: () => EnvDisplay,
+  opts: { bulk?: boolean } = {},
 ): CodeEditorHandle {
   const language = new Compartment();
   const view = new EditorView({
@@ -320,6 +324,8 @@ export function createCodeEditor(
         language.of(isJSON ? json() : []),
         varHighlighting(getEnv),
         varCompletion(getEnv),
+        lineToggleKeymap, // Ctrl+/: toggles "//" in bulk editors only, a no-op in the raw body
+        opts.bulk ? bulkEditorExtension : [],
         EditorView.lineWrapping,
         EditorView.updateListener.of((u) => {
           const external = u.transactions.some((tr) => tr.annotation(externalChange));
@@ -453,6 +459,91 @@ function lineEnter(onEnter?: () => void) {
   };
 }
 
+// ---- Ctrl/Cmd+/ : toggle "//" (= disable / enable rows) — bulk editors ONLY ----
+// The bulk grammar's disable prefix is "//" (bulkEdit.ts), so in a bulk editor
+// Ctrl+/ is the keyboard form of the rows' enable checkbox, VS Code style: no
+// selection → the cursor's line; a selection → every touched line, ONE direction
+// for all — if any touched line is enabled, "//" goes in front of those (before
+// the key: column 0 unless indented); otherwise every line is uncommented ("//"
+// and one following space removed).
+// Blank lines are skipped; the selection is mapped through the change. Unlike a
+// code editor's toggleComment, an already-disabled line is never double-prefixed:
+// "// //b:2" would parse as a row whose KEY is "//b".
+// Everywhere else (raw body, URL bar, cells, auth fields) the key is swallowed as
+// an explicit NO-OP — on purpose no comments in raw bodies: they would be sent
+// verbatim (CLAUDE.md backlog). The binding sits in the shared factory, above
+// basicSetup's own Mod-/.
+
+/** Marks an editor as a bulk key/value editor (enables Ctrl+/). */
+export const bulkEditor = Facet.define<boolean, boolean>({ combine: (values) => values.some(Boolean) });
+
+// Disabled ("//") lines are dimmed, so the toggle's state is visible.
+const disabledLine = Decoration.line({ class: "cm-bulk-disabled" });
+function disabledLines(view: EditorView): DecorationSet {
+  const b = new RangeSetBuilder<Decoration>();
+  for (const { from, to } of view.visibleRanges) {
+    for (let pos = from; pos <= to;) {
+      const line = view.state.doc.lineAt(pos);
+      if (/^\s*\/\//.test(line.text)) b.add(line.from, line.from, disabledLine);
+      pos = line.to + 1;
+    }
+  }
+  return b.finish();
+}
+const dimDisabled = ViewPlugin.fromClass(class {
+  decorations: DecorationSet;
+  constructor(view: EditorView) {
+    this.decorations = disabledLines(view);
+  }
+  update(u: ViewUpdate) {
+    if (u.docChanged || u.viewportChanged) this.decorations = disabledLines(u.view);
+  }
+}, { decorations: (v) => v.decorations });
+
+/** What a bulk editor adds: the marker (enables Ctrl+/) and dimmed disabled lines. */
+export const bulkEditorExtension: Extension = [bulkEditor.of(true), dimDisabled];
+
+const DISABLE = "//";
+
+/** The gated command (true = handled, also when it deliberately does nothing). */
+export const toggleBulkLines: StateCommand = ({ state, dispatch }) => {
+  if (!state.facet(bulkEditor)) return true; // not a bulk editor: explicit no-op
+  if (completionStatus(state) !== null) return true; // the popup owns the keyboard: no-op
+  const seen = new Set<number>();
+  const lines: { from: number; text: string }[] = [];
+  for (const r of state.selection.ranges) {
+    const first = state.doc.lineAt(r.from).number;
+    // A selection ending at the very start of a line does not touch that line.
+    let last = state.doc.lineAt(r.to).number;
+    if (!r.empty && last > first && state.doc.line(last).from === r.to) last--;
+    for (let n = first; n <= last; n++) {
+      if (seen.has(n)) continue;
+      seen.add(n);
+      const line = state.doc.line(n);
+      if (line.text.trim() !== "") lines.push({ from: line.from, text: line.text });
+    }
+  }
+  if (lines.length === 0) return true; // only blank lines: nothing to toggle
+  const indent = (t: string) => t.length - t.replace(/^\s*/, "").length;
+  const disabled = (t: string) => t.slice(indent(t)).startsWith(DISABLE);
+  // "//" goes right before the key (column 0 for unindented lines), so enabling
+  // again is an exact inverse; the grammar reads "  //key:v" as disabled too.
+  const changes = lines.some((l) => !disabled(l.text))
+    ? lines.filter((l) => !disabled(l.text)).map((l) => ({ from: l.from + indent(l.text), insert: DISABLE }))
+    : lines.map((l) => {
+      const at = l.from + indent(l.text);
+      const to = at + DISABLE.length + (state.doc.sliceString(at + DISABLE.length, at + DISABLE.length + 1) === " " ? 1 : 0);
+      return { from: at, to };
+    });
+  const changeSet = state.changes(changes);
+  dispatch(state.update({ changes: changeSet, selection: state.selection.map(changeSet, 1), userEvent: "input", scrollIntoView: true }));
+  return true;
+};
+
+const lineToggleKeymap = Prec.highest(keymap.of([
+  { key: "Mod-/", run: (view) => toggleBulkLines({ state: view.state, dispatch: view.dispatch }), preventDefault: true },
+]));
+
 // ---- Masked (password) single-line fields: literal text shows as bullets ----
 
 class Bullets extends WidgetType {
@@ -546,6 +637,7 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
         theme,
         varHighlighting(opts.getEnv, opts.onPin),
         varCompletion(opts.getEnv),
+        lineToggleKeymap, // Ctrl+/: a no-op here (not a bulk editor)
         mask.of(opts.masked ? maskPlugin : []),
         EditorView.updateListener.of((u) => {
           const external = u.transactions.some((tr) => tr.annotation(externalChange));

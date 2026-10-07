@@ -26,7 +26,7 @@ export default function BulkEditor(props: Props) {
     if (!host.isConnected) return;
     editor = createCodeEditor(host, serializeRows(props.rows), false, (text) => {
       if (!textMeansRows(text, props.rows)) props.onChange(parseBulk(text));
-    }, envDisplay);
+    }, envDisplay, { bulk: true }); // bulk: Ctrl+/ toggles "//" (disable / enable rows)
     host.querySelector(".cm-content")?.setAttribute("aria-label", props.ariaLabel);
     setReady(true);
   });

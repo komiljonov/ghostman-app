@@ -139,6 +139,15 @@ Postman-style shell, logged in:
   edit is parsed straight back into rows (same autosave); outside changes (URL bar) rewrite
   the text only when it no longer means the rows (`textMeansRows`). The view is a GLOBAL
   preference per kind (settings `ui_bulk_mode_params|headers|form`, `SetBulkMode`, `GetUIPrefs`).
+  **Ctrl/Cmd+/** (bulk editors ONLY; `toggleBulkLines` in `src/codemirror.ts`, test matrix in
+  `bulkToggle.test.ts`) toggles the `//` disable prefix = the rows' enable checkbox: cursor line
+  or every touched line, one direction for all (any enabled → prefix those; else remove `//`
+  and one space), blank lines skipped, selection mapped, `//` inserted before the key (column 0
+  unless indented) so it is an exact inverse. NOT CodeMirror's toggleComment: it would
+  double-prefix an already-disabled line, which the grammar reads as a key starting with `//`.
+  One Mod-/ binding in the shared factory (above basicSetup's): gated by the `bulkEditor` facet
+  and a closed completion popup; everywhere else (raw body, URL bar, cells, auth) it is
+  swallowed as a no-op. Disabled lines are dimmed (`.cm-bulk-disabled`).
 - **URL ↔ Params** (`src/urlParams.ts` is the spec, with its test table): `url` stores only the
   base (before "?"); `query_params` is the one source of truth for the query. The URL input
   shows base + enabled keyed rows as `k=v&…` (empty value → `k=`; no "?" without any). Typing
@@ -396,6 +405,8 @@ frontend/                Vite + Solid + TS
 - More cascading settings through the same resolver (proxy, timeout, TLS / insecure);
   the Settings sub-tab and the folder Settings… modal are their home. Auth: OAuth 2.0, digest.
 - Response search: regex mode.
+- Comments in the raw (JSON) body via Ctrl+/: deliberately NOT supported — comments would be
+  sent verbatim and break APIs. Revisit only with an opt-in strip-on-send.
 - Cookies; multipart/file bodies; history export / sync.
 - **Drag-and-drop for the project list**: for now projects use ↑/↓ in Project settings. Reorder
   endpoints need the full sibling set (every team project, so only the team owner and
