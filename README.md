@@ -41,7 +41,9 @@ yourself with the same name (e.g. your own `Authorization` header) wins over the
 the Auth settings.
 **History** (profile menu → History) lists every request sent from this computer, newest first,
 grouped by day, with search and method / status / project filters; an entry shows the request
-as authored and as sent, the response and its timing, and can be restored as a new request.
+as authored and as sent, the response and its timing, and can be restored as a new request. Media responses
+(images, audio, video, PDFs, other binary data) are kept too: images and audio/video play right in
+the entry, and any stored response can be saved to a file.
 
 The window is laid out Postman-style: a top bar with team and project switchers (their menus
 also hold "+ New …" and the team/project settings) and a profile menu (invitations, settings,

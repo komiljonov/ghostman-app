@@ -249,3 +249,37 @@ export const CLEAR_SCOPES: { id: ClearScope; label: string; confirm: string }[] 
   { id: "older_than_30d", label: "Older than 30 days", confirm: "Delete history older than 30 days?" },
   { id: "current_project", label: "Current project", confirm: "Delete this project's history?" },
 ];
+
+// ---- Media responses (stored as bytes like every body; Go classifies them) ----
+
+export type MediaKind = "" | "image" | "audio" | "video" | "pdf" | "binary";
+
+// How the detail pane shows a stored response body.
+export type BodyDisplay = "text" | "image" | "audio" | "video" | "file";
+
+export function bodyDisplay(r: { media: string; media_url: string }): BodyDisplay {
+  if (!r.media) return "text";
+  if ((r.media === "image" || r.media === "audio" || r.media === "video") && r.media_url) return r.media;
+  return "file"; // pdf, binary, or nothing stored: offer Save to file
+}
+
+// "PNG image", "MP4 video", "PDF document", "Binary data (application/zip)".
+export function mediaLabel(media: string, contentType: string): string {
+  const mime = contentType.split(";")[0].trim().toLowerCase();
+  const sub = (mime.split("/")[1] ?? "").replace(/^x-/, "").replace(/\+xml$/, "").toUpperCase();
+  switch (media) {
+    case "image":
+      return `${sub || "Image"} image`;
+    case "audio":
+      return `${sub || "Audio"} audio`;
+    case "video":
+      return `${sub || "Video"} video`;
+    case "pdf":
+      return "PDF document";
+    default:
+      return mime ? `Binary data (${mime})` : "Binary data";
+  }
+}
+
+// Why Pretty/Raw are disabled for a media body (the controls stay, disabled).
+export const MEDIA_VIEW_TITLE = "A media / binary response is shown as media or saved to a file, not as text";

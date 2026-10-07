@@ -289,6 +289,15 @@ Postman-style shell, logged in:
   request's sends (`ListHistory` with `request_id`, index from migration 00008); a row or
   "Open in History" opens the History tab filtered to the request (removable "Request: X"
   chip) with that entry selected, via `focusHistory` (consumed once).
+  **Media responses** are stored like every body (bytes, any type). `engine.MediaKind`
+  (Content-Type, else UTF-8 sniff) marks image / audio / video / pdf / binary; such a body is
+  NEVER sent to the UI as text (Pretty/Raw/Wrap disabled with a reason). Images, audio and
+  video load from the app-local route `/history-media/{id}` (`history_media.go`, an
+  assetserver Middleware: dev and built apps; only those kinds, stored type, nosniff,
+  no-store, sandbox CSP, Range via ServeContent), so `<img>/<audio>/<video>` stream from
+  SQLite and nothing crosses the bridge; PDF / binary show a file card. Every entry with a
+  response has **Save response…** (`SaveHistoryResponseToFile`: native dialog, name +
+  extension by type incl. png/jpg/svg/mp3/mp4/pdf, the stored bytes).
 - **Authorization** (a cascading setting WITHOUT a global level): requests and folders store
   `auth` = {type inherit | none | bearer | basic | api_key, bearer_token, basic_username,
   basic_password, api_key_name, api_key_value, api_key_in header|query} **on the server**; values
@@ -333,6 +342,7 @@ editor.go                bound editor methods: SaveRequest (autosave patch), Sen
                          GetTabs/SetTabs (typed tab refs, legacy migration), quit handshake
 history.go               history write path (recordHistory) + bound history methods (list, entry,
                          delete, clear, storage info, retention settings, restore)
+history_media.go         /history-media/{id} route for stored media bodies; SaveHistoryResponseToFile
 environments.go          bound environment/variable methods + local secret access
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)

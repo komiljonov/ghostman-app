@@ -12,6 +12,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"ghostman/internal/api"
+	"ghostman/internal/engine"
 	"ghostman/internal/session"
 )
 
@@ -159,9 +160,23 @@ func responseFileName(requestName, contentType string) string {
 	return fmt.Sprintf("%s.%s", base, extensionFor(contentType))
 }
 
+// mediaExtensions: images, audio, video and documents by their media type.
+var mediaExtensions = map[string]string{
+	"image/png": "png", "image/jpeg": "jpg", "image/jpg": "jpg", "image/gif": "gif", "image/webp": "webp",
+	"image/bmp": "bmp", "image/svg+xml": "svg", "image/x-icon": "ico", "image/vnd.microsoft.icon": "ico",
+	"image/avif": "avif", "image/tiff": "tiff",
+	"audio/mpeg": "mp3", "audio/mp4": "m4a", "audio/aac": "aac", "audio/ogg": "ogg", "audio/wav": "wav",
+	"audio/x-wav": "wav", "audio/webm": "weba", "audio/flac": "flac",
+	"video/mp4": "mp4", "video/webm": "webm", "video/ogg": "ogv", "video/quicktime": "mov",
+	"application/pdf": "pdf", "application/zip": "zip", "application/gzip": "gz",
+}
+
 // extensionFor maps a response Content-Type to a file extension.
 func extensionFor(contentType string) string {
-	ct := strings.ToLower(strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0]))
+	ct := engine.MimeType(contentType)
+	if ext, ok := mediaExtensions[ct]; ok {
+		return ext
+	}
 	switch {
 	case strings.Contains(ct, "json"):
 		return "json"

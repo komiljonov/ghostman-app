@@ -140,6 +140,8 @@ export function RevokeInvitation(arg1:string):Promise<main.EmptyResult>;
 
 export function SaveFolderSettings(arg1:string,arg2:string,arg3:string,arg4:api.Auth,arg5:api.Auth):Promise<main.FolderResult>;
 
+export function SaveHistoryResponseToFile(arg1:number):Promise<main.SavedFileResult>;
+
 export function SaveRequest(arg1:string,arg2:api.RequestDraft,arg3:api.RequestDraft):Promise<main.RequestResult>;
 
 export function SaveResponseToFile(arg1:string):Promise<main.SavedFileResult>;

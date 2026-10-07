@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  canOpenOriginal, defaultFilter, requestFilter, requestHistoryQuery, entriesToDelete, filterToQuery, formRows, groupByDay, nextCursor,
+  bodyDisplay, canOpenOriginal, defaultFilter, mediaLabel, requestFilter, requestHistoryQuery, entriesToDelete, filterToQuery, formRows, groupByDay, nextCursor,
   restoreAndOpen, rowLabel, statusChip, storageLine, SummaryLike,
 } from "./historyModel";
 
@@ -120,5 +120,26 @@ describe("settings section", () => {
   it("storage line", () => {
     expect(storageLine(1234, 5.5 * 1024 * 1024)).toBe("1,234 entries · 5.5 MB");
     expect(storageLine(1, 900)).toBe("1 entry · 900 B");
+  });
+});
+
+describe("media responses", () => {
+  it("text stays text; image/audio/video show inline when served; the rest is a file", () => {
+    expect(bodyDisplay({ media: "", media_url: "" })).toBe("text");
+    expect(bodyDisplay({ media: "image", media_url: "/history-media/3" })).toBe("image");
+    expect(bodyDisplay({ media: "audio", media_url: "/history-media/3" })).toBe("audio");
+    expect(bodyDisplay({ media: "video", media_url: "/history-media/3" })).toBe("video");
+    expect(bodyDisplay({ media: "image", media_url: "" })).toBe("file"); // nothing stored
+    expect(bodyDisplay({ media: "pdf", media_url: "" })).toBe("file");
+    expect(bodyDisplay({ media: "binary", media_url: "" })).toBe("file");
+  });
+  it("labels", () => {
+    expect(mediaLabel("image", "image/png")).toBe("PNG image");
+    expect(mediaLabel("image", "image/svg+xml; charset=utf-8")).toBe("SVG image");
+    expect(mediaLabel("audio", "audio/x-wav")).toBe("WAV audio");
+    expect(mediaLabel("video", "video/mp4")).toBe("MP4 video");
+    expect(mediaLabel("pdf", "application/pdf")).toBe("PDF document");
+    expect(mediaLabel("binary", "application/zip")).toBe("Binary data (application/zip)");
+    expect(mediaLabel("binary", "")).toBe("Binary data");
   });
 });
