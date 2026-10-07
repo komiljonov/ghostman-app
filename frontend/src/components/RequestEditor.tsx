@@ -5,6 +5,7 @@ import { TabsController, TabState } from "../tabsController";
 import BodyEditor from "./BodyEditor";
 import KeyValueTable from "./KeyValueTable";
 import RequestSettingsPanel from "./RequestSettingsPanel";
+import RequestHistoryPanel from "./RequestHistoryPanel";
 import { ownFollow } from "../requestSettings";
 import { currentTree } from "../treeStore";
 import ResponseView from "./ResponseView";
@@ -20,7 +21,7 @@ const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
 const countRows = (rows: Row[]) => rows.filter((r) => r.key.trim() !== "").length;
 
-// One tab's editor: method/URL/Send, Params | Headers | Body, and the response
+// One tab's editor: method/URL/Send, Params | Headers | Body | Settings | History, and the response
 // below a draggable divider. Every edit autosaves (see tabsController).
 export default function RequestEditor(props: Props) {
   let split!: HTMLDivElement;
@@ -48,6 +49,7 @@ export default function RequestEditor(props: Props) {
     { id: "headers" as const, label: "Headers", count: () => countRows(props.tab.draft.headers) },
     { id: "body" as const, label: "Body", count: () => 0 },
     { id: "settings" as const, label: "Settings", count: () => 0 },
+    { id: "history" as const, label: "History", count: () => 0 },
   ];
 
   return (
@@ -126,6 +128,10 @@ export default function RequestEditor(props: Props) {
                   </Match>
                   <Match when={props.tab.section === "settings"}>
                     <RequestSettingsPanel requestId={props.tab.id} />
+                  </Match>
+                  <Match when={props.tab.section === "history"}>
+                    <RequestHistoryPanel requestId={props.tab.id} requestName={props.tab.name}
+                      onOpenHistory={() => props.controller.openHistory()} />
                   </Match>
                 </Switch>
               </div>

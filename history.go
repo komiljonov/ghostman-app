@@ -124,6 +124,7 @@ func nonNilKV(rows []api.KeyValue) []api.KeyValue {
 // HistoryFilter is one page request of the History tab. Everything is applied in SQL.
 type HistoryFilter struct {
 	ProjectID     string `json:"project_id"`   // "" = every project
+	RequestID     string `json:"request_id"`   // "" = every request (else one request's sends)
 	Query         string `json:"query"`        // substring of url / request name ("" = any)
 	Method        string `json:"method"`       // "" = any
 	StatusClass   string `json:"status_class"` // "" | 2xx | 3xx | 4xx | 5xx | err
@@ -190,7 +191,7 @@ func (a *App) ListHistory(f HistoryFilter) HistoryPageResult {
 		limit = historyPageSize
 	}
 	rows, err := a.store.ListHistoryPage(a.ctx, store.ListHistoryPageParams{
-		ProjectID: f.ProjectID, Method: strings.ToUpper(f.Method), StatusMin: smin, StatusMax: smax,
+		ProjectID: f.ProjectID, RequestID: f.RequestID, Method: strings.ToUpper(f.Method), StatusMin: smin, StatusMax: smax,
 		Needle: strings.TrimSpace(f.Query), BeforeCreated: f.BeforeCreated, BeforeID: f.BeforeID,
 		PageLimit: limit + 1, // one extra: is there a next page?
 	})

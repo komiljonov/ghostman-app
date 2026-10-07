@@ -112,7 +112,7 @@ Postman-style shell, logged in:
 - **Main pane**: the **tabs** by default, or Team settings / Project settings / Invitations
   when opened. Empty state without tabs. Tabs are typed (`src/tabModel.ts`):
   `request` (method | URL (stretches) | Send / Cancel in one fixed slot at the far right;
-  Params | Headers | Body | Settings with the save status at the row's right end; response below a
+  Params | Headers | Body | Settings | History with the save status at the row's right end; response below a
   draggable divider), `env` (that environment's variables table), `env_list`
   (create / rename / reorder / delete environments) and `history` (see History). There is no separate environments page.
 - **Tabs** are per project, persisted as typed refs in tab-bar order (`ui_tabs_<project_id>`;
@@ -268,7 +268,10 @@ Postman-style shell, logged in:
   Resolved, response (the shared viewer), timing; actions Restore to new request (project root,
   template form, `api.CreateRequestFrom`), Open original (disabled when gone from the tree),
   Copy resolved URL, Delete. `src/historyStore.ts` ticks after sends/clears so an open list
-  re-fetches.
+  re-fetches. The request editor's **History sub-tab** (`RequestHistoryPanel`) lists that
+  request's sends (`ListHistory` with `request_id`, index from migration 00008); a row or
+  "Open in History" opens the History tab filtered to the request (removable "Request: X"
+  chip) with that entry selected, via `focusHistory` (consumed once).
 - **Current team/project** live in Go (`internal/workspace`), persisted in settings
   (`current_team_id`, `current_project_id`) and validated against fresh server lists on every
   load: a vanished team falls back to the first team with no project, a vanished project to no

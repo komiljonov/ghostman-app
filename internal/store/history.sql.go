@@ -174,23 +174,25 @@ SELECT id, created_at, project_id, request_id, request_name, method, url_templat
        env_name, status, duration_ms, error, resp_body_size, resp_truncated
 FROM history
 WHERE (CAST(?1 AS TEXT) = '' OR project_id = ?1)
-  AND (CAST(?2 AS TEXT) = '' OR method = ?2)
-  AND (CAST(?3 AS INTEGER) = 0
-       OR (?3 = -1 AND status = 0)
-       OR (status BETWEEN ?3 AND CAST(?4 AS INTEGER)))
-  AND (CAST(?5 AS TEXT) = ''
-       OR instr(lower(coalesce(url_resolved, '')), lower(?5)) > 0
-       OR instr(lower(url_template), lower(?5)) > 0
-       OR instr(lower(coalesce(request_name, '')), lower(?5)) > 0)
-  AND (CAST(?6 AS INTEGER) = 0
-       OR created_at < ?6
-       OR (created_at = ?6 AND id < CAST(?7 AS INTEGER)))
+  AND (CAST(?2 AS TEXT) = '' OR request_id = ?2)
+  AND (CAST(?3 AS TEXT) = '' OR method = ?3)
+  AND (CAST(?4 AS INTEGER) = 0
+       OR (?4 = -1 AND status = 0)
+       OR (status BETWEEN ?4 AND CAST(?5 AS INTEGER)))
+  AND (CAST(?6 AS TEXT) = ''
+       OR instr(lower(coalesce(url_resolved, '')), lower(?6)) > 0
+       OR instr(lower(url_template), lower(?6)) > 0
+       OR instr(lower(coalesce(request_name, '')), lower(?6)) > 0)
+  AND (CAST(?7 AS INTEGER) = 0
+       OR created_at < ?7
+       OR (created_at = ?7 AND id < CAST(?8 AS INTEGER)))
 ORDER BY created_at DESC, id DESC
-LIMIT CAST(?8 AS INTEGER)
+LIMIT CAST(?9 AS INTEGER)
 `
 
 type ListHistoryPageParams struct {
 	ProjectID     string `json:"projectId"`
+	RequestID     string `json:"requestId"`
 	Method        string `json:"method"`
 	StatusMin     int64  `json:"statusMin"`
 	StatusMax     int64  `json:"statusMax"`
@@ -224,6 +226,7 @@ type ListHistoryPageRow struct {
 func (q *Queries) ListHistoryPage(ctx context.Context, arg ListHistoryPageParams) ([]ListHistoryPageRow, error) {
 	rows, err := q.db.QueryContext(ctx, listHistoryPage,
 		arg.ProjectID,
+		arg.RequestID,
 		arg.Method,
 		arg.StatusMin,
 		arg.StatusMax,

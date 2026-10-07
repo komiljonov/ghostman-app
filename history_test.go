@@ -225,6 +225,9 @@ func TestHistoryFiltersAndPaging(t *testing.T) {
 		{HistoryFilter{Query: "list user"}, 1}, // request name
 		{HistoryFilter{Query: "%"}, 0},         // no wildcards
 		{HistoryFilter{ProjectID: "p1", Method: "GET", StatusClass: "2xx", Query: "users"}, 1},
+		{HistoryFilter{RequestID: "r2"}, 1},
+		{HistoryFilter{RequestID: "r2", StatusClass: "2xx"}, 0},
+		{HistoryFilter{RequestID: "gone"}, 0},
 	}
 	for _, c := range checks {
 		if got := count(c.f); got != c.want {

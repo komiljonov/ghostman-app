@@ -23,9 +23,18 @@ export interface FilterState {
   method: string; // "" = any
   status: StatusClass;
   currentProjectOnly: boolean; // default on
+  requestId: string; // "" = all requests; else one request's sends (opened from its History sub-tab)
+  requestName: string; // the chip's label
 }
 
-export const defaultFilter = (): FilterState => ({ text: "", method: "", status: "", currentProjectOnly: true });
+export const defaultFilter = (): FilterState => ({
+  text: "", method: "", status: "", currentProjectOnly: true, requestId: "", requestName: "",
+});
+
+// The History tab filtered to one request (any other filter cleared).
+export const requestFilter = (requestId: string, requestName: string): FilterState => ({
+  ...defaultFilter(), requestId, requestName,
+});
 
 export interface Cursor {
   created_at: number;
@@ -36,6 +45,7 @@ export interface Cursor {
 export function filterToQuery(f: FilterState, projectId: string, cursor?: Cursor) {
   return {
     project_id: f.currentProjectOnly ? projectId : "",
+    request_id: f.requestId,
     query: f.text.trim(),
     method: f.method,
     status_class: f.status,
@@ -46,6 +56,10 @@ export function filterToQuery(f: FilterState, projectId: string, cursor?: Cursor
 }
 
 // The cursor for the page after `items` (keyset on created_at, id).
+// The request editor's History sub-tab: that request's sends, newest first.
+export const requestHistoryQuery = (requestId: string, cursor?: Cursor) =>
+  filterToQuery({ ...defaultFilter(), currentProjectOnly: false, requestId }, "", cursor);
+
 export const nextCursor = (items: { created_at: number; id: number }[]): Cursor | undefined => {
   const last = items[items.length - 1];
   return last ? { created_at: last.created_at, id: last.id } : undefined;

@@ -4,10 +4,10 @@ import { main } from "../../wailsjs/go/models";
 import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 import { handleProblem } from "../authStore";
 import {
-  canOpenOriginal, defaultFilter, FilterState, filterToQuery, formatDuration, groupByDay, METHODS, nextCursor,
+  canOpenOriginal, defaultFilter, FilterState, requestFilter, filterToQuery, formatDuration, groupByDay, METHODS, nextCursor,
   restoreAndOpen, rowLabel, STATUS_CLASSES, StatusClass, statusChip, timeOfDay,
 } from "../historyModel";
-import { historyChanged, historyTick } from "../historyStore";
+import { consumeHistoryFocus, historyChanged, historyFocus, historyTick } from "../historyStore";
 import { requestTreeReload } from "../treeStore";
 import ContextMenu, { MenuEntry } from "./ContextMenu";
 import HistoryDetail from "./HistoryDetail";
@@ -59,6 +59,18 @@ export default function HistoryView(props: Props) {
     const sel = selected();
     if (sel !== undefined && !append && !result.data.items.some((i) => i.id === sel)) select(undefined);
   };
+
+  // Opened from a request's History sub-tab: show that request's sends (and select
+  // the clicked entry). Consumed once, so a later visit starts unfiltered. Runs
+  // before the load effect below, so the first fetch is already filtered.
+  createEffect(() => {
+    const f = historyFocus();
+    if (!f) return;
+    consumeHistoryFocus();
+    setText("");
+    setFilter(requestFilter(f.requestId, f.requestName));
+    void select(f.entryId);
+  });
 
   // Filters, the project and outside changes (a send, Settings) reload page one.
   createEffect(on([filter, () => props.projectId, historyTick], () => void load(false)));
@@ -134,6 +146,7 @@ export default function HistoryView(props: Props) {
 
   const empty = () => {
     const f = filter();
+    if (f.requestId && !(f.text || f.method || f.status)) return "No sends of this request yet.";
     return f.text || f.method || f.status ? "No history matches these filters." : f.currentProjectOnly
       ? "No requests sent in this project yet." : "No requests sent yet.";
   };
@@ -147,6 +160,14 @@ export default function HistoryView(props: Props) {
             <input type="search" placeholder="Search URL or name" aria-label="Search history" spellcheck={false}
               value={text()} onInput={(e) => onSearch(e.currentTarget.value)} />
           </label>
+          <Show when={filter().requestId}>
+            <div class="history-request-chip" title="Showing one request's sends">
+              <span class="muted">Request:</span>
+              <span class="history-request-chip-name">{filter().requestName || "(unnamed)"}</span>
+              <button type="button" class="icon-button" aria-label="Show all requests"
+                onClick={() => patch({ requestId: "", requestName: "" })}><Icon name="close" size={12} /></button>
+            </div>
+          </Show>
           <div class="history-filter-row">
             <select aria-label="Method" value={filter().method} onChange={(e) => patch({ method: e.currentTarget.value })}>
               <option value="">Any method</option>
