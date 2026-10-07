@@ -3362,19 +3362,19 @@ input:disabled {
   letter-spacing: 0.05em;
 }
 
-/* History detail: a stored media / binary response. */
-.history-media {
+/* A media / binary response body (MediaPreview: response pane Preview, history entry). */
+.media-preview {
   display: flex;
   flex-direction: column;
   gap: 10px;
   padding: 10px 12px;
 }
 
-.history-media .settings-hint {
+.media-preview .settings-hint {
   margin: 0;
 }
 
-.history-media-stage {
+.media-preview-stage {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3385,19 +3385,19 @@ input:disabled {
   border-radius: 6px;
 }
 
-.history-media-stage img,
-.history-media-stage video {
+.media-preview-stage img,
+.media-preview-stage video {
   display: block;
   max-width: 100%;
   max-height: 420px;
   object-fit: contain;
 }
 
-.history-media-audio {
+.media-preview-audio {
   width: 100%;
 }
 
-.history-media-file {
+.media-preview-file {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -3409,4 +3409,10 @@ input:disabled {
   padding: 6px 10px;
   overflow-wrap: anywhere;
   border-top: 1px solid var(--border);
+}
+
+.response-media {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }

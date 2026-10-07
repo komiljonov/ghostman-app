@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -24,7 +25,16 @@ import (
 // from SQLite and multi-MB bodies never cross the Wails bridge; anything can be
 // saved to a file.
 
-const historyMediaPrefix = "/history-media/"
+const (
+	historyMediaPrefix  = "/history-media/"
+	responseMediaPrefix = "/response-media/" // + request (tab) id + "?v=" + version
+)
+
+// responseMediaURL is a tab's active media response. The version changes with
+// every send, so the webview never shows a stale image for a re-sent request.
+func responseMediaURL(requestID string, version int64) string {
+	return responseMediaPrefix + url.PathEscape(requestID) + "?v=" + strconv.FormatInt(version, 10)
+}
 
 func historyMediaURL(id int64) string { return historyMediaPrefix + strconv.FormatInt(id, 10) }
 
@@ -33,20 +43,26 @@ func servableMedia(kind string) bool {
 	return kind == engine.MediaImage || kind == engine.MediaAudio || kind == engine.MediaVideo
 }
 
-// historyMediaMiddleware serves GET /history-media/{id} (assetserver.Options
+// mediaMiddleware serves GET /history-media/{id} (assetserver.Options
 // Middleware, so it works in dev and built apps alike); every other request goes
 // on to the frontend assets. Only image / audio / video bodies are served —
 // never HTML or other text — with their stored type, nosniff, no caching (ids can
 // be reused after a clear) and a sandboxing CSP in case one is opened directly.
 // Range requests work (http.ServeContent), so video and audio can seek.
-func (a *App) historyMediaMiddleware(next http.Handler) http.Handler {
+func (a *App) mediaMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, historyMediaPrefix) {
+		isHistory := strings.HasPrefix(r.URL.Path, historyMediaPrefix)
+		isResponse := strings.HasPrefix(r.URL.Path, responseMediaPrefix)
+		if !isHistory && !isResponse {
 			next.ServeHTTP(w, r)
 			return
 		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if isResponse {
+			a.serveResponseMedia(w, r)
 			return
 		}
 		id, err := strconv.ParseInt(strings.TrimPrefix(r.URL.Path, historyMediaPrefix), 10, 64)
@@ -67,12 +83,35 @@ func (a *App) historyMediaMiddleware(next http.Handler) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Content-Type", engine.MimeType(ct))
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'")
-		http.ServeContent(w, r, "", time.UnixMilli(h.CreatedAt), bytes.NewReader(h.RespBody))
+		serveMedia(w, r, ct, time.UnixMilli(h.CreatedAt), h.RespBody)
 	})
+}
+
+// serveResponseMedia serves a request tab's ACTIVE response body (the Go-side
+// copy kept for Save to file) when it is image / audio / video — the live
+// response pane's Preview. Gone (tab closed, re-sent, logout) = 404.
+func (a *App) serveResponseMedia(w http.ResponseWriter, r *http.Request) {
+	id, err := url.PathUnescape(strings.TrimPrefix(r.URL.Path, responseMediaPrefix))
+	if err != nil || id == "" {
+		http.NotFound(w, r)
+		return
+	}
+	b, ok := a.responses.get(id)
+	if !ok || !servableMedia(engine.MediaKind(b.contentType, b.data)) {
+		http.NotFound(w, r)
+		return
+	}
+	serveMedia(w, r, b.contentType, time.Time{}, b.data)
+}
+
+// serveMedia writes a stored body with its own type, never sniffed, never
+// cached, sandboxed if opened directly; Range requests work (seeking).
+func serveMedia(w http.ResponseWriter, r *http.Request, contentType string, modified time.Time, body []byte) {
+	w.Header().Set("Content-Type", engine.MimeType(contentType))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'")
+	http.ServeContent(w, r, "", modified, bytes.NewReader(body))
 }
 
 // historyContentType is the stored response's Content-Type header ("" if none).

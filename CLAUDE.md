@@ -191,11 +191,16 @@ Postman-style shell, logged in:
   Body | Headers left; right: Pretty | Raw | Preview, Wrap, search · collapse all · expand all ·
   save icons, then status · duration · size as one fixed cluster (in a narrow pane the cluster
   wraps to a second row — width-dependent, never mode-dependent). Pretty for formatted JSON
-  (collapsible) or truncated JSON (flat text + "structure view unavailable" notice); **Preview only for `text/html`**, rendered in an
+  (collapsible) or truncated JSON (flat text + "structure view unavailable" notice); **Preview for `text/html`**, rendered in an
   iframe with an **empty `sandbox`** (no scripts, opaque origin), `srcdoc` = the truncated
   body, `referrerpolicy=no-referrer`, white page in both themes (absolute URLs load, relative
   ones break — accepted). A new response resets the view (Preview for HTML, Pretty for JSON,
   else Raw); Wrap is global (`ui_response_wrap`).
+  **Media responses** (Go `Response.media`: image / audio / video / pdf / binary — never sent as
+  text): Pretty/Raw disabled ("Not a text response — see Preview"); Preview is enabled and the
+  default and renders `MediaPreview` (shared with history): the tab's held full body streamed
+  from `/response-media/{tab}?v=N` (a new version per response; 404 once released) for image /
+  audio / video, a file card with Save for pdf / binary.
 - **Timing panel** (`TimingPanel.tsx`, model in `src/timingModel.ts`): the toolbar's duration is
   the trigger (dotted underline; disabled without hops, also enabled after a failed send). One
   section per hop — status · method · URL · total, a stacked bar in the phase tokens
@@ -342,7 +347,7 @@ editor.go                bound editor methods: SaveRequest (autosave patch), Sen
                          GetTabs/SetTabs (typed tab refs, legacy migration), quit handshake
 history.go               history write path (recordHistory) + bound history methods (list, entry,
                          delete, clear, storage info, retention settings, restore)
-history_media.go         /history-media/{id} route for stored media bodies; SaveHistoryResponseToFile
+history_media.go         /history-media/{id} + /response-media/{tab} media routes; SaveHistoryResponseToFile
 environments.go          bound environment/variable methods + local secret access
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)

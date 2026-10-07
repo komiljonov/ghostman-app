@@ -48,8 +48,9 @@ func TestFullBodyRetainedPerTabAndReplacedOnResend(t *testing.T) {
 	a := newTestApp(t, true, nil)
 
 	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: target.URL + "/bin"}, SendOptions{FollowRedirects: true})
-	if res.Error != nil || !res.Data.Truncated || len(res.Data.Body) > engine.MaxBodyPreview {
-		t.Fatalf("preview must stay capped: %+v", res.Error)
+	// Binary (octet-stream): no text crosses the bridge at all; the full body stays Go-side.
+	if res.Error != nil || res.Data.Media != engine.MediaBinary || res.Data.Body != "" || res.Data.BodySize != size {
+		t.Fatalf("binary response: %+v", res.Error)
 	}
 	held, ok := a.responses.get("r1")
 	if !ok || len(held.data) != size || held.capped || held.contentType != "application/octet-stream" {

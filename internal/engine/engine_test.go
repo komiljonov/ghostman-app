@@ -154,8 +154,9 @@ func TestSendRequest_KeepsFullBodyGoSide(t *testing.T) {
 	if !bytes.Equal(resp.Full, payload) || resp.FullCapped {
 		t.Fatalf("full body: len=%d capped=%v, want %d bytes uncapped", len(resp.Full), resp.FullCapped, size)
 	}
-	if !resp.Truncated || len(resp.Body) > MaxBodyPreview {
-		t.Fatalf("preview must stay truncated: truncated=%v len=%d", resp.Truncated, len(resp.Body))
+	// Binary: no text preview at all (it would be mojibake), only the media kind.
+	if resp.Media != MediaBinary || resp.Body != "" || resp.Truncated || resp.BodySize != int64(size) {
+		t.Fatalf("binary preview: media=%q len=%d truncated=%v", resp.Media, len(resp.Body), resp.Truncated)
 	}
 	// The full body never crosses the bridge: the JSON is identical without it.
 	raw, _ := json.Marshal(resp)
@@ -195,5 +196,30 @@ func TestSendRequest_PrettyBodyDoesNotAliasFull(t *testing.T) {
 	}
 	if string(resp.Full) != `{"a":[1,2]}` || !resp.Formatted || resp.Body == string(resp.Full) {
 		t.Fatalf("full=%q formatted=%v body=%q", resp.Full, resp.Formatted, resp.Body)
+	}
+}
+
+func TestSendRequest_TextPreviewStillTruncated(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write(bytes.Repeat([]byte("t"), MaxBodyPreview*2))
+	}))
+	defer srv.Close()
+	resp, err := New(DefaultTimeout).SendRequest(context.Background(), RequestSpec{URL: srv.URL})
+	if err != nil || resp.Media != MediaNone || !resp.Truncated || len(resp.Body) != MaxBodyPreview {
+		t.Fatalf("text: %v media=%q truncated=%v len=%d", err, resp.Media, resp.Truncated, len(resp.Body))
+	}
+}
+
+func TestSendRequest_ImageHasMediaKindAndNoText(t *testing.T) {
+	png := []byte{0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 'I', 'H', 'D', 'R'}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write(png)
+	}))
+	defer srv.Close()
+	resp, err := New(DefaultTimeout).SendRequest(context.Background(), RequestSpec{URL: srv.URL})
+	if err != nil || resp.Media != MediaImage || resp.Body != "" || !bytes.Equal(resp.Full, png) {
+		t.Fatalf("image: %v media=%q body=%d", err, resp.Media, len(resp.Body))
 	}
 }

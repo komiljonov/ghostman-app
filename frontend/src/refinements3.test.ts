@@ -154,7 +154,7 @@ describe("response views", () => {
   it("offers Preview only for text/html (disabled, not absent, otherwise)", () => {
     expect(isHTML("TEXT/HTML")).toBe(true);
     expect(viewAvailability(html).preview.enabled).toBe(true);
-    expect(viewAvailability(json).preview).toEqual({ enabled: false, title: "Only for HTML responses" });
+    expect(viewAvailability(json).preview).toEqual({ enabled: false, title: "Only for HTML, image, audio and video responses" });
     expect(viewAvailability(text).preview.enabled).toBe(false);
     expect(Object.keys(viewAvailability(text))).toEqual(["pretty", "raw", "preview"]);
   });
@@ -203,5 +203,26 @@ describe("response toolbar: disable, never hide", () => {
   it("everything is present but disabled before the first response", () => {
     const c = toolbarControls({ hasResponse: false, section: "body", view: "raw" });
     expect([c.sections.enabled, c.views.enabled, c.wrap.enabled]).toEqual([false, false, false]);
+  });
+});
+
+describe("media responses in the response pane", () => {
+  const img: ResponseLike = { contentType: "image/png", formatted: false, body: "", media: "image", mediaUrl: "/response-media/r1?v=3" };
+  const pdf: ResponseLike = { contentType: "application/pdf", formatted: false, body: "", media: "pdf" };
+  const bin: ResponseLike = { contentType: "", formatted: false, body: "", media: "binary" };
+  it("Preview is enabled for every media kind; Pretty/Raw are disabled (not hidden), with a reason", () => {
+    for (const r of [img, pdf, bin]) {
+      const a = viewAvailability(r);
+      expect(a.preview.enabled).toBe(true);
+      expect(a.pretty).toEqual({ enabled: false, title: "Not a text response — see Preview" });
+      expect(a.raw.enabled).toBe(false);
+    }
+    expect(viewAvailability(img).preview.title).toBe("Show the image");
+    expect(viewAvailability(pdf).preview.title).toBe("PDF document — save it to a file");
+  });
+  it("a new media response opens in Preview, even if Raw was chosen before", () => {
+    expect(defaultView(img)).toBe("preview");
+    expect(effectiveView(img, "raw")).toBe("preview");
+    expect(effectiveView(bin, "pretty")).toBe("preview");
   });
 });

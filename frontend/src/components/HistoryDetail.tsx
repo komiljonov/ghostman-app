@@ -9,7 +9,7 @@ import ResponseBody from "./ResponseBody";
 import StatusBadge from "./StatusBadge";
 import TimingPanel from "./TimingPanel";
 import HistoryKVTable from "./HistoryKVTable";
-import HistoryMedia from "./HistoryMedia";
+import MediaPreview from "./MediaPreview";
 import { MEDIA_VIEW_TITLE } from "../historyModel";
 import { authRows, effectiveName, normalizeAuth } from "../auth";
 
@@ -188,7 +188,9 @@ export default function HistoryDetail(props: Props) {
           <Show when={resp()} fallback={<p class="placeholder small">{noResponse}{s().error ? ` (${s().error})` : ""}</p>}>
             {(r) => (
               <Show when={respPart() === "body"} fallback={<HistoryKVTable rows={r().headers.map((h) => ({ key: h.key, value: h.value, off: false }))} />}>
-                <Show when={!r().media} fallback={<HistoryMedia response={r()} onSave={() => props.onSave()} />}>
+                <Show when={!r().media} fallback={<MediaPreview media={r().media} url={r().media_url}
+                  contentType={r().content_type} bytes={r().stored_bytes} onSave={() => props.onSave()}
+                  note={r().stored_truncated ? `History kept the first ${formatBytes(r().stored_bytes)} of ${formatBytes(r().body_size)} (Settings → History), so this may be incomplete.` : undefined} />}>
                 <Show when={r().preview_cut}>
                   <p class="settings-hint">Showing the first 256 KB of {formatBytes(r().stored_bytes)} stored.</p>
                 </Show>

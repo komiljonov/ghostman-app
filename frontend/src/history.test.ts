@@ -125,13 +125,13 @@ describe("settings section", () => {
 
 describe("media responses", () => {
   it("text stays text; image/audio/video show inline when served; the rest is a file", () => {
-    expect(bodyDisplay({ media: "", media_url: "" })).toBe("text");
-    expect(bodyDisplay({ media: "image", media_url: "/history-media/3" })).toBe("image");
-    expect(bodyDisplay({ media: "audio", media_url: "/history-media/3" })).toBe("audio");
-    expect(bodyDisplay({ media: "video", media_url: "/history-media/3" })).toBe("video");
-    expect(bodyDisplay({ media: "image", media_url: "" })).toBe("file"); // nothing stored
-    expect(bodyDisplay({ media: "pdf", media_url: "" })).toBe("file");
-    expect(bodyDisplay({ media: "binary", media_url: "" })).toBe("file");
+    expect(bodyDisplay("", "")).toBe("text");
+    expect(bodyDisplay("image", "/history-media/3")).toBe("image");
+    expect(bodyDisplay("audio", "/history-media/3")).toBe("audio");
+    expect(bodyDisplay("video", "/history-media/3")).toBe("video");
+    expect(bodyDisplay("image", "")).toBe("file"); // nothing stored
+    expect(bodyDisplay("pdf", "")).toBe("file");
+    expect(bodyDisplay("binary", "")).toBe("file");
   });
   it("labels", () => {
     expect(mediaLabel("image", "image/png")).toBe("PNG image");

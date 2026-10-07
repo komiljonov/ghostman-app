@@ -27,19 +27,25 @@ type heldBody struct {
 	data        []byte
 	capped      bool // the body was larger than engine.MaxFullBody
 	contentType string
+	version     int64 // bumped by every put: the media URL changes with each response
 }
 
 type responseStore struct {
 	mu     sync.Mutex
 	bodies map[string]heldBody // request (tab) id -> active response body
+	next   int64
 }
 
 func newResponseStore() *responseStore { return &responseStore{bodies: map[string]heldBody{}} }
 
-func (s *responseStore) put(id string, b heldBody) {
+// put stores a tab's active body and returns its version (for the media URL).
+func (s *responseStore) put(id string, b heldBody) int64 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.next++
+	b.version = s.next
 	s.bodies[id] = b
+	return b.version
 }
 
 func (s *responseStore) get(id string) (heldBody, bool) {
