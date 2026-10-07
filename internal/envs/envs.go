@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"ghostman/internal/api"
 )
@@ -58,6 +59,74 @@ type EnvContext struct {
 	ActiveID     string            `json:"active_id"`
 	ActiveName   string            `json:"active_name"`
 	Variables    []VariableView    `json:"variables"`
+	// Keys indexes the variable KEYS of every environment of the project (for
+	// {{var}} autocompletion across environments). No values: other environments'
+	// values never cross the bridge. Filled by WithKeys (UI calls only).
+	Keys []KeyInfo `json:"keys"`
+}
+
+// KeyInfo is one variable key and the environments defining it (in environment
+// order). Secret is set when it is a secret in any of them.
+type KeyInfo struct {
+	Key    string   `json:"key"`
+	Envs   []string `json:"envs"`    // environment names
+	EnvIDs []string `json:"env_ids"` // the same environments' ids
+	Secret bool     `json:"secret"`
+}
+
+// WithKeys adds the project's key index to ec: the active environment's keys
+// from ec.Variables, every other environment's from ListVariables (fetched
+// concurrently, values dropped right away). An environment that cannot be listed
+// is skipped (logged), so completion degrades instead of failing the context.
+func (m *Manager) WithKeys(ctx context.Context, c Client, ec EnvContext) EnvContext {
+	perEnv := make([][]KeyInfo, len(ec.Environments))
+	var wg sync.WaitGroup
+	for i, e := range ec.Environments {
+		if e.ID == ec.ActiveID {
+			for _, v := range ec.Variables {
+				perEnv[i] = append(perEnv[i], KeyInfo{Key: v.Key, Secret: v.Type == api.VarSecret})
+			}
+			continue
+		}
+		wg.Add(1)
+		go func(i int, id string) {
+			defer wg.Done()
+			vars, err := c.ListVariables(ctx, id)
+			if err != nil {
+				slog.Warn("list variable keys", "env", id, "err", err)
+				return
+			}
+			for _, v := range vars {
+				perEnv[i] = append(perEnv[i], KeyInfo{Key: v.Key, Secret: v.Type == api.VarSecret})
+			}
+		}(i, e.ID)
+	}
+	wg.Wait()
+	ec.Keys = MergeKeys(ec.Environments, perEnv)
+	return ec
+}
+
+// MergeKeys merges per-environment keys (perEnv[i] belongs to envs[i]) into one
+// entry per key, in first-seen order; Envs lists each environment once.
+func MergeKeys(envs []api.Environment, perEnv [][]KeyInfo) []KeyInfo {
+	out := []KeyInfo{}
+	index := map[string]int{}
+	for i, keys := range perEnv {
+		for _, k := range keys {
+			j, ok := index[k.Key]
+			if !ok {
+				j = len(out)
+				index[k.Key] = j
+				out = append(out, KeyInfo{Key: k.Key, Envs: []string{}, EnvIDs: []string{}})
+			}
+			if n := len(out[j].EnvIDs); n == 0 || out[j].EnvIDs[n-1] != envs[i].ID {
+				out[j].Envs = append(out[j].Envs, envs[i].Name)
+				out[j].EnvIDs = append(out[j].EnvIDs, envs[i].ID)
+			}
+			out[j].Secret = out[j].Secret || k.Secret
+		}
+	}
+	return out
 }
 
 // ErrNotFound is returned when a variable id is not in the environment.
@@ -79,7 +148,7 @@ func (m *Manager) Context(ctx context.Context, c Client, projectID string) (EnvC
 	if err != nil {
 		return EnvContext{}, err
 	}
-	out := EnvContext{Environments: envs, Variables: []VariableView{}}
+	out := EnvContext{Environments: envs, Variables: []VariableView{}, Keys: []KeyInfo{}}
 	stored, _, err := m.store.Setting(ctx, activeKey(projectID))
 	if err != nil {
 		slog.Error("load active environment", "err", err)

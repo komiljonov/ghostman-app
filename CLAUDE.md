@@ -243,6 +243,23 @@ Postman-style shell, logged in:
   mounts a single-line CodeMirror editor only while focused, hovered or editing in a tooltip
   (`src/cellMode.ts`), so a 30-row table has at most one or two live editors. The env
   variables table stays plain inputs.
+- **`{{var}}` autocompletion** (rules: `src/varComplete.ts`, unit tested; glue: `varCompletion()` in
+  `src/codemirror.ts`, added once in the shared factory, so the URL bar, raw body, table cells and
+  auth fields all get it). The source answers ONLY inside an unclosed `{{partial` on the cursor's
+  line ("{{" opens it at once; Ctrl+Space works there; anywhere else nothing pops); it re-runs on
+  every keystroke (no `validFor`), so typing `}}` closes it; Escape closes, text stays. Options =
+  every KEY of the project's environments, merged by key: **available** (in the active env:
+  value preview ~30 chars, secrets a lock and no preview) always above **unavailable** (only in
+  other envs, or no active env: dimmed `--var-unavailable`, env hint "in prod, staging +N",
+  selectable); inside a group prefix before substring, then alphabetical (case-insensitive,
+  inserted with its real case); `filter: false` keeps that order. A project without variables
+  shows the disabled "No variables in this project" line. Accept inserts `KEY}}` (or only the
+  key when `}}` already follows — the rest of an old key up to it is replaced) and puts the
+  cursor past the braces. Data: `EnvContext.keys` (Go `envs.WithKeys`, bound context calls
+  only: every env's keys + types + env names, values dropped in Go) in the env store snapshot —
+  no bridge call per keystroke. **Keys**: in line editors Enter/Tab accept while a completion is
+  active and are swallowed while it is pending (`enterAction`), so Enter never sends and Tab
+  never leaves the field mid-completion; with no completion they Send / move focus.
 - **Editing from the hover tooltip** (`tooltipActions` / `saveFromTooltip` in `src/vars.ts`,
   bridge calls in `src/varEdit.ts`): a resolved var shows Edit; a secret shows Reveal, then
   Edit (saved through `SetVariableValue`, so it stays local); an unresolved var with an active
@@ -350,7 +367,7 @@ frontend/                Vite + Solid + TS
 
 ## Backlog (deliberately deferred)
 
-- `{{var}}` **autocomplete** on typing `{{`; variable usage search; env duplication;
+- Variable usage search; env duplication;
   dynamic/generated variables.
 - More cascading settings through the same resolver (proxy, timeout, TLS / insecure);
   the Settings sub-tab and the folder Settings… modal are their home. Auth: OAuth 2.0, digest.

@@ -912,6 +912,24 @@ export namespace engine {
 
 export namespace envs {
 	
+	export class KeyInfo {
+	    key: string;
+	    envs: string[];
+	    env_ids: string[];
+	    secret: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new KeyInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.envs = source["envs"];
+	        this.env_ids = source["env_ids"];
+	        this.secret = source["secret"];
+	    }
+	}
 	export class VariableView {
 	    id: string;
 	    key: string;
@@ -939,6 +957,7 @@ export namespace envs {
 	    active_id: string;
 	    active_name: string;
 	    variables: VariableView[];
+	    keys: KeyInfo[];
 	
 	    static createFrom(source: any = {}) {
 	        return new EnvContext(source);
@@ -950,6 +969,7 @@ export namespace envs {
 	        this.active_id = source["active_id"];
 	        this.active_name = source["active_name"];
 	        this.variables = this.convertValues(source["variables"], VariableView);
+	        this.keys = this.convertValues(source["keys"], KeyInfo);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -970,6 +990,7 @@ export namespace envs {
 		    return a;
 		}
 	}
+	
 
 }
 

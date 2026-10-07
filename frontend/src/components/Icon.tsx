@@ -1,4 +1,5 @@
 import { JSX } from "solid-js";
+import { LOCK_PATH } from "../iconPaths";
 
 // The app's icon set: hand-picked inline SVGs on a 16 px grid, stroked with
 // currentColor so they follow the theme and the surrounding text color. No icon
@@ -38,6 +39,7 @@ const SHAPES = {
   // Collapse all / expand all: chevrons pointing in / out.
   collapse: () => <path d="M5 2.75L8 5.75l3-3M5 13.25L8 10.25l3 3" />,
   expand: () => <path d="M5 5.75L8 2.75l3 3M5 10.25L8 13.25l3-3" />,
+  lock: () => <path d={LOCK_PATH} />,
   // Show / hide a password.
   eye: () => (
     <>
