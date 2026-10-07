@@ -8,21 +8,23 @@ import (
 
 // Folder is one entry of a project's flat folder list. ParentID is nil at the project root.
 type Folder struct {
-	ID        string  `json:"id"`
-	ParentID  *string `json:"parent_id"`
-	Name      string  `json:"name"`
-	SortOrder int32   `json:"sort_order"`
-	CreatedAt string  `json:"created_at"`
+	ID              string  `json:"id"`
+	ParentID        *string `json:"parent_id"`
+	Name            string  `json:"name"`
+	FollowRedirects string  `json:"follow_redirects"` // cascading setting: inherit|global|on|off
+	SortOrder       int32   `json:"sort_order"`
+	CreatedAt       string  `json:"created_at"`
 }
 
 // FolderDetail is a single folder as returned by create/rename/move.
 type FolderDetail struct {
-	ID        string  `json:"id"`
-	ProjectID string  `json:"project_id"`
-	ParentID  *string `json:"parent_id"`
-	Name      string  `json:"name"`
-	SortOrder int32   `json:"sort_order"`
-	CreatedAt string  `json:"created_at"`
+	ID              string  `json:"id"`
+	ProjectID       string  `json:"project_id"`
+	ParentID        *string `json:"parent_id"`
+	Name            string  `json:"name"`
+	FollowRedirects string  `json:"follow_redirects"`
+	SortOrder       int32   `json:"sort_order"`
+	CreatedAt       string  `json:"created_at"`
 }
 
 func folderPath(id string) string { return "/api/v1/folders/" + url.PathEscape(id) }
@@ -46,6 +48,13 @@ func (c *APIClient) ListFolders(ctx context.Context, projectID string) ([]Folder
 func (c *APIClient) RenameFolder(ctx context.Context, id, name string) (FolderDetail, error) {
 	var out FolderDetail
 	err := c.do(ctx, http.MethodPatch, folderPath(id), map[string]string{"name": name}, &out)
+	return out, err
+}
+
+// SetFolderFollowRedirects sets a folder's cascading follow_redirects value.
+func (c *APIClient) SetFolderFollowRedirects(ctx context.Context, id, value string) (FolderDetail, error) {
+	var out FolderDetail
+	err := c.do(ctx, http.MethodPatch, folderPath(id), map[string]string{"follow_redirects": value}, &out)
 	return out, err
 }
 

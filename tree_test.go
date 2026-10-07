@@ -10,7 +10,7 @@ func TestBoundTreeMethods(t *testing.T) {
 	var moveBody, createBody string
 	a := newTestApp(t, true, map[string]http.HandlerFunc{
 		"GET /api/v1/projects/{project_id}/folders": func(w http.ResponseWriter, _ *http.Request) {
-			_, _ = w.Write([]byte(`[{"id":"f1","parent_id":null,"name":"A","sort_order":0,"created_at":"x"}]`))
+			_, _ = w.Write([]byte(`[{"id":"f1","parent_id":null,"name":"A","follow_redirects":"off","sort_order":0,"created_at":"x"}]`))
 		},
 		"POST /api/v1/projects/{project_id}/requests": func(w http.ResponseWriter, r *http.Request) {
 			raw, _ := io.ReadAll(r.Body)
@@ -26,7 +26,7 @@ func TestBoundTreeMethods(t *testing.T) {
 	})
 
 	if got, want := toJSON(t, a.ListFolders("p1")),
-		`{"data":[{"id":"f1","parent_id":null,"name":"A","sort_order":0,"created_at":"x"}]}`; got != want {
+		`{"data":[{"id":"f1","parent_id":null,"name":"A","follow_redirects":"off","sort_order":0,"created_at":"x"}]}`; got != want {
 		t.Errorf("ListFolders = %s\nwant %s", got, want)
 	}
 

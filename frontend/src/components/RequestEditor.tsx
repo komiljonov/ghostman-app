@@ -1,10 +1,12 @@
-import { createSignal, For, Match, Show, Switch } from "solid-js";
+import { For, Match, Show, Switch } from "solid-js";
 import { Row } from "../rows";
 import { applyUrlInput, serializeUrl } from "../urlParams";
 import { TabsController, TabState } from "../tabsController";
 import BodyEditor from "./BodyEditor";
 import KeyValueTable from "./KeyValueTable";
 import RequestSettingsPanel from "./RequestSettingsPanel";
+import { ownFollow } from "../requestSettings";
+import { currentTree } from "../treeStore";
 import ResponseView from "./ResponseView";
 import SaveIndicator from "./SaveIndicator";
 import UrlEditor from "./UrlEditor";
@@ -23,7 +25,6 @@ const countRows = (rows: Row[]) => rows.filter((r) => r.key.trim() !== "").lengt
 export default function RequestEditor(props: Props) {
   let split!: HTMLDivElement;
   const id = () => props.tab.id;
-  const [optionsError, setOptionsError] = createSignal<string>();
   const edit = (fn: Parameters<TabsController["edit"]>[1]) => props.controller.edit(id(), fn);
   const view = (fn: (t: TabState) => void) => props.controller.view(id(), fn);
 
@@ -100,7 +101,7 @@ export default function RequestEditor(props: Props) {
                       <Show when={s.id === "body" && props.tab.draft.body.type !== "none"}>
                         <span class="muted"> {props.tab.draft.body.type}</span>
                       </Show>
-                      <Show when={s.id === "settings" && props.tab.redirectMode !== "default"}>
+                      <Show when={s.id === "settings" && ownFollow(currentTree(), props.tab.id) !== "inherit"}>
                         <span class="section-dot" title="This request overrides a default" />
                       </Show>
                     </button>
@@ -124,8 +125,7 @@ export default function RequestEditor(props: Props) {
                     <BodyEditor body={props.tab.draft.body} onChange={(fn) => edit((d) => fn(d.body))} />
                   </Match>
                   <Match when={props.tab.section === "settings"}>
-                    <RequestSettingsPanel mode={props.tab.redirectMode} error={optionsError()}
-                      onMode={async (m) => setOptionsError((await props.controller.setRedirectMode(id(), m))?.message)} />
+                    <RequestSettingsPanel requestId={props.tab.id} />
                   </Match>
                 </Switch>
               </div>

@@ -26,8 +26,9 @@ edge; double-click to reset). HTML responses can be previewed in a sandboxed fra
 JSON objects/arrays collapse (gutter, or Collapse All / Expand All), right-click copies, and the
 download icon saves the full response (up to 20 MB, even when only 256 KB is shown). Click the
 duration for per-hop timing (DNS, connect, waiting, download — one section per redirect); whether
-redirects are followed is a default in Settings, and a request can override it in its Settings
-tab (stored on this machine only). Tabs can be reordered by dragging; right-click a tab
+redirects are followed cascades: a request or folder can follow, not follow, use the global value
+(Settings, this machine) or inherit from its folder — set in the request's Settings tab or a
+folder's Settings…, shared with the team. Tabs can be reordered by dragging; right-click a tab
 for Close / Close Others / Close All. Settings has a System / Dark / Light theme.
 
 The window is laid out Postman-style: a top bar with team and project switchers (their menus

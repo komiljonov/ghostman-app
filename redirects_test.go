@@ -1,16 +1,20 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"ghostman/internal/api"
 	"ghostman/internal/engine"
+	"ghostman/internal/store"
 )
 
-func TestRedirectSettingsDefaultAndOverride(t *testing.T) {
+func TestSendUsesTheResolvedFollowFlag(t *testing.T) {
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/start" {
 			http.Redirect(w, r, "/done", http.StatusFound)
@@ -21,67 +25,148 @@ func TestRedirectSettingsDefaultAndOverride(t *testing.T) {
 	defer target.Close()
 	a := newTestApp(t, true, nil)
 	draft := api.RequestDraft{Method: "GET", URL: target.URL + "/start"}
-	status := func(id string) int {
-		t.Helper()
-		res := a.SendRequest("p1", id, draft)
-		if res.Error != nil {
-			t.Fatal(res.Error.Message)
+	if res := a.SendRequest("p1", "r1", draft, true); res.Error != nil || res.Data.Status != 200 || len(res.Hops) != 2 {
+		t.Fatalf("follow: %+v", res.Error)
+	}
+	if res := a.SendRequest("p1", "r1", draft, false); res.Error != nil || res.Data.Status != 302 || len(res.Hops) != 1 {
+		t.Fatalf("don't follow: %+v", res.Error)
+	}
+}
+
+// settingsServer records PATCH bodies for requests and folders; ids in fail
+// answer 500, ids in gone answer 404.
+type settingsServer struct {
+	mu      sync.Mutex
+	patches []string
+	fail    map[string]bool
+	gone    map[string]bool
+}
+
+func (s *settingsServer) routes() map[string]http.HandlerFunc {
+	h := func(kind string) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			id := r.PathValue("id")
+			if s.gone[id] {
+				writeEnvelope(w, http.StatusNotFound, "not_found", "request not found")
+				return
+			}
+			if s.fail[id] {
+				writeEnvelope(w, http.StatusInternalServerError, "internal", "boom")
+				return
+			}
+			b, _ := io.ReadAll(r.Body)
+			s.patches = append(s.patches, kind+" "+id+" "+string(b))
+			_, _ = w.Write([]byte(`{"id":"` + id + `","name":"x","follow_redirects":"on"}`))
 		}
-		return res.Data.Status
 	}
-	set := func(id, mode string) {
-		t.Helper()
-		if r := a.SetRequestRedirects(id, mode); r.Error != nil {
-			t.Fatal(r.Error.Message)
-		}
-	}
+	return map[string]http.HandlerFunc{"PATCH /api/v1/requests/{id}": h("request"), "PATCH /api/v1/folders/{id}": h("folder")}
+}
 
-	// Defaults: global on, every request uses it.
-	if got := a.GetRequestRedirects("r1"); got != (RedirectSetting{Mode: RedirectsDefault, Default: true, Effective: true}) || !a.GetFollowRedirectsDefault() {
-		t.Fatalf("defaults: %+v", got)
-	}
-	if res := a.SendRequest("p1", "r1", draft); res.Data.Status != 200 || len(res.Hops) != 2 {
-		t.Fatalf("follow by default: %d, %d hops", res.Data.Status, len(res.Hops))
-	}
-
-	// Per-request override beats the default.
-	set("r1", RedirectsNever)
-	if got := a.GetRequestRedirects("r1"); got != (RedirectSetting{Mode: RedirectsNever, Default: true, Effective: false}) {
-		t.Fatalf("never: %+v", got)
-	}
-	if status("r1") != 302 || status("r2") != 200 {
-		t.Fatal("r1 never follows; r2 still uses the default")
-	}
-
-	// Turning the global default off changes untouched requests only.
-	if r := a.SetFollowRedirectsDefault(false); r.Error != nil {
+func TestSetFollowRedirectsPatchesTheServer(t *testing.T) {
+	srv := &settingsServer{}
+	a := newTestApp(t, true, srv.routes())
+	if r := a.SetRequestFollowRedirects("r1", "global"); r.Error != nil {
 		t.Fatal(r.Error.Message)
 	}
-	set("r3", RedirectsAlways)
-	if status("r2") != 302 || status("r3") != 200 || status("r1") != 302 {
-		t.Fatal("r2 follows the default (off), r3 always follows, r1 never")
+	if r := a.SetFolderFollowRedirects("f1", "off"); r.Error != nil {
+		t.Fatal(r.Error.Message)
 	}
-	if got := a.GetRequestRedirects("r2"); got != (RedirectSetting{Mode: RedirectsDefault, Default: false, Effective: false}) {
-		t.Fatalf("r2: %+v", got)
+	want := []string{`request r1 {"follow_redirects":"global"}`, `folder f1 {"follow_redirects":"off"}`}
+	if strings.Join(srv.patches, "|") != strings.Join(want, "|") {
+		t.Fatalf("patches = %v", srv.patches)
+	}
+	if r := a.SetRequestFollowRedirects("r1", "sometimes"); r.Error == nil || r.Error.Kind != "invalid" {
+		t.Fatalf("invalid value accepted: %+v", r.Error)
+	}
+	if r := a.SetFolderFollowRedirects("f1", ""); r.Error == nil {
+		t.Fatal("empty value accepted")
+	}
+	if len(srv.patches) != 2 {
+		t.Fatal("invalid values must not reach the server")
+	}
+}
+
+func seedLegacy(t *testing.T, a *App, rows map[string]int64) {
+	t.Helper()
+	for id, v := range rows {
+		if err := a.store.PutFollowRedirects(a.ctx, store.PutFollowRedirectsParams{RequestID: id, FollowRedirects: v}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestMigrateLegacyRequestSettings(t *testing.T) {
+	srv := &settingsServer{gone: map[string]bool{"r-deleted": true}}
+	a := newTestApp(t, true, srv.routes())
+	seedLegacy(t, a, map[string]int64{"r-always": 1, "r-never": 0, "r-deleted": 1})
+
+	got := a.MigrateLegacyRequestSettings()
+	if got != (LegacyMigration{Pushed: 2, Dropped: 1}) {
+		t.Fatalf("result = %+v", got)
+	}
+	sort.Strings(srv.patches)
+	want := []string{`request r-always {"follow_redirects":"on"}`, `request r-never {"follow_redirects":"off"}`}
+	if strings.Join(srv.patches, "|") != strings.Join(want, "|") {
+		t.Fatalf("patches = %v (old Always -> on, Never -> off)", srv.patches)
+	}
+	// The table is gone; a second run is a no-op.
+	if rows, err := a.store.LegacyRequestSettings(a.ctx); err != nil || len(rows) != 0 {
+		t.Fatalf("rows left: %v %v", rows, err)
+	}
+	if again := a.MigrateLegacyRequestSettings(); again != (LegacyMigration{}) || len(srv.patches) != 2 {
+		t.Fatalf("second run must do nothing: %+v", again)
+	}
+}
+
+func TestMigrateLegacyRequestSettingsResumesAfterAFailure(t *testing.T) {
+	srv := &settingsServer{fail: map[string]bool{"r2": true}}
+	a := newTestApp(t, true, srv.routes())
+	seedLegacy(t, a, map[string]int64{"r1": 1, "r2": 0, "r3": 1}) // pushed in id order
+
+	got := a.MigrateLegacyRequestSettings()
+	if got.Pushed != 1 || got.Remaining != 2 {
+		t.Fatalf("interrupted run = %+v", got)
+	}
+	rows, _ := a.store.LegacyRequestSettings(a.ctx)
+	if len(rows) != 2 || rows[0].RequestID != "r2" {
+		t.Fatalf("r1 must be forgotten, r2 and r3 kept: %+v", rows)
 	}
 
-	// Back to "use the default".
-	set("r3", RedirectsDefault)
-	if status("r3") != 302 {
-		t.Fatal("r3 uses the (off) default again")
+	srv.mu.Lock()
+	srv.fail = nil
+	srv.mu.Unlock()
+	got = a.MigrateLegacyRequestSettings()
+	if got != (LegacyMigration{Pushed: 2}) {
+		t.Fatalf("resumed run = %+v", got)
 	}
-	if r := a.SetRequestRedirects("r1", "sometimes"); r.Error == nil || r.Error.Kind != "invalid" {
-		t.Fatalf("unknown mode accepted: %+v", r)
+	if rows, _ := a.store.LegacyRequestSettings(a.ctx); len(rows) != 0 {
+		t.Fatal("table must be gone after the resumed run")
+	}
+	if len(srv.patches) != 3 {
+		t.Fatalf("each row pushed once after resuming: %v", srv.patches)
+	}
+}
+
+func TestLegacyMigrationNeedsALogin(t *testing.T) {
+	a := newTestApp(t, false, nil)
+	seedLegacy(t, a, map[string]int64{"r1": 0})
+	if got := a.MigrateLegacyRequestSettings(); got != (LegacyMigration{}) {
+		t.Fatalf("logged out: %+v", got)
+	}
+	if rows, _ := a.store.LegacyRequestSettings(a.ctx); len(rows) != 1 {
+		t.Fatal("rows must wait for a login")
 	}
 }
 
 func TestFailedSendStillReturnsHops(t *testing.T) {
 	a := newTestApp(t, true, nil)
-	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: "http://127.0.0.1:1/x"})
+	res := a.SendRequest("p1", "r1", api.RequestDraft{Method: "GET", URL: "http://127.0.0.1:1/x"}, true)
 	if res.Error == nil || len(res.Hops) != 1 || res.Hops[0].FailedPhase != engine.PhaseConnect {
 		t.Fatalf("want one failed hop (connect): %+v %+v", res.Error, res.Hops)
 	}
-	if res = a.SendRequest("p1", "r1", api.RequestDraft{URL: "not a url"}); res.Hops == nil || len(res.Hops) != 0 {
+	if res = a.SendRequest("p1", "r1", api.RequestDraft{URL: "not a url"}, true); res.Hops == nil || len(res.Hops) != 0 {
 		t.Fatalf("nothing sent: hops must be an empty list, got %v", res.Hops)
 	}
 }

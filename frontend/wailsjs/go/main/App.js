@@ -102,10 +102,6 @@ export function GetRequest(arg1) {
   return window['go']['main']['App']['GetRequest'](arg1);
 }
 
-export function GetRequestRedirects(arg1) {
-  return window['go']['main']['App']['GetRequestRedirects'](arg1);
-}
-
 export function GetSecretValue(arg1, arg2) {
   return window['go']['main']['App']['GetSecretValue'](arg1, arg2);
 }
@@ -176,6 +172,10 @@ export function Login(arg1, arg2) {
 
 export function Logout() {
   return window['go']['main']['App']['Logout']();
+}
+
+export function MigrateLegacyRequestSettings() {
+  return window['go']['main']['App']['MigrateLegacyRequestSettings']();
 }
 
 export function MoveEnvironment(arg1, arg2, arg3) {
@@ -258,12 +258,16 @@ export function SelectTeam(arg1) {
   return window['go']['main']['App']['SelectTeam'](arg1);
 }
 
-export function SendRequest(arg1, arg2, arg3) {
-  return window['go']['main']['App']['SendRequest'](arg1, arg2, arg3);
+export function SendRequest(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['SendRequest'](arg1, arg2, arg3, arg4);
 }
 
 export function SetActiveEnvironment(arg1, arg2) {
   return window['go']['main']['App']['SetActiveEnvironment'](arg1, arg2);
+}
+
+export function SetFolderFollowRedirects(arg1, arg2) {
+  return window['go']['main']['App']['SetFolderFollowRedirects'](arg1, arg2);
 }
 
 export function SetFollowRedirectsDefault(arg1) {
@@ -278,8 +282,8 @@ export function SetProjectAccess(arg1, arg2) {
   return window['go']['main']['App']['SetProjectAccess'](arg1, arg2);
 }
 
-export function SetRequestRedirects(arg1, arg2) {
-  return window['go']['main']['App']['SetRequestRedirects'](arg1, arg2);
+export function SetRequestFollowRedirects(arg1, arg2) {
+  return window['go']['main']['App']['SetRequestFollowRedirects'](arg1, arg2);
 }
 
 export function SetResponseWrap(arg1) {

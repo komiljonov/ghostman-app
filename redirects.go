@@ -3,85 +3,18 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net/http"
 
+	"ghostman/internal/api"
 	"ghostman/internal/session"
 )
 
-// Follow-redirects settings, local to this machine (never synced): a global
-// default (Settings modal) and an optional per-request override (the request's
-// Settings sub-tab). Go resolves the effective value at send time.
+// Follow redirects is a cascading setting: requests and folders store
+// inherit | global | on | off on the SERVER (shared with the team); the global
+// value is local to this machine (Settings). The UI resolves the effective value
+// (frontend/src/settingsResolver.ts) and passes it to SendRequest.
 
-// Per-request redirect modes.
-const (
-	RedirectsDefault = "default" // use the global default
-	RedirectsAlways  = "always"
-	RedirectsNever   = "never"
-)
-
-// RedirectSetting is a request's redirect setting as the UI shows it.
-type RedirectSetting struct {
-	Mode      string `json:"mode"`      // default | always | never
-	Default   bool   `json:"default"`   // the global default
-	Effective bool   `json:"effective"` // what a send will do
-}
-
-// followRedirects is the effective value for a send: override, else the default.
-func (a *App) followRedirects(ctx context.Context, requestID string) bool {
-	return a.redirectSetting(ctx, requestID).Effective
-}
-
-func (a *App) redirectSetting(ctx context.Context, requestID string) RedirectSetting {
-	out := RedirectSetting{Mode: RedirectsDefault, Default: true, Effective: true}
-	if a.store == nil {
-		return out
-	}
-	def, err := a.store.FollowRedirectsDefault(ctx)
-	if err != nil {
-		slog.Warn("load follow-redirects default", "err", err)
-	}
-	out.Default, out.Effective = def, def
-	override, err := a.store.FollowRedirectsOverride(ctx, requestID)
-	if err != nil {
-		slog.Warn("load follow-redirects override", "err", err)
-		return out
-	}
-	if override != nil {
-		out.Effective = *override
-		out.Mode = RedirectsNever
-		if *override {
-			out.Mode = RedirectsAlways
-		}
-	}
-	return out
-}
-
-// GetRequestRedirects returns a request's redirect setting (mode, default, effective).
-func (a *App) GetRequestRedirects(requestID string) RedirectSetting {
-	return a.redirectSetting(a.ctx, requestID)
-}
-
-// SetRequestRedirects sets a request's mode: "default" (use the global default),
-// "always" or "never".
-func (a *App) SetRequestRedirects(requestID, mode string) EmptyResult {
-	var override *bool
-	switch mode {
-	case RedirectsDefault:
-	case RedirectsAlways, RedirectsNever:
-		v := mode == RedirectsAlways
-		override = &v
-	default:
-		return EmptyResult{Error: &session.Problem{Kind: session.KindInvalid, Message: `mode must be "default", "always" or "never"`}}
-	}
-	if a.store == nil {
-		return EmptyResult{Error: problemNotLoggedIn}
-	}
-	if err := a.store.SetFollowRedirectsOverride(a.ctx, requestID, override); err != nil {
-		return EmptyResult{Error: session.ProblemFrom(err)}
-	}
-	return EmptyResult{}
-}
-
-// GetFollowRedirectsDefault is the global default (true unless turned off).
+// GetFollowRedirectsDefault is the global setting (true unless turned off). Local.
 func (a *App) GetFollowRedirectsDefault() bool {
 	if a.store == nil {
 		return true
@@ -93,7 +26,7 @@ func (a *App) GetFollowRedirectsDefault() bool {
 	return def
 }
 
-// SetFollowRedirectsDefault saves the global default.
+// SetFollowRedirectsDefault saves the global setting. Local.
 func (a *App) SetFollowRedirectsDefault(follow bool) EmptyResult {
 	if a.store == nil {
 		return EmptyResult{Error: problemNotLoggedIn}
@@ -102,4 +35,89 @@ func (a *App) SetFollowRedirectsDefault(follow bool) EmptyResult {
 		return EmptyResult{Error: session.ProblemFrom(err)}
 	}
 	return EmptyResult{}
+}
+
+func invalidToggle() *session.Problem {
+	return &session.Problem{Kind: session.KindInvalid, Message: `follow_redirects must be "inherit", "global", "on" or "off"`}
+}
+
+// SetRequestFollowRedirects sets a request's follow_redirects on the server.
+func (a *App) SetRequestFollowRedirects(id, value string) RequestResult {
+	if !api.ValidToggle(value) {
+		return RequestResult{Error: invalidToggle()}
+	}
+	v, p := call(a, func(ctx context.Context, c *api.APIClient) (api.Request, error) {
+		return c.UpdateRequest(ctx, id, api.RequestPatch{FollowRedirects: &value})
+	})
+	return RequestResult{Data: ptr(v, p), Error: p}
+}
+
+// SetFolderFollowRedirects sets a folder's follow_redirects on the server.
+func (a *App) SetFolderFollowRedirects(id, value string) FolderResult {
+	if !api.ValidToggle(value) {
+		return FolderResult{Error: invalidToggle()}
+	}
+	v, p := call(a, func(ctx context.Context, c *api.APIClient) (api.FolderDetail, error) {
+		return c.SetFolderFollowRedirects(ctx, id, value)
+	})
+	return FolderResult{Data: ptr(v, p), Error: p}
+}
+
+// LegacyMigration reports the one-time push of old local per-request overrides.
+type LegacyMigration struct {
+	Pushed    int `json:"pushed"`    // PATCHed to the server
+	Dropped   int `json:"dropped"`   // request gone / no access: nothing to push
+	Remaining int `json:"remaining"` // left for the next run (server unreachable, ...)
+}
+
+// legacyValue maps an old local override to the server value: the old
+// "Always" (1) → on, "Never" (0) → off. The old "use default" had no row; the
+// server's default for those requests is already "inherit".
+func legacyValue(follow bool) string {
+	if follow {
+		return api.SettingOn
+	}
+	return api.SettingOff
+}
+
+// MigrateLegacyRequestSettings pushes the old local request_settings rows to
+// the server once, then drops the table. Each row is deleted right after its
+// PATCH succeeds, so an interrupted run just resumes (re-PATCHing is harmless).
+// Rows whose request is gone or not accessible (404/403/400) are dropped; any
+// other failure stops the run and keeps the rest for next time.
+func (a *App) MigrateLegacyRequestSettings() LegacyMigration {
+	var out LegacyMigration
+	if a.store == nil || !a.session.IsLoggedIn() {
+		return out
+	}
+	rows, err := a.store.LegacyRequestSettings(a.ctx)
+	if err != nil {
+		slog.Warn("read legacy request settings", "err", err)
+		return out
+	}
+	for i, r := range rows {
+		value := legacyValue(r.Follow)
+		_, p := call(a, func(ctx context.Context, c *api.APIClient) (api.Request, error) {
+			return c.UpdateRequest(ctx, r.RequestID, api.RequestPatch{FollowRedirects: &value})
+		})
+		switch {
+		case p == nil:
+			out.Pushed++
+		case p.Kind == session.KindServer && (p.Status == http.StatusNotFound || p.Status == http.StatusForbidden || p.Status == http.StatusBadRequest):
+			out.Dropped++
+		default:
+			out.Remaining = len(rows) - i
+			slog.Warn("push legacy request setting; will retry", "remaining", out.Remaining, "err", p.Message)
+			return out
+		}
+		if err := a.store.DoneLegacyRequestSetting(a.ctx, r.RequestID); err != nil {
+			slog.Warn("forget pushed request setting", "err", err)
+		}
+	}
+	if err := a.store.DropLegacyRequestSettings(a.ctx); err != nil {
+		slog.Warn("drop request_settings", "err", err)
+	} else if len(rows) > 0 {
+		slog.Info("pushed local request settings to the server", "pushed", out.Pushed, "dropped", out.Dropped)
+	}
+	return out
 }

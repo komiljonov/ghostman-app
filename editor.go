@@ -121,7 +121,7 @@ func (a *App) SaveRequest(id string, base, draft api.RequestDraft) RequestResult
 // project's active environment (local secret values included). A send already
 // running for the same request is cancelled first. Every send is recorded in local
 // history — with the unresolved template URL, so secrets never land in history or logs.
-func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft) SendResult {
+func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, followRedirects bool) SendResult {
 	if !a.session.IsLoggedIn() {
 		return SendResult{Error: problemNotLoggedIn, Unresolved: []string{}}
 	}
@@ -170,9 +170,8 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft) S
 	if unresolved == nil {
 		unresolved = []string{}
 	}
-	follow := a.followRedirects(ctx, requestID)
 	start := time.Now()
-	resp, err := a.engine.Send(ctx, spec, engine.SendOptions{FollowRedirects: follow})
+	resp, err := a.engine.Send(ctx, spec, engine.SendOptions{FollowRedirects: followRedirects})
 	a.recordHistory(template, resp, err, start)
 	// The tab's active response (full body, Go-side) — unless a newer send of the
 	// same request has taken over meanwhile.

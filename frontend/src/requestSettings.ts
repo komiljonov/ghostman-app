@@ -1,55 +1,64 @@
-// Redirect settings, kept only on this machine (Go: SQLite). A global default
-// (Settings modal) and a per-request mode (the request's Settings sub-tab):
-// "default" (use the global value), "always" or "never". Go resolves the
-// effective value at send time; these helpers only wire the UI. Values load
-// with the tab; a change shows at once and is saved immediately — reverted if
-// saving fails.
+// Follow redirects: a cascading setting (settingsResolver.ts). Requests and
+// folders store inherit | global | on | off on the server (shared with the team);
+// the global value is local to this machine (Settings). These helpers build the
+// UI labels and wire saving; resolution itself is settingsResolver.ts.
 import type { session } from "../wailsjs/go/models";
+import { GLOBAL, INHERIT, Resolved, resolveInTree, resolveParent, sourceLabel } from "./settingsResolver";
+import type { Tree } from "./tree";
 
-export type RedirectMode = "default" | "always" | "never";
+export type FollowValue = "inherit" | "global" | "on" | "off";
 
-export const REDIRECT_MODES: RedirectMode[] = ["default", "always", "never"];
+export const FOLLOW_VALUES: FollowValue[] = ["inherit", "global", "on", "off"];
 
-export const asRedirectMode = (v: string | undefined): RedirectMode =>
-  v === "always" || v === "never" ? v : "default";
+export const asFollowValue = (v: string | undefined): FollowValue =>
+  v === "global" || v === "on" || v === "off" ? v : "inherit";
 
-// What a send will do for this mode, given the global default.
-export const effectiveFollow = (mode: RedirectMode, globalDefault: boolean) =>
-  mode === "default" ? globalDefault : mode === "always";
+const explicitFollow = (v: string): boolean | undefined => (v === "on" ? true : v === "off" ? false : undefined);
 
-export function modeLabel(mode: RedirectMode, globalDefault: boolean): string {
-  if (mode === "default") return `Use default (${globalDefault ? "on" : "off"})`;
-  return mode === "always" ? "Always follow" : "Never follow";
+const onOff = (b: boolean) => (b ? "on" : "off");
+
+// The effective value for a request or folder (default: the global value).
+export function resolveFollow(tree: Tree, id: string, globalFollow: boolean): Resolved<boolean> {
+  return resolveInTree(tree, id, "follow_redirects", globalFollow, explicitFollow) ?? { value: globalFollow, source: { kind: "global" } };
 }
 
-export interface ModeDeps {
-  set: (requestId: string, mode: RedirectMode) => Promise<{ error?: session.Problem }>;
-  show: (mode: RedirectMode) => void; // reflect in the tab state
+export interface FollowOption {
+  value: FollowValue;
+  label: string;
 }
 
-export async function loadRedirectMode(
-  requestId: string,
-  deps: { get: (requestId: string) => Promise<{ mode: string }>; show: (mode: RedirectMode) => void },
-): Promise<void> {
-  let mode: RedirectMode = "default";
-  try {
-    mode = asRedirectMode((await deps.get(requestId)).mode);
-  } catch {
-    // keep the default
-  }
-  deps.show(mode);
+// The four choices with live "currently" labels. For "inherit" it names where the
+// value would come from (the nearest folder with a value, or global).
+export function followOptions(tree: Tree, id: string, globalFollow: boolean): FollowOption[] {
+  const parent = resolveParent(tree, id, "follow_redirects", globalFollow, explicitFollow)
+    ?? { value: globalFollow, source: { kind: "global" as const } };
+  return [
+    { value: INHERIT, label: `Inherit from parent — currently: ${onOff(parent.value)} (${sourceLabel(parent.source)})` },
+    { value: GLOBAL, label: `Use global setting — currently: ${onOff(globalFollow)}` },
+    { value: "on", label: "Always follow" },
+    { value: "off", label: "Never follow" },
+  ];
 }
 
-// Returns the problem to show, or undefined when saved.
-export async function changeRedirectMode(requestId: string, from: RedirectMode, to: RedirectMode, deps: ModeDeps): Promise<session.Problem | undefined> {
-  if (from === to) return undefined;
-  deps.show(to);
-  const result = await deps.set(requestId, to);
-  if (result.error) deps.show(from);
-  return result.error;
+// The node's own stored value.
+export function ownFollow(tree: Tree, id: string): FollowValue {
+  const node = tree.requests.get(id) ?? tree.folders.get(id);
+  return asFollowValue(node?.settings.follow_redirects);
 }
 
-// The global default: same optimistic save + revert.
+// Save a value on the server, then re-fetch the tree (server data is never patched
+// locally; everything under the node re-resolves from the fresh lists).
+export async function saveFollow(
+  id: string, value: FollowValue,
+  deps: { set: (id: string, value: string) => Promise<{ error?: session.Problem }>; reload: () => void | Promise<void> },
+): Promise<session.Problem | undefined> {
+  const result = await deps.set(id, value);
+  if (result.error) return result.error;
+  await deps.reload();
+  return undefined;
+}
+
+// The global value: optimistic save + revert (local setting, no server).
 export async function changeRedirectDefault(
   from: boolean, to: boolean,
   deps: { set: (follow: boolean) => Promise<{ error?: session.Problem }>; show: (follow: boolean) => void },

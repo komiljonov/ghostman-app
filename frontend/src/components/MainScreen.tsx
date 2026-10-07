@@ -12,6 +12,10 @@ import ProjectSwitcher from "./ProjectSwitcher";
 import ProfileMenu from "./ProfileMenu";
 import ProjectSidebar from "./ProjectSidebar";
 import ProjectTree from "./ProjectTree";
+import { MigrateLegacyRequestSettings } from "../../wailsjs/go/main/App";
+import { redirectDefault } from "../redirectDefault";
+import { resolveFollow } from "../requestSettings";
+import { currentTree } from "../treeStore";
 import SidebarResizer from "./SidebarResizer";
 import TeamSettingsView from "./TeamSettingsView";
 import ProjectSettingsView from "./ProjectSettingsView";
@@ -55,7 +59,11 @@ export default function MainScreen(props: Props) {
   // one, which flushes its pending autosaves first.
   const tabs = createMemo(on(projectId, (id) => {
     if (!id) return undefined;
-    const controller = createTabsController(id, { onTreeStale: () => setTreeTick((n) => n + 1) });
+    const controller = createTabsController(id, {
+      onTreeStale: () => setTreeTick((n) => n + 1),
+      // Cascading follow_redirects, resolved from the tree store + the global value.
+      followRedirects: (requestId) => resolveFollow(currentTree(), requestId, redirectDefault()).value,
+    });
     void controller.restore();
     onCleanup(() => controller.dispose());
     return controller;
@@ -102,6 +110,13 @@ export default function MainScreen(props: Props) {
       if (tabsUsable() && key) void tabs()!.close(key);
     },
   });
+  // One time after the update: old local per-request redirect overrides move to
+  // the server (Go deletes each once pushed, then the table; idempotent).
+  onMount(async () => {
+    const result = await MigrateLegacyRequestSettings();
+    if (result.pushed > 0) setTreeTick((n) => n + 1);
+  });
+
   onMount(() => {
     const onKey = (e: KeyboardEvent) => {
       const action = shortcutAction(e);

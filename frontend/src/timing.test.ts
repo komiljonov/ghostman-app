@@ -1,7 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
-import {
-  asRedirectMode, changeRedirectDefault, changeRedirectMode, effectiveFollow, loadRedirectMode, modeLabel,
-} from "./requestSettings";
+import { describe, expect, it } from "vitest";
 import { formatMs, HopLike, timingModel, triggerLabel } from "./timingModel";
 
 const hop = (over: Partial<HopLike>): HopLike => ({
@@ -60,44 +57,5 @@ describe("timing panel model", () => {
     expect(triggerLabel([], undefined)).toBe("");
     expect(formatMs(1234.6)).toBe("1235 ms");
     expect(formatMs(3.14)).toBe("3.1 ms");
-  });
-});
-
-describe("redirect settings: global default + per-request override", () => {
-  it("the effective value: an override wins, 'default' follows the global setting", () => {
-    expect(effectiveFollow("default", true)).toBe(true);
-    expect(effectiveFollow("default", false)).toBe(false);
-    expect(effectiveFollow("always", false)).toBe(true);
-    expect(effectiveFollow("never", true)).toBe(false);
-    expect(modeLabel("default", false)).toBe("Use default (off)");
-    expect(modeLabel("always", true)).toBe("Always follow");
-    expect(asRedirectMode("weird")).toBe("default");
-  });
-  it("loads the request's mode with the tab ('default' if the call fails)", async () => {
-    const show = vi.fn();
-    await loadRedirectMode("r1", { get: async () => ({ mode: "never" }), show });
-    expect(show).toHaveBeenLastCalledWith("never");
-    await loadRedirectMode("r2", { get: async () => { throw new Error("bridge"); }, show });
-    expect(show).toHaveBeenLastCalledWith("default");
-  });
-  it("shows a new mode at once and saves it immediately; no call when unchanged", async () => {
-    const calls: string[] = [];
-    const deps = {
-      set: vi.fn(async (id: string, m: string) => (calls.push(`set ${id} ${m}`), {})),
-      show: vi.fn((m: string) => void calls.push(`show ${m}`)),
-    };
-    expect(await changeRedirectMode("r1", "default", "never", deps)).toBeUndefined();
-    expect(calls).toEqual(["show never", "set r1 never"]);
-    await changeRedirectMode("r1", "never", "never", deps);
-    expect(deps.set).toHaveBeenCalledTimes(1);
-  });
-  it("reverts the mode or the default when saving fails", async () => {
-    const problem = { kind: "internal", status: 0, code: "", message: "database is locked" };
-    const show = vi.fn();
-    expect(await changeRedirectMode("r1", "default", "always", { set: async () => ({ error: problem }), show })).toBe(problem);
-    expect(show.mock.calls.map((c) => c[0])).toEqual(["always", "default"]);
-    const showDefault = vi.fn();
-    expect(await changeRedirectDefault(true, false, { set: async () => ({ error: problem }), show: showDefault })).toBe(problem);
-    expect(showDefault.mock.calls.map((c) => c[0])).toEqual([false, true]);
   });
 });

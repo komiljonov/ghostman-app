@@ -54,8 +54,6 @@ export function GetProjectAccess(arg1:string):Promise<main.ProjectAccessUserList
 
 export function GetRequest(arg1:string):Promise<main.RequestResult>;
 
-export function GetRequestRedirects(arg1:string):Promise<main.RedirectSetting>;
-
 export function GetSecretValue(arg1:string,arg2:string):Promise<string>;
 
 export function GetSecretValues(arg1:string):Promise<Record<string, string>>;
@@ -91,6 +89,8 @@ export function LoadWorkspace():Promise<main.WorkspaceResult>;
 export function Login(arg1:string,arg2:string):Promise<session.Result>;
 
 export function Logout():Promise<session.AuthState>;
+
+export function MigrateLegacyRequestSettings():Promise<main.LegacyMigration>;
 
 export function MoveEnvironment(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
 
@@ -132,9 +132,11 @@ export function SelectProject(arg1:string):Promise<main.WorkspaceResult>;
 
 export function SelectTeam(arg1:string):Promise<main.WorkspaceResult>;
 
-export function SendRequest(arg1:string,arg2:string,arg3:api.RequestDraft):Promise<main.SendResult>;
+export function SendRequest(arg1:string,arg2:string,arg3:api.RequestDraft,arg4:boolean):Promise<main.SendResult>;
 
 export function SetActiveEnvironment(arg1:string,arg2:string):Promise<main.EnvContextResult>;
+
+export function SetFolderFollowRedirects(arg1:string,arg2:string):Promise<main.FolderResult>;
 
 export function SetFollowRedirectsDefault(arg1:boolean):Promise<main.EmptyResult>;
 
@@ -142,7 +144,7 @@ export function SetMemberAccess(arg1:string,arg2:string,arg3:boolean,arg4:Array<
 
 export function SetProjectAccess(arg1:string,arg2:Array<string>):Promise<main.ProjectAccessResult>;
 
-export function SetRequestRedirects(arg1:string,arg2:string):Promise<main.EmptyResult>;
+export function SetRequestFollowRedirects(arg1:string,arg2:string):Promise<main.RequestResult>;
 
 export function SetResponseWrap(arg1:boolean):Promise<main.EmptyResult>;
 

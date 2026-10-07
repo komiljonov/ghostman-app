@@ -2,43 +2,61 @@ package store
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"strconv"
 )
 
-// Redirect settings, kept only on this machine:
-//   - a global default (settings key follow_redirects_default; true when unset);
-//   - an optional per-request override (request_settings; no row = use the default).
+// Redirect settings on this machine:
+//   - the global follow-redirects setting (settings key follow_redirects_default;
+//     true when unset) — still local;
+//   - request_settings: the old per-request overrides, now only read once to push
+//     them to the server (follow_redirects lives on requests/folders there), then
+//     the table is dropped.
 
 const settingFollowRedirectsDefault = "follow_redirects_default"
 
-// FollowRedirectsOverride returns a request's override, or nil when it uses the default.
-func (s *Store) FollowRedirectsOverride(ctx context.Context, requestID string) (*bool, error) {
-	v, err := s.GetFollowRedirects(ctx, requestID)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
+// LegacyRequestSetting is one old local override still to be pushed.
+type LegacyRequestSetting struct {
+	RequestID string
+	Follow    bool
+}
+
+// hasRequestSettingsTable: false once the one-time push dropped it.
+func (s *Store) hasRequestSettingsTable(ctx context.Context) (bool, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'request_settings'`).Scan(&n)
+	return n > 0, err
+}
+
+// LegacyRequestSettings returns the old overrides not pushed yet (none once the
+// table is gone).
+func (s *Store) LegacyRequestSettings(ctx context.Context) ([]LegacyRequestSetting, error) {
+	ok, err := s.hasRequestSettingsTable(ctx)
+	if err != nil || !ok {
+		return nil, err
 	}
+	rows, err := s.ListRequestSettings(ctx)
 	if err != nil {
 		return nil, err
 	}
-	follow := v != 0
-	return &follow, nil
+	out := make([]LegacyRequestSetting, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, LegacyRequestSetting{RequestID: r.RequestID, Follow: r.FollowRedirects != 0})
+	}
+	return out, nil
 }
 
-// SetFollowRedirectsOverride stores a request's override; nil removes it (use the default).
-func (s *Store) SetFollowRedirectsOverride(ctx context.Context, requestID string, follow *bool) error {
-	if follow == nil {
-		return s.DeleteFollowRedirects(ctx, requestID)
-	}
-	var v int64
-	if *follow {
-		v = 1
-	}
-	return s.PutFollowRedirects(ctx, PutFollowRedirectsParams{RequestID: requestID, FollowRedirects: v})
+// DoneLegacyRequestSetting forgets one old override (pushed, or no longer applicable).
+func (s *Store) DoneLegacyRequestSetting(ctx context.Context, requestID string) error {
+	return s.DeleteFollowRedirects(ctx, requestID)
 }
 
-// FollowRedirectsDefault is the global default (true when never set or unreadable).
+// DropLegacyRequestSettings removes the table once every row was handled.
+func (s *Store) DropLegacyRequestSettings(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `DROP TABLE IF EXISTS request_settings`)
+	return err
+}
+
+// FollowRedirectsDefault is the global setting (true when never set or unreadable).
 func (s *Store) FollowRedirectsDefault(ctx context.Context) (bool, error) {
 	v, ok, err := s.Setting(ctx, settingFollowRedirectsDefault)
 	if err != nil || !ok {
@@ -51,7 +69,7 @@ func (s *Store) FollowRedirectsDefault(ctx context.Context) (bool, error) {
 	return b, nil
 }
 
-// SetFollowRedirectsDefault stores the global default.
+// SetFollowRedirectsDefault stores the global setting.
 func (s *Store) SetFollowRedirectsDefault(ctx context.Context, follow bool) error {
 	return s.PutSetting(ctx, settingFollowRedirectsDefault, strconv.FormatBool(follow))
 }

@@ -90,6 +90,7 @@ export namespace api {
 	    id: string;
 	    parent_id?: string;
 	    name: string;
+	    follow_redirects: string;
 	    sort_order: number;
 	    created_at: string;
 	
@@ -102,6 +103,7 @@ export namespace api {
 	        this.id = source["id"];
 	        this.parent_id = source["parent_id"];
 	        this.name = source["name"];
+	        this.follow_redirects = source["follow_redirects"];
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	    }
@@ -111,6 +113,7 @@ export namespace api {
 	    project_id: string;
 	    parent_id?: string;
 	    name: string;
+	    follow_redirects: string;
 	    sort_order: number;
 	    created_at: string;
 	
@@ -124,6 +127,7 @@ export namespace api {
 	        this.project_id = source["project_id"];
 	        this.parent_id = source["parent_id"];
 	        this.name = source["name"];
+	        this.follow_redirects = source["follow_redirects"];
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	    }
@@ -394,6 +398,7 @@ export namespace api {
 	    name: string;
 	    method: string;
 	    url: string;
+	    follow_redirects: string;
 	    sort_order: number;
 	    created_at: string;
 	    updated_at: string;
@@ -413,6 +418,7 @@ export namespace api {
 	        this.name = source["name"];
 	        this.method = source["method"];
 	        this.url = source["url"];
+	        this.follow_redirects = source["follow_redirects"];
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	        this.updated_at = source["updated_at"];
@@ -485,6 +491,7 @@ export namespace api {
 	    headers?: KeyValue[];
 	    query_params?: KeyValue[];
 	    body?: RequestBody;
+	    follow_redirects?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new RequestPatch(source);
@@ -498,6 +505,7 @@ export namespace api {
 	        this.headers = this.convertValues(source["headers"], KeyValue);
 	        this.query_params = this.convertValues(source["query_params"], KeyValue);
 	        this.body = this.convertValues(source["body"], RequestBody);
+	        this.follow_redirects = source["follow_redirects"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -525,6 +533,7 @@ export namespace api {
 	    name: string;
 	    method: string;
 	    url: string;
+	    follow_redirects: string;
 	    sort_order: number;
 	    created_at: string;
 	    updated_at: string;
@@ -541,6 +550,7 @@ export namespace api {
 	        this.name = source["name"];
 	        this.method = source["method"];
 	        this.url = source["url"];
+	        this.follow_redirects = source["follow_redirects"];
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	        this.updated_at = source["updated_at"];
@@ -1073,6 +1083,22 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class LegacyMigration {
+	    pushed: number;
+	    dropped: number;
+	    remaining: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new LegacyMigration(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.pushed = source["pushed"];
+	        this.dropped = source["dropped"];
+	        this.remaining = source["remaining"];
+	    }
+	}
 	export class MemberAccessResult {
 	    data?: api.MemberAccess;
 	    error?: session.Problem;
@@ -1296,22 +1322,6 @@ export namespace main {
 		    }
 		    return a;
 		}
-	}
-	export class RedirectSetting {
-	    mode: string;
-	    default: boolean;
-	    effective: boolean;
-	
-	    static createFrom(source: any = {}) {
-	        return new RedirectSetting(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.mode = source["mode"];
-	        this.default = source["default"];
-	        this.effective = source["effective"];
-	    }
 	}
 	export class RequestListResult {
 	    data: api.RequestSummary[];

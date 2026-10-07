@@ -102,6 +102,7 @@ export default function TreeItem(props: Props) {
         { label: "New folder inside", icon: "folder", onSelect: () => void createInside("folder") },
         { label: "New request inside", icon: "plus", onSelect: () => void createInside("request") },
         "separator",
+        { label: "Settings…", icon: "settings", onSelect: () => tree.askFolderSettings(node.id) },
       );
     }
     items.push({ label: "Rename", icon: "pencil", hint: "Ctrl+E", onSelect: () => tree.setRenamingId(node.id) });

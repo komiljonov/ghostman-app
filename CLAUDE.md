@@ -26,7 +26,9 @@ main.defaultServerURL=...`); `task build SERVER_URL=https://...` overrides it. A
 - **sqlc** for queries (engine `sqlite`), schema derived from the migrations dir. **No ORM.**
 - **All app logic lives in Go** (`internal/...`): request engine, storage, server client.
   The frontend is a thin view layer — it calls Wails-bound Go methods and renders.
-  **No business logic in TS.**
+  **No business logic in TS.** One owner-approved exception: cascading per-node settings are
+  resolved in TS (`src/settingsResolver.ts`), purely over the already-fetched tree, so labels
+  re-resolve live without bridge calls; Go only stores/forwards the values.
 - **Heavy data stays on the Go side:** responses are stored in Go/SQLite; the frontend
   receives only what it renders. Never pass multi-MB payloads across the Wails bridge by
   default (response bodies are truncated to 256 KB before crossing it).
@@ -153,14 +155,25 @@ Postman-style shell, logged in:
   Cookie & co. dropped once the chain leaves the initial host for a non-subdomain, body headers
   dropped with the body, custom Host only on relative redirects, Referer set (not https→http),
   at most 10 requests ("stopped after 10 redirects", the chain kept). One deadline covers the
-  whole chain. **Follow redirects** is client-local (never synced): a **global default** in
-  the Settings modal (settings key `follow_redirects_default`, default on, applies at once;
-  bound `Get/SetFollowRedirectsDefault`, UI signal `src/redirectDefault.ts`) and an optional
-  **per-request override** in the request's **Settings sub-tab** (Params | Headers | Body |
-  Settings): Use default (on/off) / Always follow / Never follow (`request_settings` row =
-  override, no row = default; bound `Get/SetRequestRedirects`; a dot on the sub-tab marks an
-  override). Go resolves the effective value at send time (`redirects.go`). Off → the 3xx is
-  the response. **Per-hop timing** (`internal/engine/trace.go`, httptrace): every hop records
+  whole chain. **Follow redirects is a cascading setting**: requests and folders store
+  `follow_redirects` = inherit | global | on | off **on the server** (shared with the team, in
+  the list + GET payloads); the global value is local (Settings modal, settings key
+  `follow_redirects_default`, default on; `src/redirectDefault.ts`). **Resolver**
+  (`src/settingsResolver.ts`, setting-agnostic, the mechanism for future auth/proxy settings):
+  on/off at a level → that value from that node; `global` → the global value and the walk
+  STOPS; `inherit` → next ancestor folder; past the root → global. It runs over the **tree
+  store** (`src/treeStore.ts`: ProjectTree publishes every fetched tree), so open tabs
+  re-resolve on a folder change, a move or a global toggle with no extra calls. UI: the
+  request's **Settings sub-tab** (Params | Headers | Body | Settings) and a folder's
+  **Settings…** (context menu → modal), both with "Inherit from parent — currently: on (from
+  folder ‘X’ / global)" · "Use global setting — currently: …" · Always · Never; a dot on the
+  sub-tab when the value is not inherit. Saving PATCHes the node (bound
+  `SetRequestFollowRedirects` / `SetFolderFollowRedirects`, values validated in Go), then the
+  tree is re-fetched. TS passes the resolved boolean to `SendRequest`. Off → the 3xx is the
+  response. **One-time migration**: old local `request_settings` rows (Always→on, Never→off)
+  are pushed by `MigrateLegacyRequestSettings` on the first logged-in load (each row deleted
+  once pushed; 404/403/400 rows dropped; other failures retried next time), then the table is
+  dropped. **Per-hop timing** (`internal/engine/trace.go`, httptrace): every hop records
   dns / connect (TLS folded in) / wait (TTFB) / download / total ms, connection reuse and remote
   address; a phase that did not happen is null (never 0); a failed hop names the phase it died
   in. `Response.Hops` and `SendResult.Hops` (also on failure, via `engine.SendError`) carry
@@ -258,7 +271,7 @@ environments.go          bound environment/variable methods + local secret acces
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
 responses.go             full response bodies per tab (Go-side), SaveResponseToFile, ReleaseResponse
-redirects.go             follow-redirects: global default + per-request override (local), effective value
+redirects.go             follow-redirects: local global value, node setters (server), legacy local→server push
 ui_tokens_test.go        fails on color literals outside frontend/src/tokens.css
 internal/engine/         HTTP request engine (the product core)
 internal/api/            typed client for the Ghostman server API (/api/v1)
@@ -289,8 +302,8 @@ frontend/                Vite + Solid + TS
 
 - `{{var}}` **autocomplete** on typing `{{`; variable usage search; env duplication;
   dynamic/generated variables.
-- Request settings beyond follow-redirects (the Settings sub-tab is their home): TLS details /
-  insecure toggle, per-request timeout; syncing these settings to the server.
+- More cascading settings through the same resolver (auth, proxy, timeout, TLS / insecure);
+  the Settings sub-tab and the folder Settings… modal are their home.
 - Response search: regex mode.
 - Per-request auth; cookies; response history UI
   (history rows are already written on every send); multipart/file bodies.

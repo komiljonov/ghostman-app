@@ -1,5 +1,5 @@
-// The global "follow redirects" default as a signal, so requests set to "Use
-// default" show the current value live when Settings changes it.
+// The global follow-redirects value (local, Settings) as a signal, so every
+// "Use global" / inherit-to-the-top label re-resolves live when it changes.
 import { createSignal } from "solid-js";
 import { GetFollowRedirectsDefault, SetFollowRedirectsDefault } from "../wailsjs/go/main/App";
 import { changeRedirectDefault } from "./requestSettings";
