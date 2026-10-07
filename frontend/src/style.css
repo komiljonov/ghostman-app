@@ -2504,3 +2504,215 @@ input:disabled {
   flex: 0 0 110px;
   width: 110px;
 }
+
+/* ---- Request options (⚙ left of Send) and the timing panel ---- */
+
+.request-options-trigger {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 34px;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+  background: var(--field-bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.request-options-trigger:hover {
+  border-color: var(--field-border-hover);
+  color: var(--text);
+}
+
+/* An option off its default: a small accent dot so it is not forgotten. */
+.request-options-trigger.modified::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.dropdown-menu.request-options {
+  min-width: 240px;
+  max-width: 280px;
+  padding: 10px 12px;
+}
+
+.request-options-hint {
+  margin: 6px 0 0 24px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* The duration in the response toolbar opens the timing panel. */
+.timing-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.timing-trigger:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.timing-trigger:disabled {
+  text-decoration: none;
+  cursor: default;
+}
+
+.timing-caret {
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+.timing-trigger:disabled .timing-caret {
+  display: none;
+}
+
+.dropdown-menu.timing-popover {
+  width: min(440px, calc(100vw - 32px));
+  min-width: 0;
+  max-height: 70vh;
+  padding: 10px 12px;
+}
+
+.timing-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.timing-hop + .timing-hop {
+  padding-top: 10px;
+  border-top: 1px solid var(--row-border);
+}
+
+.timing-hop-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.timing-badge {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.timing-status {
+  font: 600 12px var(--mono);
+}
+
+.timing-status.failed,
+.timing-hop.failed .timing-total {
+  color: var(--server);
+}
+
+.timing-url {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-family: var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timing-total {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.timing-bar {
+  display: flex;
+  height: 8px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--hover-strong);
+}
+
+.timing-seg {
+  min-width: 2px;
+  height: 100%;
+}
+
+.phase-dns { background: var(--phase-dns); }
+.phase-connect { background: var(--phase-connect); }
+.phase-wait { background: var(--phase-wait); }
+.phase-download { background: var(--phase-download); }
+
+.timing-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.timing-table td {
+  padding: 1px 0;
+}
+
+.timing-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 2px;
+}
+
+.timing-value {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.timing-table .kind-reused .timing-value,
+.timing-table .kind-none .timing-value {
+  color: var(--muted);
+}
+
+.timing-table .kind-failed td {
+  color: var(--server);
+  font-weight: 600;
+}
+
+.timing-failure {
+  margin: 6px 0 0;
+  color: var(--server);
+  overflow-wrap: anywhere;
+}
+
+.timing-footer {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.resp-metric:has(.timing-trigger) {
+  width: 74px;
+}
+
+/* A long chain scrolls inside the popover; the totals stay in view. */
+.timing-footer {
+  position: sticky;
+  bottom: -10px;
+  margin-bottom: -10px;
+  padding-bottom: 10px;
+  background: var(--panel);
+}

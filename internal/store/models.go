@@ -13,6 +13,11 @@ type History struct {
 	CreatedAt  int64  `json:"createdAt"`
 }
 
+type RequestSetting struct {
+	RequestID       string `json:"requestId"`
+	FollowRedirects int64  `json:"followRedirects"`
+}
+
 type SecretValue struct {
 	EnvironmentID string `json:"environmentId"`
 	Key           string `json:"key"`

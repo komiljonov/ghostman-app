@@ -82,6 +82,10 @@ export function GetEnvContext(arg1) {
   return window['go']['main']['App']['GetEnvContext'](arg1);
 }
 
+export function GetFollowRedirects(arg1) {
+  return window['go']['main']['App']['GetFollowRedirects'](arg1);
+}
+
 export function GetMemberAccess(arg1, arg2) {
   return window['go']['main']['App']['GetMemberAccess'](arg1, arg2);
 }
@@ -256,6 +260,10 @@ export function SendRequest(arg1, arg2, arg3) {
 
 export function SetActiveEnvironment(arg1, arg2) {
   return window['go']['main']['App']['SetActiveEnvironment'](arg1, arg2);
+}
+
+export function SetFollowRedirects(arg1, arg2) {
+  return window['go']['main']['App']['SetFollowRedirects'](arg1, arg2);
 }
 
 export function SetMemberAccess(arg1, arg2, arg3, arg4) {
