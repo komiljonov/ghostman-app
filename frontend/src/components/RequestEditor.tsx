@@ -4,7 +4,7 @@ import { applyUrlInput, serializeUrl } from "../urlParams";
 import { TabsController, TabState } from "../tabsController";
 import BodyEditor from "./BodyEditor";
 import KeyValueTable from "./KeyValueTable";
-import RequestOptions from "./RequestOptions";
+import RequestSettingsPanel from "./RequestSettingsPanel";
 import ResponseView from "./ResponseView";
 import SaveIndicator from "./SaveIndicator";
 import UrlEditor from "./UrlEditor";
@@ -46,6 +46,7 @@ export default function RequestEditor(props: Props) {
     { id: "params" as const, label: "Params", count: () => countRows(props.tab.draft.query_params) },
     { id: "headers" as const, label: "Headers", count: () => countRows(props.tab.draft.headers) },
     { id: "body" as const, label: "Body", count: () => 0 },
+    { id: "settings" as const, label: "Settings", count: () => 0 },
   ];
 
   return (
@@ -80,8 +81,6 @@ export default function RequestEditor(props: Props) {
               onEnter={() => {
                 if (!props.tab.sending) void props.controller.send(id());
               }} />
-            <RequestOptions followRedirects={props.tab.followRedirects} error={optionsError()}
-              onFollowRedirects={async (v) => setOptionsError((await props.controller.setFollowRedirects(id(), v))?.message)} />
             {/* Send and Cancel share one fixed-width slot, pinned to the right. */}
             <Show when={props.tab.sending} fallback={<button class="send" type="submit">Send</button>}>
               <button class="send cancel" type="button" onClick={() => props.controller.cancel(id())}>Cancel</button>
@@ -100,6 +99,9 @@ export default function RequestEditor(props: Props) {
                       <Show when={s.count() > 0}><span class="muted"> {s.count()}</span></Show>
                       <Show when={s.id === "body" && props.tab.draft.body.type !== "none"}>
                         <span class="muted"> {props.tab.draft.body.type}</span>
+                      </Show>
+                      <Show when={s.id === "settings" && props.tab.redirectMode !== "default"}>
+                        <span class="section-dot" title="This request overrides a default" />
                       </Show>
                     </button>
                   )}
@@ -120,6 +122,10 @@ export default function RequestEditor(props: Props) {
                   </Match>
                   <Match when={props.tab.section === "body"}>
                     <BodyEditor body={props.tab.draft.body} onChange={(fn) => edit((d) => fn(d.body))} />
+                  </Match>
+                  <Match when={props.tab.section === "settings"}>
+                    <RequestSettingsPanel mode={props.tab.redirectMode} error={optionsError()}
+                      onMode={async (m) => setOptionsError((await props.controller.setRedirectMode(id(), m))?.message)} />
                   </Match>
                 </Switch>
               </div>

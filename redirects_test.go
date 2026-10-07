@@ -10,7 +10,7 @@ import (
 	"ghostman/internal/engine"
 )
 
-func TestSendHonorsTheLocalFollowRedirectsToggle(t *testing.T) {
+func TestRedirectSettingsDefaultAndOverride(t *testing.T) {
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/start" {
 			http.Redirect(w, r, "/done", http.StatusFound)
@@ -21,28 +21,57 @@ func TestSendHonorsTheLocalFollowRedirectsToggle(t *testing.T) {
 	defer target.Close()
 	a := newTestApp(t, true, nil)
 	draft := api.RequestDraft{Method: "GET", URL: target.URL + "/start"}
-
-	if !a.GetFollowRedirects("r1") {
-		t.Fatal("default must be on")
+	status := func(id string) int {
+		t.Helper()
+		res := a.SendRequest("p1", id, draft)
+		if res.Error != nil {
+			t.Fatal(res.Error.Message)
+		}
+		return res.Data.Status
 	}
-	res := a.SendRequest("p1", "r1", draft)
-	if res.Error != nil || res.Data.Status != 200 || len(res.Hops) != 2 || res.Hops[0].Status != 302 {
-		t.Fatalf("follow on: %+v hops=%d", res.Error, len(res.Hops))
+	set := func(id, mode string) {
+		t.Helper()
+		if r := a.SetRequestRedirects(id, mode); r.Error != nil {
+			t.Fatal(r.Error.Message)
+		}
 	}
 
-	if r := a.SetFollowRedirects("r1", false); r.Error != nil {
+	// Defaults: global on, every request uses it.
+	if got := a.GetRequestRedirects("r1"); got != (RedirectSetting{Mode: RedirectsDefault, Default: true, Effective: true}) || !a.GetFollowRedirectsDefault() {
+		t.Fatalf("defaults: %+v", got)
+	}
+	if res := a.SendRequest("p1", "r1", draft); res.Data.Status != 200 || len(res.Hops) != 2 {
+		t.Fatalf("follow by default: %d, %d hops", res.Data.Status, len(res.Hops))
+	}
+
+	// Per-request override beats the default.
+	set("r1", RedirectsNever)
+	if got := a.GetRequestRedirects("r1"); got != (RedirectSetting{Mode: RedirectsNever, Default: true, Effective: false}) {
+		t.Fatalf("never: %+v", got)
+	}
+	if status("r1") != 302 || status("r2") != 200 {
+		t.Fatal("r1 never follows; r2 still uses the default")
+	}
+
+	// Turning the global default off changes untouched requests only.
+	if r := a.SetFollowRedirectsDefault(false); r.Error != nil {
 		t.Fatal(r.Error.Message)
 	}
-	if a.GetFollowRedirects("r1") || !a.GetFollowRedirects("r2") {
-		t.Fatal("the toggle is per request")
+	set("r3", RedirectsAlways)
+	if status("r2") != 302 || status("r3") != 200 || status("r1") != 302 {
+		t.Fatal("r2 follows the default (off), r3 always follows, r1 never")
 	}
-	res = a.SendRequest("p1", "r1", draft)
-	if res.Error != nil || res.Data.Status != 302 || len(res.Hops) != 1 {
-		t.Fatalf("follow off: want the 302 itself, got %+v status=%d", res.Error, res.Data.Status)
+	if got := a.GetRequestRedirects("r2"); got != (RedirectSetting{Mode: RedirectsDefault, Default: false, Effective: false}) {
+		t.Fatalf("r2: %+v", got)
 	}
-	// Another request still follows.
-	if res = a.SendRequest("p1", "r2", draft); res.Data.Status != 200 {
-		t.Fatalf("r2: %d", res.Data.Status)
+
+	// Back to "use the default".
+	set("r3", RedirectsDefault)
+	if status("r3") != 302 {
+		t.Fatal("r3 uses the (off) default again")
+	}
+	if r := a.SetRequestRedirects("r1", "sometimes"); r.Error == nil || r.Error.Kind != "invalid" {
+		t.Fatalf("unknown mode accepted: %+v", r)
 	}
 }
 

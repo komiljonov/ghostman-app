@@ -9,6 +9,15 @@ import (
 	"context"
 )
 
+const deleteFollowRedirects = `-- name: DeleteFollowRedirects :exec
+DELETE FROM request_settings WHERE request_id = ?
+`
+
+func (q *Queries) DeleteFollowRedirects(ctx context.Context, requestID string) error {
+	_, err := q.db.ExecContext(ctx, deleteFollowRedirects, requestID)
+	return err
+}
+
 const getFollowRedirects = `-- name: GetFollowRedirects :one
 SELECT follow_redirects FROM request_settings WHERE request_id = ?
 `

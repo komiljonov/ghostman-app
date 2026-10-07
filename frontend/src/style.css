@@ -2505,50 +2505,49 @@ input:disabled {
   width: 110px;
 }
 
-/* ---- Request options (⚙ left of Send) and the timing panel ---- */
+/* ---- Request Settings sub-tab, Settings modal redirect default, timing panel ---- */
 
-.request-options-trigger {
-  position: relative;
-  display: inline-flex;
-  flex: 0 0 34px;
-  align-items: center;
-  justify-content: center;
-  height: 34px;
+.request-settings {
+  padding: 12px 4px;
+}
+
+.request-setting {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 560px;
+  margin: 0;
   padding: 0;
-  border: 1px solid var(--field-border);
-  border-radius: 6px;
-  background: var(--field-bg);
-  color: var(--muted);
-  cursor: pointer;
+  border: none;
 }
 
-.request-options-trigger:hover {
-  border-color: var(--field-border-hover);
-  color: var(--text);
+.request-setting legend {
+  margin-bottom: 6px;
+  padding: 0;
+  color: var(--table-head);
+  font-weight: 600;
 }
 
-/* An option off its default: a small accent dot so it is not forgotten. */
-.request-options-trigger.modified::after {
-  content: "";
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
-.dropdown-menu.request-options {
-  min-width: 240px;
-  max-width: 280px;
-  padding: 10px 12px;
-}
-
-.request-options-hint {
-  margin: 6px 0 0 24px;
+.request-setting-hint,
+.settings-hint {
+  margin: 4px 0 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.settings-hint {
+  margin: -4px 0 4px 24px;
+}
+
+/* A request that overrides a default: a dot on its Settings sub-tab. */
+.section-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
 }
 
 /* The duration in the response toolbar opens the timing panel. */

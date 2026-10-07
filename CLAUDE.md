@@ -108,7 +108,7 @@ Postman-style shell, logged in:
 - **Main pane**: the **tabs** by default, or Team settings / Project settings / Invitations
   when opened. Empty state without tabs. Tabs are typed (`src/tabModel.ts`):
   `request` (method | URL (stretches) | Send / Cancel in one fixed slot at the far right;
-  Params | Headers | Body with the save status at the row's right end; response below a
+  Params | Headers | Body | Settings with the save status at the row's right end; response below a
   draggable divider), `env` (that environment's variables table) and `env_list`
   (create / rename / reorder / delete environments). There is no separate environments page.
 - **Tabs** are per project, persisted as typed refs in tab-bar order (`ui_tabs_<project_id>`;
@@ -153,9 +153,13 @@ Postman-style shell, logged in:
   Cookie & co. dropped once the chain leaves the initial host for a non-subdomain, body headers
   dropped with the body, custom Host only on relative redirects, Referer set (not https→http),
   at most 10 requests ("stopped after 10 redirects", the chain kept). One deadline covers the
-  whole chain. **Follow redirects** is a client-local, per-request toggle (SQLite
-  `request_settings`, no row = on; bound `GetFollowRedirects`/`SetFollowRedirects`; Go reads it
-  at send time), set in the ⚙ popover left of Send (dot on the gear when off). Off → the 3xx is
+  whole chain. **Follow redirects** is client-local (never synced): a **global default** in
+  the Settings modal (settings key `follow_redirects_default`, default on, applies at once;
+  bound `Get/SetFollowRedirectsDefault`, UI signal `src/redirectDefault.ts`) and an optional
+  **per-request override** in the request's **Settings sub-tab** (Params | Headers | Body |
+  Settings): Use default (on/off) / Always follow / Never follow (`request_settings` row =
+  override, no row = default; bound `Get/SetRequestRedirects`; a dot on the sub-tab marks an
+  override). Go resolves the effective value at send time (`redirects.go`). Off → the 3xx is
   the response. **Per-hop timing** (`internal/engine/trace.go`, httptrace): every hop records
   dns / connect (TLS folded in) / wait (TTFB) / download / total ms, connection reuse and remote
   address; a phase that did not happen is null (never 0); a failed hop names the phase it died
@@ -254,6 +258,7 @@ environments.go          bound environment/variable methods + local secret acces
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
 responses.go             full response bodies per tab (Go-side), SaveResponseToFile, ReleaseResponse
+redirects.go             follow-redirects: global default + per-request override (local), effective value
 ui_tokens_test.go        fails on color literals outside frontend/src/tokens.css
 internal/engine/         HTTP request engine (the product core)
 internal/api/            typed client for the Ghostman server API (/api/v1)
@@ -284,8 +289,8 @@ frontend/                Vite + Solid + TS
 
 - `{{var}}` **autocomplete** on typing `{{`; variable usage search; env duplication;
   dynamic/generated variables.
-- Request settings beyond follow-redirects: TLS details / insecure toggle, per-request timeout,
-  a request Settings sub-tab, syncing the toggle to the server.
+- Request settings beyond follow-redirects (the Settings sub-tab is their home): TLS details /
+  insecure toggle, per-request timeout; syncing these settings to the server.
 - Response search: regex mode.
 - Per-request auth; cookies; response history UI
   (history rows are already written on every send); multipart/file bodies.
