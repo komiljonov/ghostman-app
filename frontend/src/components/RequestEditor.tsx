@@ -1,9 +1,10 @@
-import { For, Match, Show, Switch } from "solid-js";
+import { createSignal, For, Match, Show, Switch } from "solid-js";
 import { Row } from "../rows";
 import { applyUrlInput, serializeUrl } from "../urlParams";
 import { TabsController, TabState } from "../tabsController";
 import BodyEditor from "./BodyEditor";
 import KeyValueTable from "./KeyValueTable";
+import RequestOptions from "./RequestOptions";
 import ResponseView from "./ResponseView";
 import SaveIndicator from "./SaveIndicator";
 import UrlEditor from "./UrlEditor";
@@ -22,6 +23,7 @@ const countRows = (rows: Row[]) => rows.filter((r) => r.key.trim() !== "").lengt
 export default function RequestEditor(props: Props) {
   let split!: HTMLDivElement;
   const id = () => props.tab.id;
+  const [optionsError, setOptionsError] = createSignal<string>();
   const edit = (fn: Parameters<TabsController["edit"]>[1]) => props.controller.edit(id(), fn);
   const view = (fn: (t: TabState) => void) => props.controller.view(id(), fn);
 
@@ -78,6 +80,8 @@ export default function RequestEditor(props: Props) {
               onEnter={() => {
                 if (!props.tab.sending) void props.controller.send(id());
               }} />
+            <RequestOptions followRedirects={props.tab.followRedirects} error={optionsError()}
+              onFollowRedirects={async (v) => setOptionsError((await props.controller.setFollowRedirects(id(), v))?.message)} />
             {/* Send and Cancel share one fixed-width slot, pinned to the right. */}
             <Show when={props.tab.sending} fallback={<button class="send" type="submit">Send</button>}>
               <button class="send cancel" type="button" onClick={() => props.controller.cancel(id())}>Cancel</button>

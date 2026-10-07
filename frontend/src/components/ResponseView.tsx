@@ -13,7 +13,10 @@ import { responseWrap, setResponseWrap } from "../uiPrefs";
 import ContextMenu, { MenuEntry } from "./ContextMenu";
 import Icon from "./Icon";
 import ResponseBody, { ResponseBodyApi } from "./ResponseBody";
+import Dropdown from "./Dropdown";
 import StatusBadge from "./StatusBadge";
+import TimingPanel from "./TimingPanel";
+import { triggerLabel } from "../timingModel";
 
 interface Props {
   tab: TabState;
@@ -168,7 +171,14 @@ export default function ResponseView(props: Props) {
               {(r) => <StatusBadge status={r().status} text={r().statusText} />}
             </Show>
           </span>
-          <span class="resp-metric" title="Duration">{shown() ? `${shown()!.durationMs} ms` : ""}</span>
+          {/* The duration opens the per-hop timing (also after a failed send). */}
+          <span class="resp-metric" title={props.tab.hops.length ? "Timing details" : "Duration"}>
+            <Dropdown triggerLabel="Timing details" align="right" menuClass="timing-popover" menuRole="dialog"
+              disabled={props.tab.hops.length === 0} triggerClass="timing-trigger"
+              trigger={<span>{triggerLabel(props.tab.hops, shown()?.durationMs)}<span class="timing-caret" aria-hidden="true">▾</span></span>}>
+              {() => <TimingPanel hops={props.tab.hops} />}
+            </Dropdown>
+          </span>
           <span class="resp-metric" title="Body size">{shown() ? formatBytes(shown()!.bodySize) : ""}</span>
         </div>
       </div>

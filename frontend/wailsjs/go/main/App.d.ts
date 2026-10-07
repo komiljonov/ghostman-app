@@ -44,6 +44,8 @@ export function GetAuthState():Promise<session.AuthState>;
 
 export function GetEnvContext(arg1:string):Promise<main.EnvContextResult>;
 
+export function GetFollowRedirects(arg1:string):Promise<boolean>;
+
 export function GetMemberAccess(arg1:string,arg2:string):Promise<main.MemberAccessViewResult>;
 
 export function GetProject(arg1:string):Promise<main.ProjectResult>;
@@ -131,6 +133,8 @@ export function SelectTeam(arg1:string):Promise<main.WorkspaceResult>;
 export function SendRequest(arg1:string,arg2:string,arg3:api.RequestDraft):Promise<main.SendResult>;
 
 export function SetActiveEnvironment(arg1:string,arg2:string):Promise<main.EnvContextResult>;
+
+export function SetFollowRedirects(arg1:string,arg2:boolean):Promise<main.EmptyResult>;
 
 export function SetMemberAccess(arg1:string,arg2:string,arg3:boolean,arg4:Array<string>):Promise<main.MemberAccessResult>;
 

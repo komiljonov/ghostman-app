@@ -24,7 +24,9 @@ Ctrl+E renames, Del deletes, Ctrl+D duplicates a request; folders and requests c
 dragged to move or reorder them. The URL field and the Params tab stay in sync both ways. The sidebar is resizable (drag its
 edge; double-click to reset). HTML responses can be previewed in a sandboxed frame (no scripts). In the response: Ctrl+F searches the body,
 JSON objects/arrays collapse (gutter, or Collapse All / Expand All), right-click copies, and the
-download icon saves the full response (up to 20 MB, even when only 256 KB is shown). Tabs can be reordered by dragging; right-click a tab
+download icon saves the full response (up to 20 MB, even when only 256 KB is shown). Click the
+duration for per-hop timing (DNS, connect, waiting, download — one section per redirect); the ⚙
+next to Send turns following redirects off for that request (stored on this machine only). Tabs can be reordered by dragging; right-click a tab
 for Close / Close Others / Close All. Settings has a System / Dark / Light theme.
 
 The window is laid out Postman-style: a top bar with team and project switchers (their menus

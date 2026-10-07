@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"sort"
@@ -82,6 +83,10 @@ type Response struct {
 	// Raw view); otherwise Body already is the raw text. Both are within the cap.
 	RawBody string `json:"rawBody,omitempty"`
 
+	// Hops is every exchange of this send in order: the initial request and each
+	// followed redirect, with its phase timings. DurationMs is their total.
+	Hops []Hop `json:"hops"`
+
 	// Full is the complete body as received (bytes, any content), up to
 	// MaxFullBody; FullCapped is set when the body was larger. Never crosses the
 	// Wails bridge (json:"-"): only saving to a file reads it.
@@ -91,31 +96,115 @@ type Response struct {
 
 // Engine sends requests. It is safe for concurrent use.
 type Engine struct {
-	client *http.Client
+	client  *http.Client
+	timeout time.Duration // a whole send, redirects included
 }
 
-// New returns an Engine whose requests are bounded by timeout overall.
+// New returns an Engine whose sends (all hops together) are bounded by timeout.
 func New(timeout time.Duration) *Engine {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.DialContext = (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext
 	transport.TLSHandshakeTimeout = 10 * time.Second
 	transport.ResponseHeaderTimeout = timeout
-	return &Engine{client: &http.Client{Transport: transport, Timeout: timeout}}
+	// The client never follows redirects itself: Send does (redirect.go), so each
+	// hop gets its own trace.
+	client := &http.Client{
+		Transport:     transport,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	return &Engine{client: client, timeout: timeout}
 }
 
-// SendRequest executes spec and returns the response. Transport-level failures
-// (bad URL, DNS, refused, timeout) are returned as errors with a human-readable message.
+// SendOptions are per-send client settings.
+type SendOptions struct {
+	FollowRedirects bool
+}
+
+// SendError is a failed send: the readable reason plus the hops made so far
+// (the failed one last, with its FailedPhase), for the timing panel.
+type SendError struct {
+	Err        error
+	Hops       []Hop
+	DurationMs int64
+}
+
+func (e *SendError) Error() string { return e.Err.Error() }
+func (e *SendError) Unwrap() error { return e.Err }
+
+// HopsOf returns the hops carried by a send error (nil for other errors).
+func HopsOf(err error) []Hop {
+	var se *SendError
+	if errors.As(err, &se) {
+		return se.Hops
+	}
+	return nil
+}
+
+// SendRequest sends spec following redirects (the default).
 func (e *Engine) SendRequest(ctx context.Context, spec RequestSpec) (*Response, error) {
+	return e.Send(ctx, spec, SendOptions{FollowRedirects: true})
+}
+
+// Send executes spec and returns the final response (any status code), with one
+// Hop per exchange. With FollowRedirects off, a 3xx is itself the response.
+// Transport-level failures (bad URL, DNS, refused, timeout) and an over-long
+// redirect chain are returned as a *SendError with a human-readable message.
+func (e *Engine) Send(ctx context.Context, spec RequestSpec, opts SendOptions) (*Response, error) {
 	req, err := buildRequest(ctx, spec)
 	if err != nil {
-		return nil, err
+		return nil, err // nothing was sent: no hops
 	}
+	ctx, cancel := context.WithTimeout(ctx, e.timeout)
+	defer cancel()
+	req = req.WithContext(ctx)
 
 	start := time.Now()
-	resp, err := e.client.Do(req)
-	if err != nil {
-		return nil, describeError(err, time.Since(start))
+	chain := newRedirectChain(req)
+	var hops []Hop
+	fail := func(err error) error {
+		return &SendError{Err: err, Hops: hops, DurationMs: time.Since(start).Milliseconds()}
 	}
+	for {
+		tr := newHopTrace()
+		resp, err := e.client.Do(req.WithContext(httptrace.WithClientTrace(req.Context(), tr.clientTrace())))
+		if err != nil {
+			hops = append(hops, tr.hop(req, nil, err))
+			return nil, fail(describeError(err, time.Since(start)))
+		}
+		var next *http.Request
+		if opts.FollowRedirects {
+			if next, err = chain.next(req, resp); err != nil {
+				drainRedirectBody(resp)
+				tr.markBodyDone()
+				hops = append(hops, tr.hop(req, resp, nil))
+				return nil, fail(err)
+			}
+		}
+		if next == nil {
+			return e.finish(req, resp, tr, hops, start)
+		}
+		drainRedirectBody(resp)
+		tr.markBodyDone()
+		hops = append(hops, tr.hop(req, resp, nil))
+		if len(hops) >= MaxRequests {
+			return nil, fail(errTooManyRedirects)
+		}
+		req = next
+	}
+}
+
+// drainRedirectBody reads a little of a redirect's body (like net/http) so a
+// small one leaves the connection reusable, then closes it.
+func drainRedirectBody(resp *http.Response) {
+	const maxSlurp = 2 << 10
+	if resp.ContentLength == -1 || resp.ContentLength <= maxSlurp {
+		_, _ = io.CopyN(io.Discard, resp.Body, maxSlurp)
+	}
+	_ = resp.Body.Close()
+}
+
+// finish reads the final response's body and builds the Response.
+func (e *Engine) finish(req *http.Request, resp *http.Response, tr *hopTrace, hops []Hop, start time.Time) (*Response, error) {
 	defer resp.Body.Close()
 
 	var full bytes.Buffer
@@ -126,9 +215,12 @@ func (e *Engine) SendRequest(ctx context.Context, spec RequestSpec) (*Response, 
 		rest, err = io.Copy(io.Discard, resp.Body)
 		n += rest
 	}
+	tr.markBodyDone()
 	if err != nil {
-		return nil, describeError(err, time.Since(start))
+		hops = append(hops, tr.hop(req, resp, err))
+		return nil, &SendError{Err: describeError(err, time.Since(start)), Hops: hops, DurationMs: time.Since(start).Milliseconds()}
 	}
+	hops = append(hops, tr.hop(req, resp, nil))
 	duration := time.Since(start)
 
 	kept := full.Bytes()
@@ -154,13 +246,14 @@ func (e *Engine) SendRequest(ctx context.Context, spec RequestSpec) (*Response, 
 		StatusText:  http.StatusText(resp.StatusCode),
 		Proto:       resp.Proto,
 		Headers:     flattenHeaders(resp.Header),
-		DurationMs:  duration.Milliseconds(),
+		DurationMs:  duration.Round(time.Millisecond).Milliseconds(), // rounded, like the hop totals
 		BodySize:    n,
 		Body:        string(body),
 		Truncated:   truncated,
 		ContentType: contentType,
 		Formatted:   formatted,
 		RawBody:     rawBody,
+		Hops:        hops,
 		Full:        kept,
 		FullCapped:  n > int64(len(kept)),
 	}, nil

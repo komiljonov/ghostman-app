@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -37,6 +39,9 @@ type SendResult struct {
 	Unresolved []string `json:"unresolved"`
 	// Environment is the active environment's name ("" = none).
 	Environment string `json:"environment"`
+	// Hops is the timing of every exchange (initial request + followed redirects),
+	// also when the send failed (the failed hop last, with its phase).
+	Hops []engine.Hop `json:"hops"`
 }
 
 // Tab kinds.
@@ -123,12 +128,19 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft) S
 	// Variables are read fresh from the server for every send (online-only), with
 	// this machine's secret values overlaid.
 	type resolved struct {
-		vars map[string]string
-		env  string
+		vars    map[string]string
+		env     string
+		secrets []string // local secret values, masked in the hop URLs shown to the UI
 	}
 	rv, p := call(a, func(ctx context.Context, c *api.APIClient) (resolved, error) {
 		m, ec, err := a.envs.VarMap(ctx, c, projectID)
-		return resolved{m, ec.ActiveName}, err
+		var secrets []string
+		for _, v := range ec.Variables {
+			if v.Type == api.VarSecret && v.HasValue && v.Value != "" {
+				secrets = append(secrets, v.Value)
+			}
+		}
+		return resolved{m, ec.ActiveName, secrets}, err
 	})
 	if p != nil {
 		p.Message = "could not load environment variables: " + p.Message
@@ -158,8 +170,16 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft) S
 	if unresolved == nil {
 		unresolved = []string{}
 	}
+	follow := true
+	if a.store != nil {
+		if f, err := a.store.FollowRedirects(ctx, requestID); err != nil {
+			slog.Warn("load follow-redirects setting", "err", err)
+		} else {
+			follow = f
+		}
+	}
 	start := time.Now()
-	resp, err := a.engine.SendRequest(ctx, spec)
+	resp, err := a.engine.Send(ctx, spec, engine.SendOptions{FollowRedirects: follow})
 	a.recordHistory(template, resp, err, start)
 	// The tab's active response (full body, Go-side) — unless a newer send of the
 	// same request has taken over meanwhile.
@@ -173,9 +193,13 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft) S
 	}
 	a.sendsMu.Unlock()
 	if err != nil {
-		return SendResult{Error: &session.Problem{Kind: KindRequest, Message: err.Error()}, Unresolved: unresolved, Environment: rv.env}
+		return SendResult{
+			Error: &session.Problem{Kind: KindRequest, Message: err.Error()}, Unresolved: unresolved, Environment: rv.env,
+			Hops: maskSecrets(nonNilHops(engine.HopsOf(err)), rv.secrets),
+		}
 	}
-	return SendResult{Data: resp, Unresolved: unresolved, Environment: rv.env}
+	resp.Hops = maskSecrets(nonNilHops(resp.Hops), rv.secrets)
+	return SendResult{Data: resp, Unresolved: unresolved, Environment: rv.env, Hops: resp.Hops}
 }
 
 // CancelRequest cancels the in-flight send of a request, if any.
@@ -320,4 +344,54 @@ func (a *App) beforeClose(ctx context.Context) (prevent bool) {
 // ConfirmQuit is called by the UI once pending saves are flushed.
 func (a *App) ConfirmQuit() {
 	runtime.Quit(a.ctx)
+}
+
+// maskSecrets hides local secret values (as typed, and as the engine encoded them
+// into the URL) in the hop URLs: like everywhere else in the UI, a secret is only
+// shown after an explicit Reveal.
+func maskSecrets(hops []engine.Hop, secrets []string) []engine.Hop {
+	if len(secrets) == 0 {
+		return hops
+	}
+	// Longest first, so a secret containing another is masked whole.
+	sort.Slice(secrets, func(i, j int) bool { return len(secrets[i]) > len(secrets[j]) })
+	for i := range hops {
+		for _, s := range secrets {
+			for _, form := range []string{s, url.QueryEscape(s), url.PathEscape(s)} {
+				hops[i].URL = strings.ReplaceAll(hops[i].URL, form, "••••")
+			}
+		}
+	}
+	return hops
+}
+
+func nonNilHops(h []engine.Hop) []engine.Hop {
+	if h == nil {
+		return []engine.Hop{}
+	}
+	return h
+}
+
+// GetFollowRedirects reports whether sends of a request follow redirects. It is
+// a local, per-request setting (SQLite, never synced); true when never set.
+func (a *App) GetFollowRedirects(requestID string) bool {
+	if a.store == nil {
+		return true
+	}
+	follow, err := a.store.FollowRedirects(a.ctx, requestID)
+	if err != nil {
+		slog.Error("load follow-redirects setting", "err", err)
+	}
+	return follow
+}
+
+// SetFollowRedirects saves a request's follow-redirects toggle (local only).
+func (a *App) SetFollowRedirects(requestID string, follow bool) EmptyResult {
+	if a.store == nil {
+		return EmptyResult{Error: problemNotLoggedIn}
+	}
+	if err := a.store.SetFollowRedirects(a.ctx, requestID, follow); err != nil {
+		return EmptyResult{Error: session.ProblemFrom(err)}
+	}
+	return EmptyResult{}
 }

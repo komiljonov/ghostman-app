@@ -41,6 +41,12 @@
   --shadow: rgba(0, 0, 0, 0.45);
   --backdrop: rgba(0, 0, 0, 0.55);
 
+  /* Timing phases (response timing panel) */
+  --phase-dns: #4fb3c8;
+  --phase-connect: #e6b450;
+  --phase-wait: #8c9eff;
+  --phase-download: #4cc38a;
+
   /* Response search */
   --search-match: rgba(230, 180, 80, 0.28);
   --search-current: rgba(230, 180, 80, 0.75);
@@ -97,6 +103,12 @@
   --server: #c4302b;
   --warn: var(--client);
   --preview-bg: #ffffff;
+
+  /* Timing phases (response timing panel) */
+  --phase-dns: #0f8aa3;
+  --phase-connect: #b07d12;
+  --phase-wait: #4a5fd6;
+  --phase-download: #17824e;
 
   /* Response search */
   --search-match: rgba(255, 196, 0, 0.32);

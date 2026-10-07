@@ -81,3 +81,38 @@ func TestSettingsRoundtrip(t *testing.T) {
 		t.Fatalf("server_url = %q", v)
 	}
 }
+
+func TestFollowRedirectsDefaultsOnAndPersists(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "ghostman.db")
+	s, err := Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if f, err := s.FollowRedirects(ctx, "r1"); err != nil || !f {
+		t.Fatalf("untouched request: follow=%v err=%v, want true", f, err)
+	}
+	if err := s.SetFollowRedirects(ctx, "r1", false); err != nil {
+		t.Fatal(err)
+	}
+	_ = s.Close()
+
+	// Survives a restart (reopen); other requests keep the default.
+	s, err = Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if f, _ := s.FollowRedirects(ctx, "r1"); f {
+		t.Fatal("r1 must stay off after reopen")
+	}
+	if f, _ := s.FollowRedirects(ctx, "r2"); !f {
+		t.Fatal("r2 must default to on")
+	}
+	if err := s.SetFollowRedirects(ctx, "r1", true); err != nil {
+		t.Fatal(err)
+	}
+	if f, _ := s.FollowRedirects(ctx, "r1"); !f {
+		t.Fatal("r1 back on")
+	}
+}

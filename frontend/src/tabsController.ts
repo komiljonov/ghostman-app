@@ -1,5 +1,8 @@
 import { createStore, produce, unwrap } from "solid-js/store";
-import { CancelRequest, GetRequest, GetTabs, ReleaseResponse, SaveRequest, SendRequest, SetTabs } from "../wailsjs/go/main/App";
+import {
+  CancelRequest, GetFollowRedirects, GetRequest, GetTabs, ReleaseResponse, SaveRequest, SendRequest, SetFollowRedirects, SetTabs,
+} from "../wailsjs/go/main/App";
+import { loadFollowRedirects, toggleFollowRedirects } from "./requestSettings";
 import { api, engine, main } from "../wailsjs/go/models";
 import { handleProblem } from "./authStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
@@ -49,6 +52,10 @@ export interface TabState {
   responseView: BodyView;
   // Collapsed JSON nodes of the Pretty view; cleared by every new response.
   responseFolds?: { from: number; to: number }[];
+  // Timing of the last send's hops (also after a failed send); reset by every send.
+  hops: engine.Hop[];
+  // Local per-request setting (SQLite): follow redirects when sending. Default on.
+  followRedirects: boolean;
   responseShare: number; // fraction of the editor height given to the response
 }
 
@@ -110,6 +117,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
   const newTab = (ref: TabRef, name: string, status: TabState["status"]): TabState => ({
     kind: ref.kind, id: ref.id, key: tabKey(ref), name, status, draft: emptyDraft(), save: "idle", sending: false,
     unresolved: [], section: "params", responseSection: "body", responseView: "raw", responseShare: 0.45,
+    hops: [], followRedirects: true,
   });
   const addTab = (ref: TabRef, name: string, status: TabState["status"]) => {
     if (byKey(tabKey(ref))) return;
@@ -160,6 +168,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     bases.set(id, clone(loaded));
     const adopted = adoptUrlQuery(loaded.url, loaded.query_params);
     const draft = { ...loaded, url: adopted.url, query_params: adopted.rows };
+    void loadFollowRedirects(id, { get: GetFollowRedirects, show: (v) => update(id, (t) => (t.followRedirects = v)) });
     savers.set(id, makeSaver(id));
     update(id, (t) => {
       t.status = "ready";
@@ -305,12 +314,21 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
 
     retrySave: (id: string) => savers.get(id)?.retry(),
 
+    // The local follow-redirects toggle: shown at once, saved immediately.
+    setFollowRedirects: (id: string, follow: boolean) =>
+      toggleFollowRedirects(id, follow, {
+        get: GetFollowRedirects,
+        set: SetFollowRedirects,
+        show: (v) => update(id, (t) => (t.followRedirects = v)),
+      }),
+
     async send(id: string) {
       const current = tab(id);
       if (!current || current.status !== "ready" || current.sending) return;
       update(id, (t) => {
         t.sending = true;
         t.responseError = undefined;
+        t.hops = [];
       });
       await savers.get(id)?.flush(); // send what is saved
       const snapshot = clone(unwrap(tab(id)!.draft));
@@ -323,6 +341,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
         if (result.data) t.responseView = defaultView(result.data);
         t.responseError = result.error?.message;
         t.unresolved = result.unresolved ?? [];
+        t.hops = result.hops ?? [];
       });
     },
 

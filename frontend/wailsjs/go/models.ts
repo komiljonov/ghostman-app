@@ -695,6 +695,42 @@ export namespace engine {
 	        this.enabled = source["enabled"];
 	    }
 	}
+	export class Hop {
+	    url: string;
+	    method: string;
+	    status: number;
+	    status_text: string;
+	    dns_ms?: number;
+	    connect_ms?: number;
+	    wait_ms?: number;
+	    download_ms?: number;
+	    total_ms: number;
+	    connection_reused: boolean;
+	    remote_addr: string;
+	    failed_phase?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Hop(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.url = source["url"];
+	        this.method = source["method"];
+	        this.status = source["status"];
+	        this.status_text = source["status_text"];
+	        this.dns_ms = source["dns_ms"];
+	        this.connect_ms = source["connect_ms"];
+	        this.wait_ms = source["wait_ms"];
+	        this.download_ms = source["download_ms"];
+	        this.total_ms = source["total_ms"];
+	        this.connection_reused = source["connection_reused"];
+	        this.remote_addr = source["remote_addr"];
+	        this.failed_phase = source["failed_phase"];
+	        this.error = source["error"];
+	    }
+	}
 	export class Response {
 	    status: number;
 	    statusText: string;
@@ -707,6 +743,7 @@ export namespace engine {
 	    contentType: string;
 	    formatted: boolean;
 	    rawBody?: string;
+	    hops: Hop[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Response(source);
@@ -725,6 +762,7 @@ export namespace engine {
 	        this.contentType = source["contentType"];
 	        this.formatted = source["formatted"];
 	        this.rawBody = source["rawBody"];
+	        this.hops = this.convertValues(source["hops"], Hop);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1408,6 +1446,7 @@ export namespace main {
 	    error?: session.Problem;
 	    unresolved: string[];
 	    environment: string;
+	    hops: engine.Hop[];
 	
 	    static createFrom(source: any = {}) {
 	        return new SendResult(source);
@@ -1419,6 +1458,7 @@ export namespace main {
 	        this.error = this.convertValues(source["error"], session.Problem);
 	        this.unresolved = source["unresolved"];
 	        this.environment = source["environment"];
+	        this.hops = this.convertValues(source["hops"], engine.Hop);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

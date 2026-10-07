@@ -7,6 +7,8 @@ interface Props {
   triggerClass?: string;
   align?: "left" | "right";
   disabled?: boolean;
+  menuClass?: string; // extra class on the menu panel (e.g. a wider popover)
+  menuRole?: "menu" | "dialog"; // a popover with form controls uses "dialog"
   onOpen?: () => void;
   // Controlled mode (e.g. a tree row opening its menu on right-click).
   open?: boolean;
@@ -105,7 +107,7 @@ export default function Dropdown(props: Props) {
       </button>
       <Show when={open()}>
         <Portal>
-          <div class="dropdown-menu" role="menu" ref={menu} style={pos()}>
+          <div class={`dropdown-menu ${props.menuClass ?? ""}`} role={props.menuRole ?? "menu"} ref={menu} style={pos()}>
             {props.children(close)}
           </div>
         </Portal>

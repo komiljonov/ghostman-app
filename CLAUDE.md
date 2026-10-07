@@ -146,7 +146,22 @@ Postman-style shell, logged in:
 - **Sending** happens in Go (`internal/engine`): enabled rows only, query params appended to
   any query already in the URL, raw/form body with its Content-Type unless a header sets one,
   JSON responses pretty-printed in Go (`rawBody` carries the original, only then), 256 KB cap,
-  cancellable per request. Response state is per tab and never persisted. The engine also
+  cancellable per request. Response state is per tab and never persisted.
+  **Redirects are followed by the engine itself** (`internal/engine/redirect.go`; the
+  http.Client never auto-follows), mirroring net/http exactly: 301/302/303 → GET without body
+  (dropped for good), 307/308 keep method + body, relative Locations resolved, Authorization /
+  Cookie & co. dropped once the chain leaves the initial host for a non-subdomain, body headers
+  dropped with the body, custom Host only on relative redirects, Referer set (not https→http),
+  at most 10 requests ("stopped after 10 redirects", the chain kept). One deadline covers the
+  whole chain. **Follow redirects** is a client-local, per-request toggle (SQLite
+  `request_settings`, no row = on; bound `GetFollowRedirects`/`SetFollowRedirects`; Go reads it
+  at send time), set in the ⚙ popover left of Send (dot on the gear when off). Off → the 3xx is
+  the response. **Per-hop timing** (`internal/engine/trace.go`, httptrace): every hop records
+  dns / connect (TLS folded in) / wait (TTFB) / download / total ms, connection reuse and remote
+  address; a phase that did not happen is null (never 0); a failed hop names the phase it died
+  in. `Response.Hops` and `SendResult.Hops` (also on failure, via `engine.SendError`) carry
+  them; local secret values are masked (`••••`) in hop URLs. History still stores the total.
+  The engine also
   keeps the **full body** (`engine.Response.Full`, `json:"-"`, capped at 20 MB, `FullCapped`)
   Go-side only: `responses.go` holds it per request tab for the ACTIVE response (replaced by
   the next send — only if that send is still current —, dropped on a failed send, on tab close
@@ -161,6 +176,13 @@ Postman-style shell, logged in:
   body, `referrerpolicy=no-referrer`, white page in both themes (absolute URLs load, relative
   ones break — accepted). A new response resets the view (Preview for HTML, Pretty for JSON,
   else Raw); Wrap is global (`ui_response_wrap`).
+- **Timing panel** (`TimingPanel.tsx`, model in `src/timingModel.ts`): the toolbar's duration is
+  the trigger (dotted underline; disabled without hops, also enabled after a failed send). One
+  section per hop — status · method · URL · total, a stacked bar in the phase tokens
+  (`--phase-dns/connect/wait/download`) and a phase table ("reused" for DNS/connect on a reused
+  connection, "—" for a phase that did not happen, the failed phase in red with the error);
+  a single hop has no numbering, a chain shows ①②… and "N hops · total" (sticky footer). Per
+  tab, reset by every send.
 - **Response body viewer** (`src/responseViewer.ts`, `ResponseBody.tsx`): a read-only CodeMirror
   6 view for Pretty and Raw (viewport rendering — smooth at 256 KB; native selection; keyboard
   scrolling). Pretty JSON folds: gutter ▾/▸, collapsed nodes read `{…} 12 keys` / `[…] 48 items`
@@ -258,6 +280,8 @@ frontend/                Vite + Solid + TS
 
 - `{{var}}` **autocomplete** on typing `{{`; variable usage search; env duplication;
   dynamic/generated variables.
+- Request settings beyond follow-redirects: TLS details / insecure toggle, per-request timeout,
+  a request Settings sub-tab, syncing the toggle to the server.
 - Response search: regex mode; searching inside collapsed JSON nodes (auto-expand on jump).
 - Per-request auth; cookies; response history UI
   (history rows are already written on every send); multipart/file bodies.
