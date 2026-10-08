@@ -63,6 +63,14 @@ describe("Ctrl+Tab cycling", () => {
     expect(k({ key: "Tab" })).toBeUndefined();
     expect(k({ key: "w" })).toBeUndefined();
     expect(k({ key: "w", ctrlKey: true, altKey: true })).toBeUndefined();
+    // Editor groups: Ctrl/Cmd+\ splits right, Ctrl/Cmd+1..9 focuses group N.
+    expect(k({ key: "\\", ctrlKey: true })).toBe("split");
+    expect(k({ key: "\\", metaKey: true })).toBe("split");
+    expect(k({ key: "1", ctrlKey: true })).toBe("focus1");
+    expect(k({ key: "9", metaKey: true })).toBe("focus9");
+    expect(k({ key: "0", ctrlKey: true })).toBeUndefined(); // browser zoom reset, not ours
+    expect(k({ key: "1" })).toBeUndefined();
+    expect(k({ key: "1", ctrlKey: true, shiftKey: true })).toBeUndefined();
   });
   it("is a no-op with a modal open or without tabs", () => {
     expect(canUseTabShortcut({ modalOpen: false, tabCount: 2 })).toBe(true);

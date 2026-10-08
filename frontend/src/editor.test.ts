@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { editRow, newRow, removeRow, Row, toggleRow } from "./rows";
 import { createAutosaver, SaveState } from "./autosave";
-import { restoreTabs, saveTabs, TabStorage } from "./tabPersistence";
+import { createLayoutSaver, LayoutStorage, readLayout, restoreLayout, saveLayout } from "./layoutPersistence";
+import { activeTab, allGroups, allTabs, singleGroup, splitGroup } from "./layoutTree";
+import { isTabKey, refFromKey, type TabRef } from "./tabModel";
 
 describe("row table", () => {
   const rows: Row[] = [newRow({ key: "a", value: "1" }), newRow({ key: "b", value: "2", enabled: false })];
@@ -125,51 +127,89 @@ describe("autosave", () => {
   });
 });
 
-describe("tab persistence", () => {
-  const req = (id: string) => ({ kind: "request" as const, id });
-  const env = (id: string) => ({ kind: "env" as const, id });
-
-  function memoryStorage(initial: Record<string, unknown> = {}) {
-    const data: Record<string, unknown> = { ...initial };
-    const storage: TabStorage = {
-      get: async (p) => data[p] ?? { open: [], active: { kind: "", id: "" } },
-      set: vi.fn(async (p: string, t: unknown) => {
-        data[p] = t;
-      }),
+describe("layout persistence (per user + project, versioned)", () => {
+  const req = (id: string): TabRef => ({ kind: "request", id });
+  const mem = () => {
+    const data = new Map<string, string>();
+    const storage: LayoutStorage = {
+      get: async (p) => data.get(p) ?? "",
+      set: async (p, json) => void data.set(p, json),
     };
-    return { storage, data };
-  }
+    return { data, storage };
+  };
+  const twoGroups = () => splitGroup(singleGroup(["request:r1", "env:e1", "request:r2"], "env:e1", "A"), "A", "right", "request:r2", "B");
 
-  it("round-trips mixed request/env tabs in order with the active tab, per project", async () => {
-    const { storage } = memoryStorage();
-    await saveTabs(storage, "p1", [req("r1"), env("e1"), req("r2")], env("e1"));
-    await saveTabs(storage, "p2", [req("x")], req("x"));
-    expect(await restoreTabs(storage, "p1", async () => true)).toEqual({ open: [req("r1"), env("e1"), req("r2")], active: env("e1") });
-    expect(await restoreTabs(storage, "p2", async () => true)).toEqual({ open: [req("x")], active: req("x") });
+  it("round-trips the whole layout, per project", async () => {
+    const { storage, data } = mem();
+    await saveLayout(storage, "p1", twoGroups());
+    await saveLayout(storage, "p2", singleGroup(["request:x"], "request:x", "X"));
+    expect(JSON.parse(data.get("p1")!).version).toBe(1);
+    const p1 = await restoreLayout(storage, "p1", async () => true);
+    expect(allGroups(p1.root).map((g) => g.tabs)).toEqual([["request:r1", "env:e1"], ["request:r2"]]);
+    expect(p1.focusedGroupId).toBe("B");
+    const p2 = await restoreLayout(storage, "p2", async () => true);
+    expect(allTabs(p2.root)).toEqual(["request:x"]);
   });
 
-  it("an active tab that is not open is not stored", async () => {
-    const { storage, data } = memoryStorage();
-    await saveTabs(storage, "p1", [req("r1")], req("gone"));
-    expect(data.p1).toEqual({ open: [req("r1")], active: { kind: "", id: "" } });
+  it("drops tabs whose target is gone, collapses their group, writes the cleaned layout back", async () => {
+    const { storage, data } = mem();
+    await saveLayout(storage, "p1", twoGroups());
+    const l = await restoreLayout(storage, "p1", async (ref) => ref.id !== "r2");
+    expect(allGroups(l.root).length).toBe(1);
+    expect(allTabs(l.root)).toEqual(["request:r1", "env:e1"]);
+    expect(allTabs(readLayout(data.get("p1")!)!.root)).toEqual(["request:r1", "env:e1"]);
+    // A failing load counts as gone.
+    const none = await restoreLayout(storage, "p1", async () => Promise.reject(new Error("x")));
+    expect(allTabs(none.root)).toEqual([]);
   });
 
-  it("silently drops tabs whose target is gone and writes the cleaned list back", async () => {
-    const { storage, data } = memoryStorage({ p1: { open: [req("r1"), req("deleted"), env("e9"), req("r3")], active: req("deleted") } });
-    const restored = await restoreTabs(storage, "p1", async (ref) => ref.id !== "deleted" && ref.id !== "e9");
-    expect(restored).toEqual({ open: [req("r1"), req("r3")], active: req("r3") });
-    expect(data.p1).toEqual({ open: [req("r1"), req("r3")], active: req("r3") });
+  it("corrupt data falls back to one empty group (and is overwritten), no crash", async () => {
+    for (const raw of ["{not json", '{"version":9}', "[]", '{"version":1,"layout":{"root":{"type":"pane"}}}']) {
+      const { storage, data } = mem();
+      data.set("p1", raw);
+      const l = await restoreLayout(storage, "p1", async () => true);
+      expect(allGroups(l.root).length).toBe(1);
+      expect(allTabs(l.root)).toEqual([]);
+      expect(readLayout(data.get("p1")!)).not.toBeNull();
+    }
+    const { storage } = mem();
+    expect(allTabs((await restoreLayout(storage, "p1", async () => true)).root)).toEqual([]); // nothing stored
   });
 
-  it("restores the pre-typed format (bare ids) as request tabs and rewrites it typed", async () => {
-    const { storage, data } = memoryStorage({ p1: { open: ["r1", "r2"], active: "r1" } });
-    const restored = await restoreTabs(storage, "p1", async () => true);
-    expect(restored).toEqual({ open: [req("r1"), req("r2")], active: req("r1") });
-    expect(data.p1).toEqual({ open: [req("r1"), req("r2")], active: req("r1") });
+  it("reads the single group Go migrates from the old tab list", async () => {
+    const { storage, data } = mem();
+    data.set("p1", JSON.stringify({
+      version: 1,
+      layout: { root: { type: "group", id: "g-migrated", tabs: ["request:r1", "env_list:"], activeTabId: "request:r1" }, focusedGroupId: "g-migrated" },
+    }));
+    const l = await restoreLayout(storage, "p1", async () => true);
+    expect(allTabs(l.root)).toEqual(["request:r1", "env_list:"]);
+    expect(activeTab(l)).toBe("request:r1");
   });
 
-  it("a failing load counts as gone", async () => {
-    const { storage } = memoryStorage({ p1: { open: [req("r1")], active: req("r1") } });
-    expect(await restoreTabs(storage, "p1", async () => Promise.reject(new Error("x")))).toEqual({ open: [], active: undefined });
+  it("tab keys map back to refs", () => {
+    expect(refFromKey("request:abc")).toEqual(req("abc"));
+    expect(refFromKey("env_list:")).toEqual({ kind: "env_list", id: "" });
+    expect(refFromKey("request:")).toBeUndefined();
+    expect(isTabKey("bogus:x")).toBe(false);
+  });
+
+  it("the saver debounces and flushes", async () => {
+    vi.useFakeTimers();
+    let writes = 0;
+    const saver = createLayoutSaver(async () => void writes++);
+    saver.change();
+    saver.change();
+    vi.advanceTimersByTime(299);
+    expect(writes).toBe(0);
+    vi.advanceTimersByTime(1);
+    await vi.runAllTimersAsync();
+    expect(writes).toBe(1);
+    saver.change();
+    await saver.flush(); // quit: written now
+    expect(writes).toBe(2);
+    await saver.flush(); // nothing pending
+    expect(writes).toBe(2);
+    vi.useRealTimers();
   });
 });

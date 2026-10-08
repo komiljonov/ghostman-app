@@ -2492,6 +2492,13 @@ input:disabled {
   row-gap: 4px;
 }
 
+/* In a short pane (a split editor group) the wrapped toolbar and the filter bar
+   keep their height; only the body gives way (it would overlap them otherwise). */
+.response-view > .response-toolbar,
+.response-view .filter-bar-wrap {
+  flex-shrink: 0;
+}
+
 .resp-indicators {
   display: flex;
   flex-shrink: 0;
@@ -3690,4 +3697,164 @@ input:disabled {
 
 .filter-help-doc .muted {
   font-size: 11px;
+}
+
+/* ---- Editor groups (EditorGroups / EditorGroup / GroupSash) ----
+   Groups are flat siblings, absolutely positioned from the split tree's rects:
+   a split or collapse only changes left/top/width/height — animated, never a
+   re-mount. */
+.editor-groups {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-group {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  box-shadow: inset 1px 0 0 var(--border), inset 0 1px 0 var(--border);
+  transition: left 200ms ease-out, top 200ms ease-out, width 200ms ease-out, height 200ms ease-out, clip-path 200ms ease-out;
+  clip-path: inset(0);
+}
+
+.editor-groups.resizing .editor-group,
+.editor-group.resizing {
+  transition: none;
+}
+
+/* A new group grows in from its side of the split (the class is removed after
+   the first frame, so clip-path animates to inset(0)). */
+.editor-group.group-enter-right { clip-path: inset(0 0 0 100%); transition: none; }
+.editor-group.group-enter-left { clip-path: inset(0 100% 0 0); transition: none; }
+.editor-group.group-enter-bottom { clip-path: inset(100% 0 0 0); transition: none; }
+.editor-group.group-enter-top { clip-path: inset(0 0 100% 0); transition: none; }
+
+.group-content {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The focused group: its tab bar carries the accent line (VS Code-like). */
+.tab-bar.focused {
+  box-shadow: inset 0 2px 0 var(--accent-soft);
+}
+
+.editor-group:not(.focused) .tab.active {
+  box-shadow: inset 0 -2px 0 var(--border);
+}
+
+.group-sash {
+  position: absolute;
+  z-index: 5;
+}
+
+.group-sash.vertical {
+  width: 8px;
+  margin-left: -4px;
+  cursor: col-resize;
+}
+
+.group-sash.horizontal {
+  height: 8px;
+  margin-top: -4px;
+  cursor: row-resize;
+}
+
+.group-sash::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  background: transparent;
+  transition: background 120ms ease-out;
+}
+
+.group-sash.vertical::after {
+  width: 2px;
+}
+
+.group-sash.horizontal::after {
+  height: 2px;
+}
+
+.group-sash:hover::after,
+.group-sash:active::after {
+  background: var(--accent);
+}
+
+/* Drag & drop: the zone preview (one rectangle moving between zones), the
+   tab-bar insertion line, the ghost. */
+.drop-overlay {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  opacity: 0;
+  transition: left 150ms ease-out, top 150ms ease-out, width 150ms ease-out, height 150ms ease-out, opacity 150ms ease-out;
+}
+
+.drop-overlay.shown {
+  opacity: 0.55;
+}
+
+.drop-overlay.snap {
+  transition: opacity 150ms ease-out;
+}
+
+.drop-line {
+  position: absolute;
+  z-index: 21;
+  width: 2px;
+  pointer-events: none;
+  background: var(--accent);
+  border-radius: 1px;
+}
+
+.tab-drag-ghost {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  padding: 5px 10px;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  pointer-events: none;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px var(--shadow);
+}
+
+body.tab-dragging,
+body.tab-dragging * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+.editor-groups .tab.dragging {
+  opacity: 0.45;
+  outline: none;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-group,
+  .drop-overlay,
+  .group-sash::after {
+    transition: none;
+  }
 }

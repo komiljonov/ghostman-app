@@ -23,6 +23,7 @@ import { tags } from "@lezer/highlight";
 import { json } from "@codemirror/lang-json";
 import { classify, createFromTooltip, EnvDisplay, maskRanges, saveFromTooltip, tooltipActions, tooltipModel } from "./vars";
 import { runShortcut } from "./shortcuts";
+import type { ShortcutAction } from "./tabModel";
 import { varEditApi } from "./varEdit";
 
 // ---- Theme: every color is a token from tokens.css, so light/dark switch live ----
@@ -94,6 +95,8 @@ export const appShortcuts = Prec.highest(keymap.of([
   { key: "Ctrl-Tab", run: () => runShortcut("next"), preventDefault: true },
   { key: "Ctrl-Shift-Tab", run: () => runShortcut("prev"), preventDefault: true },
   { key: "Mod-w", run: () => runShortcut("close"), preventDefault: true },
+  { key: "Mod-\\", run: () => runShortcut("split"), preventDefault: true },
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => ({ key: `Mod-${n}`, run: () => runShortcut(`focus${n}` as ShortcutAction), preventDefault: true })),
 ]));
 
 // ---- {{var}} highlighting ----

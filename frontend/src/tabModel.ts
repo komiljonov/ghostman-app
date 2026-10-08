@@ -12,6 +12,18 @@ export const ENV_LIST: TabRef = { kind: "env_list", id: "" };
 export const HISTORY: TabRef = { kind: "history", id: "" };
 
 export const tabKey = (ref: TabRef) => `${ref.kind}:${ref.id}`;
+
+// The ref a tab key names (layouts store keys); undefined for anything unknown.
+export function refFromKey(key: string): TabRef | undefined {
+  const i = key.indexOf(":");
+  if (i < 0) return undefined;
+  return toRef({ kind: key.slice(0, i), id: key.slice(i + 1) });
+}
+
+export const isTabKey = (key: string) => {
+  const ref = refFromKey(key);
+  return !!ref && tabKey(ref) === key;
+};
 export const sameTab = (a: TabRef | undefined, b: TabRef | undefined) => !!a && !!b && a.kind === b.kind && a.id === b.id;
 
 export interface SavedTabs {
@@ -126,7 +138,8 @@ export function cycleKey(keys: string[], active: string | undefined, dir: 1 | -1
   return keys[(i + dir + keys.length) % keys.length];
 }
 
-export type ShortcutAction = "send" | "next" | "prev" | "close";
+export type ShortcutAction = "send" | "next" | "prev" | "close" | "split"
+  | "focus1" | "focus2" | "focus3" | "focus4" | "focus5" | "focus6" | "focus7" | "focus8" | "focus9";
 
 type KeyLike = { key: string; ctrlKey: boolean; metaKey: boolean; altKey: boolean; shiftKey: boolean };
 
@@ -135,6 +148,9 @@ export function shortcutAction(e: KeyLike): ShortcutAction | undefined {
   if (isSendShortcut(e)) return "send";
   if (e.key === "Tab" && e.ctrlKey && !e.metaKey) return e.shiftKey ? "prev" : "next";
   if ((e.key === "w" || e.key === "W") && (e.ctrlKey || e.metaKey) && !e.shiftKey) return "close";
+  // Editor groups: Ctrl/Cmd+\ splits the active tab right, Ctrl/Cmd+1..9 focuses group N.
+  if (e.key === "\\" && (e.ctrlKey || e.metaKey) && !e.shiftKey) return "split";
+  if (/^[1-9]$/.test(e.key) && (e.ctrlKey || e.metaKey) && !e.shiftKey) return `focus${e.key}` as ShortcutAction;
   return undefined;
 }
 

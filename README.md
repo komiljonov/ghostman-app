@@ -21,7 +21,8 @@ after Reveal, saved locally only) or create a missing one in the active environm
 Typing `{{` suggests the project's variables: those of the active environment first (with a value
 preview; secrets show a lock), then keys that exist only in other environments (dimmed, "in prod").
 Keyboard: Ctrl+Enter (Cmd+Enter on macOS) sends the active request, Ctrl+Tab / Ctrl+Shift+Tab
-switch tabs, Ctrl+W closes the active tab. In the sidebar tree: arrow keys select, Enter opens,
+switch tabs in the focused group, Ctrl+W closes the active tab, Ctrl+\ splits it to the right,
+Ctrl+1..9 focuses editor group N. In the sidebar tree: arrow keys select, Enter opens,
 Ctrl+E renames, Del deletes, Ctrl+D duplicates a request; folders and requests can also be
 dragged to move or reorder them. The URL field and the Params tab stay in sync both ways. Params, headers and form fields have a **Bulk edit** view: one `key:value` per line (Postman's format; everything after the first colon is the value, so JSON values survive; `//key:value` is a disabled row; a space after the colon is part of the value). The choice is remembered per kind for all requests. The sidebar is resizable (drag its
 edge; double-click to reset). A **jq filter bar** under the response narrows JSON responses (e.g. `.data[] | select(.revenue > 1000)`; ? shows examples); the filter is saved on the request for the whole team, re-applied to new responses, and the filtered result can be copied or saved. HTML responses can be previewed in a sandboxed frame (no scripts); images, audio and video play in Preview, PDFs and other binary data can be saved. In the response: Ctrl+F searches the body,
@@ -30,8 +31,10 @@ download icon saves the full response (up to 20 MB, even when only 256 KB is sho
 duration for per-hop timing (DNS, connect, waiting, download — one section per redirect); whether
 redirects are followed cascades: a request or folder can follow, not follow, use the global value
 (Settings, this machine) or inherit from its folder — set in the request's Settings tab or a
-folder's Settings…, shared with the team. Tabs can be reordered by dragging; right-click a tab
-for Close / Close Others / Close All. Settings has a System / Dark / Light theme.
+folder's Settings…, shared with the team. The editor splits into **groups**, like VS Code: drag a
+tab onto another tab bar to move it, or onto an edge of a group to split there (the preview shows
+where it lands; Escape cancels); drag the dividers to resize (double-click → equal). Right-click a
+tab for Close / Close Others / Close All, Split Right / Split Down and Move to Group N. Settings has a System / Dark / Light theme.
 **Auth** (the request's Auth sub-tab, and a folder's Settings…): Bearer token, Basic auth or an
 API key (header or query parameter); "Inherit from parent" uses the nearest folder that sets auth
 (or none), "No auth" sends nothing even inside such a folder. Values can use `{{variables}}` —
@@ -49,7 +52,7 @@ The window is laid out Postman-style: a top bar with team and project switchers 
 also hold "+ New …" and the team/project settings) and a profile menu (invitations, settings,
 log out); a left sidebar with the project's folders & requests;
 and a main pane with the request editor tabs. The selected team and project, and each
-project's open tabs, are remembered across restarts.
+project's open tabs and editor-group layout (per user), are remembered across restarts.
 
 The sidebar shows the current project's folders and requests: create, rename inline, move
 (Move to…, Move up/down) and delete from each row's ⋯ / right-click menu. Clicking a request
