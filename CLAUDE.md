@@ -171,7 +171,7 @@ Postman-style shell, logged in:
   swallowed as a no-op. Disabled lines are dimmed (`.cm-bulk-disabled`).
 - **Format JSON** in the raw body (Go: `internal/jsonfmt`, bound `FormatJSONBody`; editor side:
   `src/bodyFormat.ts` + `formatTransaction` / `bodyFormatter` in `src/codemirror.ts`, both tested).
-  Ctrl/Cmd+Shift+F in the raw body editor, or the **Format** button at the right end of the body
+  Alt+Shift+F (Option+Shift+F on macOS, as in VS Code) in the raw body editor, or the **Format** button at the right end of the body
   toolbar (always present; disabled with a reason unless raw + a content type containing "json"
   + a non-blank body). Go masks every `{{token}}` OUTSIDE string literals (a string-aware scanner,
   the `engine.FindTokens` grammar; values, array items and object keys) with a JSON string

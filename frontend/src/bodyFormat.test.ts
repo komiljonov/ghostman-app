@@ -11,7 +11,7 @@ const PRETTY = '{\n  "a": {{n}},\n  "b": "{{tok}}",\n  "c": [\n    {{x}},\n    2
 describe("Format gate (button + key)", () => {
   const body = (type: string, content_type: string, content = '{"a":1}') => ({ type, content_type, content });
   it("raw + a JSON content type + something to format", () => {
-    expect(formatGate(body("raw", "application/json"))).toEqual({ enabled: true, reason: "Format JSON (Ctrl+Shift+F)" });
+    expect(formatGate(body("raw", "application/json"))).toEqual({ enabled: true, reason: "Format JSON (Alt+Shift+F)" });
     expect(formatGate(body("raw", "application/vnd.api+json")).enabled).toBe(true);
     expect(formatGate(body("raw", "Application/JSON; charset=utf-8")).enabled).toBe(true);
   });
@@ -73,7 +73,7 @@ describe("format transaction", () => {
   });
 });
 
-describe("Ctrl/Cmd+Shift+F gating", () => {
+describe("Alt+Shift+F gating", () => {
   const press = (extensions: Extension) => {
     const s = EditorState.create({ doc: MIN, extensions });
     return formatBodyKey({ state: s, dispatch: () => undefined });
