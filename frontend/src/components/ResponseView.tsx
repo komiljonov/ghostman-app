@@ -240,6 +240,8 @@ export default function ResponseView(props: Props) {
                       wrap={responseWrap()}
                       folds={view() === "pretty" ? props.tab.responseFolds : undefined}
                       onFolds={(f) => view() === "pretty" && props.onView((t) => (t.responseFolds = f))}
+                      search={props.tab.responseSearch}
+                      onSearch={(s) => props.onView((t) => (t.responseSearch = s))}
                       ref={(api) => (body = api)} />
                   </Match>
                 </Switch>

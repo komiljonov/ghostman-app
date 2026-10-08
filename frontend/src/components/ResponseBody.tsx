@@ -3,7 +3,7 @@ import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 import type { Range } from "../jsonFold";
 import { bodyMenu } from "../responseView";
 import {
-  counterText, findMatches, firstUnhidden, Match, MAX_MATCHES, stepIndex,
+  counterText, findMatches, firstUnhidden, Match, MAX_MATCHES, restoredIndex, SavedSearch, stepIndex,
 } from "../responseSearch";
 import type { ResponseViewerHandle } from "../responseViewer";
 import ContextMenu, { MenuEntry } from "./ContextMenu";
@@ -22,6 +22,9 @@ interface Props {
   wrap: boolean;
   folds?: Range[]; // this tab's collapse state for this response (restored on remount)
   onFolds: (folds: Range[]) => void;
+  // This tab's open search (restored on remount: switching tabs or views keeps it).
+  search?: SavedSearch;
+  onSearch?: (search: SavedSearch | undefined) => void;
   ref: (api: ResponseBodyApi) => void;
 }
 
@@ -33,9 +36,12 @@ export default function ResponseBody(props: Props) {
   let input: HTMLInputElement | undefined;
   let viewer: ResponseViewerHandle | undefined;
   const [ready, setReady] = createSignal(false);
-  const [searchOpen, setSearchOpen] = createSignal(false);
-  const [query, setQuery] = createSignal("");
-  const [caseSensitive, setCaseSensitive] = createSignal(false);
+  // Start from the tab's saved search, if any (the bar was open when we unmounted).
+  const saved = props.search;
+  let restoreIndex = saved?.current ?? -1; // used once, on the first search run
+  const [searchOpen, setSearchOpen] = createSignal(!!saved);
+  const [query, setQuery] = createSignal(saved?.query ?? "");
+  const [caseSensitive, setCaseSensitive] = createSignal(saved?.caseSensitive ?? false);
   const [all, setAll] = createSignal<Match[]>([]);
   const [current, setCurrent] = createSignal(-1);
   const [menu, setMenu] = createSignal<{ x: number; y: number; selection: string }>();
@@ -48,7 +54,8 @@ export default function ResponseBody(props: Props) {
   const runSearch = () => {
     const matches = searchOpen() ? findMatches(props.text, query(), caseSensitive()) : [];
     setAll(matches);
-    const i = firstUnhidden(matches, viewer?.folds() ?? []);
+    const i = restoredIndex(restoreIndex, matches.length, firstUnhidden(matches, viewer?.folds() ?? []));
+    restoreIndex = -1;
     setCurrent(i);
     paint();
     if (i >= 0) viewer?.reveal(matches[i]);
@@ -109,6 +116,10 @@ export default function ResponseBody(props: Props) {
   }));
   createEffect(on(() => props.wrap, (w) => ready() && viewer?.setWrap(w), { defer: true }));
   createEffect(on([query, caseSensitive], () => ready() && searchOpen() && runSearch(), { defer: true }));
+  // Keep the tab's copy current (the component unmounts on a tab switch).
+  createEffect(on([searchOpen, query, caseSensitive, current], ([open, q, cs, cur]) => {
+    props.onSearch?.(open ? { query: q, caseSensitive: cs, current: cur } : undefined);
+  }, { defer: true }));
 
   props.ref({
     openSearch,
