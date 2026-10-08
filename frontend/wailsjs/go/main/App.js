@@ -98,6 +98,10 @@ export function EvalResponseFilter(arg1, arg2) {
   return window['go']['main']['App']['EvalResponseFilter'](arg1, arg2);
 }
 
+export function FormatJSONBody(arg1) {
+  return window['go']['main']['App']['FormatJSONBody'](arg1);
+}
+
 export function GetAuthState() {
   return window['go']['main']['App']['GetAuthState']();
 }

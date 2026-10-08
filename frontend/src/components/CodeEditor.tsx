@@ -6,6 +6,11 @@ interface Props {
   value: string;
   json: boolean;
   onChange: (text: string) => void;
+  // Format JSON: Ctrl/Cmd+Shift+F calls onFormat while canFormat (else the key is a no-op).
+  canFormat?: boolean;
+  onFormat?: () => void;
+  // The editor handle, once CodeMirror has loaded (BodyEditor applies Format results).
+  onEditor?: (editor: CodeEditorHandle) => void;
 }
 
 // Raw body editor. CodeMirror is loaded on first use (dynamic import) and the
@@ -21,6 +26,11 @@ export default function CodeEditor(props: Props) {
     if (!host.isConnected) return; // unmounted while loading
     editor = createCodeEditor(host, props.value, props.json, (text) => props.onChange(text), envDisplay);
     setReady(true);
+    props.onEditor?.(editor);
+  });
+  createEffect(() => {
+    const on = !!props.canFormat;
+    if (ready()) editor?.setFormatter(on ? () => props.onFormat?.() : null);
   });
   createEffect(() => {
     const on = props.json;

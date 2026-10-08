@@ -5,12 +5,13 @@
 import { basicSetup, EditorView } from "codemirror";
 import {
   Annotation, Compartment, EditorState, Extension, Facet, Prec, RangeSetBuilder, StateCommand, StateEffect, StateField, Transaction,
+  TransactionSpec,
 } from "@codemirror/state";
 import {
   closeHoverTooltips, Decoration, DecorationSet, hoverTooltip, keymap, placeholder as placeholderExt, showTooltip, Tooltip,
   ViewPlugin, ViewUpdate, WidgetType,
 } from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, isolateHistory } from "@codemirror/commands";
 import {
   acceptCompletion, autocompletion, Completion, CompletionContext, CompletionResult, completionStatus, pickedCompletion,
 } from "@codemirror/autocomplete";
@@ -25,6 +26,7 @@ import { classify, createFromTooltip, EnvDisplay, maskRanges, saveFromTooltip, t
 import { runShortcut } from "./shortcuts";
 import type { ShortcutAction } from "./tabModel";
 import { varEditApi } from "./varEdit";
+import { whitespaceChanges } from "./bodyFormat";
 
 // ---- Theme: every color is a token from tokens.css, so light/dark switch live ----
 
@@ -304,6 +306,11 @@ export interface CodeEditorHandle {
   // Replaces the text programmatically: not reported to onChange, not in undo history.
   setDoc: (text: string) => void;
   getDoc: () => string;
+  // Format JSON: the Ctrl/Cmd+Shift+F handler (null = the key is a no-op here) and
+  // applying Go's result as one undoable change (false: the text moved on meanwhile).
+  setFormatter: (fn: BodyFormatter | null) => void;
+  applyFormatted: (before: string, formatted: string) => boolean;
+  focus: () => void;
   destroy: () => void;
 }
 
@@ -316,6 +323,7 @@ export function createCodeEditor(
   opts: { bulk?: boolean } = {},
 ): CodeEditorHandle {
   const language = new Compartment();
+  const formatter = new Compartment();
   const view = new EditorView({
     parent,
     state: EditorState.create({
@@ -328,6 +336,8 @@ export function createCodeEditor(
         varHighlighting(getEnv),
         varCompletion(getEnv),
         lineToggleKeymap, // Ctrl+/: toggles "//" in bulk editors only, a no-op in the raw body
+        formatKeymap, // Ctrl+Shift+F: formats when a formatter is set (raw JSON body), else a no-op
+        formatter.of(bodyFormatter.of(null)),
         opts.bulk ? bulkEditorExtension : [],
         EditorView.lineWrapping,
         EditorView.updateListener.of((u) => {
@@ -353,6 +363,13 @@ export function createCodeEditor(
       });
     },
     getDoc: () => view.state.doc.toString(),
+    setFormatter: (fn) => view.dispatch({ effects: formatter.reconfigure(bodyFormatter.of(fn)) }),
+    applyFormatted: (before, formatted) => {
+      const spec = formatTransaction(view.state, before, formatted);
+      if (spec) view.dispatch(spec);
+      return spec !== null || view.state.doc.toString() === formatted;
+    },
+    focus: () => view.focus(),
     destroy: () => view.destroy(),
   };
 }
@@ -546,6 +563,44 @@ export const toggleBulkLines: StateCommand = ({ state, dispatch }) => {
 const lineToggleKeymap = Prec.highest(keymap.of([
   { key: "Mod-/", run: (view) => toggleBulkLines({ state: view.state, dispatch: view.dispatch }), preventDefault: true },
 ]));
+
+// ---- Format JSON (raw body only; rules: bodyFormat.ts, formatting: Go) ----
+// Ctrl/Cmd+Shift+F runs the formatter the raw body editor provides through this
+// facet while its body is raw JSON (CodeEditor reconfigures it). Bulk editors and
+// a non-JSON body provide none, and with the completion popup open the key is a
+// no-op too — swallowed either way, like Mod-/.
+
+export type BodyFormatter = () => void;
+export const bodyFormatter = Facet.define<BodyFormatter | null, BodyFormatter | null>({
+  combine: (values) => values.find((v) => v) ?? null,
+});
+
+/** The gated key command (true = handled, also when it deliberately does nothing). */
+export const formatBodyKey: StateCommand = ({ state }) => {
+  const format = state.facet(bodyFormatter);
+  if (format && completionStatus(state) === null) format();
+  return true;
+};
+
+const formatKeymap = Prec.highest(keymap.of([
+  { key: "Mod-Shift-f", run: (view) => formatBodyKey({ state: view.state, dispatch: view.dispatch }), preventDefault: true },
+]));
+
+/**
+ * The transaction that turns `before` into Go's `formatted` text: whitespace-only
+ * changes (selection mapped through them), its own undo step. Null when the
+ * document is no longer `before` (edited while Go was formatting) or unchanged.
+ */
+export function formatTransaction(state: EditorState, before: string, formatted: string): TransactionSpec | null {
+  if (state.doc.toString() !== before || before === formatted) return null;
+  const changes = whitespaceChanges(before, formatted) ?? [{ from: 0, to: before.length, insert: formatted }];
+  return {
+    changes,
+    annotations: isolateHistory.of("full"),
+    userEvent: "input.format",
+    scrollIntoView: true,
+  };
+}
 
 // ---- Masked (password) single-line fields: literal text shows as bullets ----
 
