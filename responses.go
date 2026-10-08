@@ -27,7 +27,8 @@ type heldBody struct {
 	data        []byte
 	capped      bool // the body was larger than engine.MaxFullBody
 	contentType string
-	version     int64 // bumped by every put: the media URL changes with each response
+	version     int64      // bumped by every put: the media URL changes with each response
+	parsed      *parsedDoc // the body parsed as JSON for the filter bar, once (lazily)
 }
 
 type responseStore struct {
@@ -44,6 +45,7 @@ func (s *responseStore) put(id string, b heldBody) int64 {
 	defer s.mu.Unlock()
 	s.next++
 	b.version = s.next
+	b.parsed = &parsedDoc{} // a new response: the filter parses it again (once)
 	s.bodies[id] = b
 	return b.version
 }

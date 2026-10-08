@@ -12,6 +12,10 @@ export function ClearHistory(arg1:string,arg2:string):Promise<main.DeletedResult
 
 export function ConfirmQuit():Promise<void>;
 
+export function CopyFilteredResult(arg1:string,arg2:string):Promise<main.EmptyResult>;
+
+export function CopyHistoryFilteredResult(arg1:number,arg2:string):Promise<main.EmptyResult>;
+
 export function CreateEnvironment(arg1:string,arg2:string):Promise<main.EnvironmentResult>;
 
 export function CreateFolder(arg1:string,arg2:string,arg3:string):Promise<main.FolderResult>;
@@ -43,6 +47,10 @@ export function DeleteTeam(arg1:string):Promise<main.EmptyResult>;
 export function DeleteVariable(arg1:string):Promise<main.EmptyResult>;
 
 export function DuplicateRequest(arg1:string):Promise<main.RequestSummaryResult>;
+
+export function EvalHistoryFilter(arg1:number,arg2:string):Promise<main.FilterResult>;
+
+export function EvalResponseFilter(arg1:string,arg2:string):Promise<main.FilterResult>;
 
 export function GetAuthState():Promise<session.AuthState>;
 
@@ -138,7 +146,11 @@ export function RestoreHistoryEntry(arg1:number,arg2:string):Promise<main.Reques
 
 export function RevokeInvitation(arg1:string):Promise<main.EmptyResult>;
 
+export function SaveFilteredResponseToFile(arg1:string,arg2:string):Promise<main.SavedFileResult>;
+
 export function SaveFolderSettings(arg1:string,arg2:string,arg3:string,arg4:api.Auth,arg5:api.Auth):Promise<main.FolderResult>;
+
+export function SaveHistoryFilteredToFile(arg1:number,arg2:string):Promise<main.SavedFileResult>;
 
 export function SaveHistoryResponseToFile(arg1:number):Promise<main.SavedFileResult>;
 
@@ -195,3 +207,7 @@ export function UpdateProjectName(arg1:string,arg2:string):Promise<main.ProjectR
 export function UpdateRequest(arg1:string,arg2:api.RequestPatch):Promise<main.RequestResult>;
 
 export function UpdateTeamName(arg1:string,arg2:string):Promise<main.TeamResult>;
+
+export function WarmHistoryFilter(arg1:number):Promise<void>;
+
+export function WarmResponseFilter(arg1:string):Promise<void>;

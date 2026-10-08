@@ -487,6 +487,7 @@ export namespace api {
 	    method: string;
 	    url: string;
 	    follow_redirects: string;
+	    response_filter: string;
 	    auth: Auth;
 	    sort_order: number;
 	    created_at: string;
@@ -508,6 +509,7 @@ export namespace api {
 	        this.method = source["method"];
 	        this.url = source["url"];
 	        this.follow_redirects = source["follow_redirects"];
+	        this.response_filter = source["response_filter"];
 	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
@@ -543,6 +545,7 @@ export namespace api {
 	    query_params: KeyValue[];
 	    body: RequestBody;
 	    auth: Auth;
+	    response_filter: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new RequestDraft(source);
@@ -556,6 +559,7 @@ export namespace api {
 	        this.query_params = this.convertValues(source["query_params"], KeyValue);
 	        this.body = this.convertValues(source["body"], RequestBody);
 	        this.auth = this.convertValues(source["auth"], Auth);
+	        this.response_filter = source["response_filter"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -585,6 +589,7 @@ export namespace api {
 	    body?: RequestBody;
 	    follow_redirects?: string;
 	    auth?: AuthPatch;
+	    response_filter?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new RequestPatch(source);
@@ -600,6 +605,7 @@ export namespace api {
 	        this.body = this.convertValues(source["body"], RequestBody);
 	        this.follow_redirects = source["follow_redirects"];
 	        this.auth = this.convertValues(source["auth"], AuthPatch);
+	        this.response_filter = source["response_filter"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -628,6 +634,7 @@ export namespace api {
 	    method: string;
 	    url: string;
 	    follow_redirects: string;
+	    response_filter: string;
 	    auth: Auth;
 	    sort_order: number;
 	    created_at: string;
@@ -646,6 +653,7 @@ export namespace api {
 	        this.method = source["method"];
 	        this.url = source["url"];
 	        this.follow_redirects = source["follow_redirects"];
+	        this.response_filter = source["response_filter"];
 	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
@@ -1157,6 +1165,28 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+	export class FilterResult {
+	    result_json: string;
+	    result_is_text: boolean;
+	    count: number;
+	    truncated: boolean;
+	    matched_note: string;
+	    error: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FilterResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.result_json = source["result_json"];
+	        this.result_is_text = source["result_is_text"];
+	        this.count = source["count"];
+	        this.truncated = source["truncated"];
+	        this.matched_note = source["matched_note"];
+	        this.error = source["error"];
+	    }
 	}
 	export class FolderListResult {
 	    data: api.Folder[];

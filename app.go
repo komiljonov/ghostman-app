@@ -38,6 +38,8 @@ type App struct {
 
 	responses  *responseStore // full bodies of the tabs' active responses (Go-side only)
 	saveDialog saveDialog     // native save dialog (tests replace it)
+	clipboard  clipboardFunc  // system clipboard (tests replace it)
+	historyDoc historyDocCache
 
 	quitMu   sync.Mutex
 	quitting bool
@@ -63,6 +65,7 @@ func NewApp(eng *engine.Engine, defaultServerURL string) *App {
 
 		responses:  newResponseStore(),
 		saveDialog: runtime.SaveFileDialog,
+		clipboard:  runtime.ClipboardSetText,
 	}
 }
 

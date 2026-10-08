@@ -17,6 +17,9 @@ type RequestSummary struct {
 	URL       string  `json:"url"`
 	// FollowRedirects is the cascading setting: inherit|global|on|off (see ToggleValues).
 	FollowRedirects string `json:"follow_redirects"`
+	// ResponseFilter is a jq query the client applies to response bodies for
+	// display ("" = none); synced like any field, literal (no {{vars}}).
+	ResponseFilter string `json:"response_filter"`
 	// Auth is the cascading auth setting (auth.go), stored values unresolved.
 	Auth      Auth   `json:"auth"`
 	SortOrder int32  `json:"sort_order"`
@@ -54,6 +57,8 @@ type RequestPatch struct {
 	FollowRedirects *string `json:"follow_redirects,omitempty"`
 	// Auth rides the autosave (BuildRequestPatch): type + the fields that changed.
 	Auth *AuthPatch `json:"auth,omitempty"`
+	// ResponseFilter rides the autosave too; a pointer to "" clears it.
+	ResponseFilter *string `json:"response_filter,omitempty"`
 }
 
 func requestPath(id string) string { return "/api/v1/requests/" + url.PathEscape(id) }
@@ -103,7 +108,7 @@ func (r Request) withDefaults() Request {
 
 // Draft returns the editable part of the request.
 func (r Request) Draft() RequestDraft {
-	return RequestDraft{Method: r.Method, URL: r.URL, Headers: r.Headers, QueryParams: r.QueryParams, Body: r.Body, Auth: r.Auth}
+	return RequestDraft{Method: r.Method, URL: r.URL, Headers: r.Headers, QueryParams: r.QueryParams, Body: r.Body, Auth: r.Auth, ResponseFilter: r.ResponseFilter}
 }
 
 // UpdateRequest applies a partial update (name / method / url).

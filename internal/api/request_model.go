@@ -64,6 +64,8 @@ type RequestDraft struct {
 	QueryParams []KeyValue  `json:"query_params"`
 	Body        RequestBody `json:"body"`
 	Auth        Auth        `json:"auth"`
+	// ResponseFilter is the jq query for the response view ("" = none).
+	ResponseFilter string `json:"response_filter"`
 }
 
 // NormalizeRows drops rows without a key (the editor's trailing empty row, or a
@@ -119,6 +121,10 @@ func BuildRequestPatch(base, draft RequestDraft) (RequestPatch, bool) {
 	}
 	if a, ok := BuildAuthPatch(base.Auth, draft.Auth); ok {
 		p.Auth, changed = a, true
+	}
+	if draft.ResponseFilter != base.ResponseFilter {
+		f := draft.ResponseFilter
+		p.ResponseFilter, changed = &f, true
 	}
 	return p, changed
 }
