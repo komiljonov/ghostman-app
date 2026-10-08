@@ -6,7 +6,7 @@ interface Props {
   value: string;
   json: boolean;
   onChange: (text: string) => void;
-  // Format JSON: Ctrl/Cmd+Shift+F calls onFormat while canFormat (else the key is a no-op).
+  // Format JSON: Alt+Shift+F calls onFormat while canFormat (else the key is a no-op).
   canFormat?: boolean;
   onFormat?: () => void;
   // The editor handle, once CodeMirror has loaded (BodyEditor applies Format results).

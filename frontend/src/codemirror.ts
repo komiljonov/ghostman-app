@@ -306,7 +306,7 @@ export interface CodeEditorHandle {
   // Replaces the text programmatically: not reported to onChange, not in undo history.
   setDoc: (text: string) => void;
   getDoc: () => string;
-  // Format JSON: the Ctrl/Cmd+Shift+F handler (null = the key is a no-op here) and
+  // Format JSON: the Alt+Shift+F handler (null = the key is a no-op here) and
   // applying Go's result as one undoable change (false: the text moved on meanwhile).
   setFormatter: (fn: BodyFormatter | null) => void;
   applyFormatted: (before: string, formatted: string) => boolean;
@@ -336,7 +336,7 @@ export function createCodeEditor(
         varHighlighting(getEnv),
         varCompletion(getEnv),
         lineToggleKeymap, // Ctrl+/: toggles "//" in bulk editors only, a no-op in the raw body
-        formatKeymap, // Ctrl+Shift+F: formats when a formatter is set (raw JSON body), else a no-op
+        formatKeymap, // Alt+Shift+F: formats when a formatter is set (raw JSON body), else a no-op
         formatter.of(bodyFormatter.of(null)),
         opts.bulk ? bulkEditorExtension : [],
         EditorView.lineWrapping,
@@ -565,7 +565,7 @@ const lineToggleKeymap = Prec.highest(keymap.of([
 ]));
 
 // ---- Format JSON (raw body only; rules: bodyFormat.ts, formatting: Go) ----
-// Ctrl/Cmd+Shift+F runs the formatter the raw body editor provides through this
+// Alt+Shift+F runs the formatter the raw body editor provides through this
 // facet while its body is raw JSON (CodeEditor reconfigures it). Bulk editors and
 // a non-JSON body provide none, and with the completion popup open the key is a
 // no-op too — swallowed either way, like Mod-/.
@@ -583,7 +583,7 @@ export const formatBodyKey: StateCommand = ({ state }) => {
 };
 
 const formatKeymap = Prec.highest(keymap.of([
-  { key: "Mod-Shift-f", run: (view) => formatBodyKey({ state: view.state, dispatch: view.dispatch }), preventDefault: true },
+  { key: "Alt-Shift-f", run: (view) => formatBodyKey({ state: view.state, dispatch: view.dispatch }), preventDefault: true },
 ]));
 
 /**

@@ -29,7 +29,7 @@ export default function BodyEditor(props: Props) {
   const isRaw = () => props.body.type === "raw";
   const isJSON = () => props.body.content_type.toLowerCase().includes("json");
 
-  // Format JSON (Ctrl/Cmd+Shift+F or the button): Go formats (internal/jsonfmt),
+  // Format JSON (Alt+Shift+F or the button): Go formats (internal/jsonfmt),
   // the editor applies it as one undoable change. A body that does not parse is
   // left alone and a muted hint names the position until the next edit.
   let editor: CodeEditorHandle | undefined;

@@ -1,9 +1,9 @@
-// Format JSON in the raw body editor (Ctrl/Cmd+Shift+F or the Format button).
+// Format JSON in the raw body editor (Alt+Shift+F or the Format button).
 // The formatting itself — masking {{vars}}, indenting, error positions — is Go
 // (internal/jsonfmt, bound FormatJSONBody). This file holds only the editor
 // side: when Format applies, and how its result becomes ONE CodeMirror change.
 
-export const FORMAT_SHORTCUT = "Ctrl+Shift+F";
+export const FORMAT_SHORTCUT = "Alt+Shift+F";
 
 export interface FormatGate {
   enabled: boolean;
