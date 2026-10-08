@@ -219,6 +219,26 @@ Postman-style shell, logged in:
   default and renders `MediaPreview` (shared with history): the tab's held full body streamed
   from `/response-media/{tab}?v=N` (a new version per response; 404 once released) for image /
   audio / video, a file card with Save for pdf / binary.
+- **Response filter (jq)** (`internal/filter`: gojq; bound methods in `response_filter.go`; rules
+  in `src/responseFilter.ts`, unit tested; one component `ResponseFilterBar` for the live pane
+  and the history detail). Its own row under the response toolbar, ALWAYS present, disabled
+  ("JSON responses only") for anything else; a one-line hint row below it (note / quiet error /
+  nothing) keeps the height fixed. Go runs the query over the FULL held body (tab: the active
+  response; history: the stored body), parsed ONCE (`parsedDoc`: per tab on the held body, so a
+  new send invalidates it; one history entry cached incl. its row) and warmed in the background
+  when the input gets focus (`WarmResponseFilter` / `WarmHistoryFilter`); 1 s timeout ("filter
+  timed out"); no output → "no matches", one → that value (a string as plain text), several →
+  a JSON array; pretty (jq key order), the display copy capped so its JSON-ENCODED size is
+  ≤ 256 KB (+ note "N results · X of Y"). Copy / Save filtered use the whole result Go-side
+  (`CopyFilteredResult` via the runtime clipboard, `SaveFilteredResponseToFile`, history
+  variants). UI: 300 ms debounce, Enter now, stale answers dropped (`createFilterRunner`); an
+  error keeps the last good result (muted italic hint, never alarming); ✕ / Esc shows the full
+  body instantly and KEEPS the query (Enter or editing re-applies); the result replaces the
+  body in Pretty/Raw (collapse + search work in it); the save icon offers Full body | Filtered
+  result while a result shows. The query is `response_filter` on the request (server, synced,
+  literal — no {{vars}}), saved by the autosave; a new response auto-applies a saved filter
+  (`shouldAutoApply`); the history detail starts empty. The ? popover holds 6 examples (click to use) and links to the
+  jq manual / tutorial (`FILTER_DOCS`, opened with the runtime's `BrowserOpenURL`).
 - **Timing panel** (`TimingPanel.tsx`, model in `src/timingModel.ts`): the toolbar's duration is
   the trigger (dotted underline; disabled without hops, also enabled after a failed send). One
   section per hop — status · method · URL · total, a stacked bar in the phase tokens
@@ -368,6 +388,7 @@ editor.go                bound editor methods: SaveRequest (autosave patch), Sen
 history.go               history write path (recordHistory) + bound history methods (list, entry,
                          delete, clear, storage info, retention settings, restore)
 history_media.go         /history-media/{id} + /response-media/{tab} media routes; SaveHistoryResponseToFile
+response_filter.go       jq filter bar: Eval/Copy/Save(Response|History)Filter…, parsed-body caches, warm-up
 environments.go          bound environment/variable methods + local secret access
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
@@ -380,6 +401,7 @@ internal/api/            typed client for the Ghostman server API (/api/v1)
 internal/session/        server URL resolution, auth state machine, login/logout/settings
 internal/workspace/      current team/project selection: persist, validate, fall back
 internal/envs/           environments: active env, variables with local-only secrets, var map
+internal/filter/         jq (gojq) evaluation for the response filter bar: parse once, cap, note
 internal/store/          SQLite open/migrate, sqlc output (*.sql.go, db.go, models.go)
   migrations/            goose SQL migrations (embedded, also the sqlc schema)
   queries/               sqlc query files

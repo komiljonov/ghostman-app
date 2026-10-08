@@ -1,5 +1,9 @@
 import { createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
-import { SaveResponseToFile } from "../../wailsjs/go/main/App";
+import {
+  CopyFilteredResult, EvalResponseFilter, SaveFilteredResponseToFile, SaveResponseToFile, WarmResponseFilter,
+} from "../../wailsjs/go/main/App";
+import { filterAvailability, filterDisplay, saveChoices } from "../responseFilter";
+import ResponseFilterBar from "./ResponseFilterBar";
 import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 import { handleProblem } from "../authStore";
 import { responseFindTarget } from "../responseSearch";
@@ -22,6 +26,7 @@ import { triggerLabel } from "../timingModel";
 interface Props {
   tab: TabState;
   onView: (fn: (t: TabState) => void) => void;
+  onFilterQuery: (query: string) => void; // the request's response_filter (autosaved)
 }
 
 function formatBytes(n: number): string {
@@ -44,8 +49,12 @@ export default function ResponseView(props: Props) {
     const r = shown();
     return r ? effectiveView(r, props.tab.responseView) : props.tab.responseView;
   };
+  // The jq filter's result replaces the body in Pretty / Raw while it is on.
+  const filtered = () => filterDisplay(props.tab.filter);
   const structured = () => {
     const r = shown();
+    const f = filtered();
+    if (f.mode === "result") return f.structured;
     return !!r && hasStructure(r);
   };
   const controls = () => toolbarControls({
@@ -86,6 +95,27 @@ export default function ResponseView(props: Props) {
     window.removeEventListener("keydown", onKey);
     clearTimeout(toastTimer);
   });
+
+  const [saveMenu, setSaveMenu] = createSignal<{ x: number; y: number }>();
+  const report = (result: Awaited<ReturnType<typeof SaveResponseToFile>>, what: string) => {
+    handleProblem(result.error);
+    if (result.error) return showToast(false, result.error.message);
+    const d = result.data;
+    if (!d) return; // dialog cancelled
+    showToast(true, `Saved ${what} (${d.bytes_written.toLocaleString("en-US")} bytes) to ${d.path}`);
+  };
+  const saveFiltered = async () => report(await SaveFilteredResponseToFile(props.tab.id, props.tab.draft.response_filter), "the filtered result");
+  // With a filter result showing, the save button offers Full body | Filtered result.
+  const onSaveClick = (e: MouseEvent) => {
+    if (!saveChoices(props.tab.filter)) return void save();
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setSaveMenu({ x: r.left, y: r.bottom + 2 });
+  };
+  const copyFiltered = async () => {
+    const r = await CopyFilteredResult(props.tab.id, props.tab.draft.response_filter);
+    handleProblem(r.error);
+    showToast(!r.error, r.error ? r.error.message : "Copied the filtered result");
+  };
 
   const save = async () => {
     const result = await SaveResponseToFile(props.tab.id);
@@ -160,7 +190,8 @@ export default function ResponseView(props: Props) {
           </span>
           <span class="toolbar-slot" title={controls().save.title}>
             <button type="button" class="toolbar-icon" aria-label="Save response to file" disabled={!controls().save.enabled}
-              onClick={() => void save()}><Icon name="download" /></button>
+              aria-haspopup={saveChoices(props.tab.filter) ? "menu" : undefined}
+              onClick={onSaveClick}><Icon name="download" /></button>
           </span>
         </div>
         {/* One fixed-size cluster: in a narrow pane it wraps to a second row as a unit
@@ -184,6 +215,11 @@ export default function ResponseView(props: Props) {
         </div>
       </div>
 
+      <ResponseFilterBar query={props.tab.draft.response_filter} onQuery={(q) => props.onFilterQuery(q)}
+        state={props.tab.filter} onState={(s) => props.onView((t) => (t.filter = s))}
+        evaluate={(q) => EvalResponseFilter(props.tab.id, q)}
+        availability={filterAvailability(shown())} onCopy={() => void copyFiltered()}
+        onWarm={() => void WarmResponseFilter(props.tab.id)} />
       <div class="response-content">
         <Show when={!props.tab.sending && props.tab.unresolved.length > 0}>
           <p class="notice unresolved-banner" role="status">
@@ -233,6 +269,18 @@ export default function ResponseView(props: Props) {
                     {/* Sandboxed: see previewFrameAttrs (empty sandbox = no scripts, opaque origin). */}
                     <iframe class="response-preview" {...previewFrameAttrs(resp().body)} />
                   </Match>
+                  <Match when={filtered().mode === "empty"}>
+                    <p class="placeholder response-empty">No matches for this filter.</p>
+                  </Match>
+                  <Match when={filtered().mode === "result" ? filtered() : undefined}>
+                    {(f) => (
+                      <ResponseBody text={(f() as { text: string }).text} structured={structured()}
+                        fallbackNotice={false} wrap={responseWrap()} onFolds={() => undefined}
+                        search={props.tab.responseSearch}
+                        onSearch={(s) => props.onView((t) => (t.responseSearch = s))}
+                        ref={(api) => (body = api)} />
+                    )}
+                  </Match>
                   <Match when={true}>
                     <ResponseBody text={bodyText(resp(), view())}
                       structured={view() === "pretty" && hasStructure(resp())}
@@ -250,6 +298,15 @@ export default function ResponseView(props: Props) {
           </Match>
         </Switch>
       </div>
+      <Show when={saveMenu()}>
+        {(m) => (
+          <ContextMenu x={m().x} y={m().y} label="Save response" onClose={() => setSaveMenu(undefined)}
+            items={(saveChoices(props.tab.filter) ?? []).map((c) => ({
+              label: c.label, disabled: !c.enabled,
+              onSelect: () => void (c.id === "full" ? save() : saveFiltered()),
+            }))} />
+        )}
+      </Show>
       <Show when={headerMenu()}>
         {(m) => <ContextMenu x={m().x} y={m().y} label="Response headers" items={headerItems(m().row)} onClose={() => setHeaderMenu(undefined)} />}
       </Show>

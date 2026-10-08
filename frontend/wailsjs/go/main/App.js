@@ -18,6 +18,14 @@ export function ConfirmQuit() {
   return window['go']['main']['App']['ConfirmQuit']();
 }
 
+export function CopyFilteredResult(arg1, arg2) {
+  return window['go']['main']['App']['CopyFilteredResult'](arg1, arg2);
+}
+
+export function CopyHistoryFilteredResult(arg1, arg2) {
+  return window['go']['main']['App']['CopyHistoryFilteredResult'](arg1, arg2);
+}
+
 export function CreateEnvironment(arg1, arg2) {
   return window['go']['main']['App']['CreateEnvironment'](arg1, arg2);
 }
@@ -80,6 +88,14 @@ export function DeleteVariable(arg1) {
 
 export function DuplicateRequest(arg1) {
   return window['go']['main']['App']['DuplicateRequest'](arg1);
+}
+
+export function EvalHistoryFilter(arg1, arg2) {
+  return window['go']['main']['App']['EvalHistoryFilter'](arg1, arg2);
+}
+
+export function EvalResponseFilter(arg1, arg2) {
+  return window['go']['main']['App']['EvalResponseFilter'](arg1, arg2);
 }
 
 export function GetAuthState() {
@@ -270,8 +286,16 @@ export function RevokeInvitation(arg1) {
   return window['go']['main']['App']['RevokeInvitation'](arg1);
 }
 
+export function SaveFilteredResponseToFile(arg1, arg2) {
+  return window['go']['main']['App']['SaveFilteredResponseToFile'](arg1, arg2);
+}
+
 export function SaveFolderSettings(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['SaveFolderSettings'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function SaveHistoryFilteredToFile(arg1, arg2) {
+  return window['go']['main']['App']['SaveHistoryFilteredToFile'](arg1, arg2);
 }
 
 export function SaveHistoryResponseToFile(arg1) {
@@ -384,4 +408,12 @@ export function UpdateRequest(arg1, arg2) {
 
 export function UpdateTeamName(arg1, arg2) {
   return window['go']['main']['App']['UpdateTeamName'](arg1, arg2);
+}
+
+export function WarmHistoryFilter(arg1) {
+  return window['go']['main']['App']['WarmHistoryFilter'](arg1);
+}
+
+export function WarmResponseFilter(arg1) {
+  return window['go']['main']['App']['WarmResponseFilter'](arg1);
 }

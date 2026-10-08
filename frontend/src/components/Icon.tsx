@@ -54,6 +54,8 @@ const SHAPES = {
       <path d="M2.5 13.5l11-11" />
     </>
   ),
+  // An external link (opens in the browser).
+  external: () => <path d="M9.5 2.75h3.75V6.5M13.25 2.75L7.5 8.5M11.75 9.25v3c0 .55-.45 1-1 1h-7c-.55 0-1-.45-1-1v-7c0-.55.45-1 1-1h3" />,
   // History: a clock face.
   history: () => (
     <>

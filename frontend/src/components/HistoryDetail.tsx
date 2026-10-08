@@ -12,6 +12,10 @@ import HistoryKVTable from "./HistoryKVTable";
 import MediaPreview from "./MediaPreview";
 import { MEDIA_VIEW_TITLE } from "../historyModel";
 import { authRows, effectiveName, normalizeAuth } from "../auth";
+import { EvalHistoryFilter, WarmHistoryFilter } from "../../wailsjs/go/main/App";
+import { filterAvailability, filterDisplay, FilterState, NO_FILTER, saveChoices } from "../responseFilter";
+import ResponseFilterBar from "./ResponseFilterBar";
+import ContextMenu from "./ContextMenu";
 
 interface Props {
   entry: main.HistoryEntry;
@@ -22,6 +26,8 @@ interface Props {
   onCopyURL: () => void;
   onDelete: () => void;
   onSave: () => void; // save the stored response body to a file (any type)
+  onSaveFiltered: (query: string) => void; // save the whole filtered result
+  onCopyFiltered: (query: string) => void; // copy the whole filtered result
 }
 
 type Section = "request" | "response" | "timing";
@@ -36,6 +42,11 @@ export default function HistoryDetail(props: Props) {
   const [respPart, setRespPart] = createSignal<"body" | "headers">("body");
   const [view, setView] = createSignal<BodyView>("pretty");
   const [confirmDelete, setConfirmDelete] = createSignal(false);
+  // The jq filter starts empty here (exploration), not from the request's saved one.
+  const [fquery, setFquery] = createSignal("");
+  const [fstate, setFstate] = createSignal<FilterState>(NO_FILTER);
+  const [saveMenu, setSaveMenu] = createSignal<{ x: number; y: number }>();
+  const filtered = () => filterDisplay(fstate());
 
   const s = () => props.entry.summary;
   const resp = () => props.entry.response ?? undefined;
@@ -90,7 +101,12 @@ export default function HistoryDetail(props: Props) {
             title={s().url_resolved ? "Copy the URL as sent" : "No resolved URL for this entry"}>
             Copy resolved URL
           </button>
-          <button type="button" class="small" disabled={!resp()} onClick={() => props.onSave()}
+          <button type="button" class="small" disabled={!resp()} aria-haspopup={saveChoices(fstate()) ? "menu" : undefined}
+            onClick={(e) => {
+              if (!saveChoices(fstate())) return props.onSave();
+              const b = e.currentTarget.getBoundingClientRect();
+              setSaveMenu({ x: b.left, y: b.bottom + 2 });
+            }}
             title={resp() ? "Save the stored response body to a file" : noResponse}>
             Save response…
           </button>
@@ -185,6 +201,10 @@ export default function HistoryDetail(props: Props) {
           </div>
         </Show>
         <Show when={section() === "response"}>
+          <ResponseFilterBar query={fquery()} onQuery={setFquery} state={fstate()} onState={setFstate}
+            evaluate={(q) => EvalHistoryFilter(s().id, q)}
+            availability={filterAvailability(resp() ? { ...like()!, media: resp()!.media } : undefined)}
+            onCopy={() => props.onCopyFiltered(fquery())} onWarm={() => void WarmHistoryFilter(s().id)} />
           <Show when={resp()} fallback={<p class="placeholder small">{noResponse}{s().error ? ` (${s().error})` : ""}</p>}>
             {(r) => (
               <Show when={respPart() === "body"} fallback={<HistoryKVTable rows={r().headers.map((h) => ({ key: h.key, value: h.value, off: false }))} />}>
@@ -194,12 +214,24 @@ export default function HistoryDetail(props: Props) {
                 <Show when={r().preview_cut}>
                   <p class="settings-hint">Showing the first 256 KB of {formatBytes(r().stored_bytes)} stored.</p>
                 </Show>
+                <Show when={filtered().mode === "full"} fallback={
+                  <Show when={filtered().mode === "result" ? filtered() : undefined}
+                    fallback={<p class="placeholder small">No matches for this filter.</p>}>
+                    {(f) => (
+                      <div class="history-body">
+                        <ResponseBody text={(f() as { text: string }).text} structured={(f() as { structured: boolean }).structured}
+                          fallbackNotice={false} wrap={responseWrap()} onFolds={() => undefined} ref={() => undefined} />
+                      </div>
+                    )}
+                  </Show>
+                }>
                 <Show when={text()} fallback={<p class="placeholder small">Empty body</p>}>
                   <div class="history-body">
                     <ResponseBody text={text()} structured={effective() === "pretty" && structured()}
                       fallbackNotice={effective() === "pretty" && !structured()} wrap={responseWrap()}
                       onFolds={() => undefined} ref={() => undefined} />
                   </div>
+                </Show>
                 </Show>
                 </Show>
               </Show>
@@ -212,6 +244,15 @@ export default function HistoryDetail(props: Props) {
           </Show>
         </Show>
       </div>
+      <Show when={saveMenu()}>
+        {(m) => (
+          <ContextMenu x={m().x} y={m().y} label="Save response" onClose={() => setSaveMenu(undefined)}
+            items={(saveChoices(fstate()) ?? []).map((c) => ({
+              label: c.label, disabled: !c.enabled,
+              onSelect: () => (c.id === "full" ? props.onSave() : props.onSaveFiltered(fquery())),
+            }))} />
+        )}
+      </Show>
     </div>
   );
 }

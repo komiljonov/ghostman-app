@@ -30,9 +30,13 @@ func (c *APIClient) CreateRequestFrom(ctx context.Context, projectID string, fol
 	}
 	headers, query, body := NormalizeRows(d.Headers), NormalizeRows(d.QueryParams), NormalizeBody(d.Body)
 	method, url := d.Method, d.URL
-	updated, err := c.UpdateRequest(ctx, created.ID, RequestPatch{
+	patch := RequestPatch{
 		Method: &method, URL: &url, Headers: &headers, QueryParams: &query, Body: &body, Auth: FullAuthPatch(d.Auth),
-	})
+	}
+	if d.ResponseFilter != "" {
+		patch.ResponseFilter = &d.ResponseFilter // a copy keeps its filter
+	}
+	updated, err := c.UpdateRequest(ctx, created.ID, patch)
 	if err != nil {
 		if delErr := c.DeleteRequest(context.WithoutCancel(ctx), created.ID); delErr != nil {
 			slog.Warn("create request: could not remove the partial copy", "request", created.ID, "err", delErr)

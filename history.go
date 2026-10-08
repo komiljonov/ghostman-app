@@ -366,6 +366,7 @@ func (a *App) DeleteHistoryEntry(id int64) EmptyResult {
 	if a.store == nil {
 		return EmptyResult{Error: problemNotLoggedIn}
 	}
+	a.forgetHistoryDoc()
 	if _, err := a.store.DeleteHistoryEntry(a.ctx, id); err != nil {
 		return EmptyResult{Error: session.ProblemFrom(err)}
 	}
@@ -409,6 +410,7 @@ func (a *App) ClearHistory(scope, projectID string) DeletedResult {
 	if a.store == nil {
 		return DeletedResult{Error: problemNotLoggedIn}
 	}
+	a.forgetHistoryDoc()
 	n, err := a.store.ClearHistory(a.ctx, store.HistoryScope(scope), projectID, time.Now())
 	if err != nil {
 		return DeletedResult{Error: &session.Problem{Kind: session.KindInvalid, Message: err.Error()}}

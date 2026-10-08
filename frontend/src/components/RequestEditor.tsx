@@ -151,7 +151,7 @@ export default function RequestEditor(props: Props) {
             <div class="split-divider" role="separator" aria-orientation="horizontal" aria-label="Resize response"
               onPointerDown={startDrag} />
             <div class="editor-response" style={{ flex: `${props.tab.responseShare} 1 0` }}>
-              <ResponseView tab={props.tab} onView={view} />
+              <ResponseView tab={props.tab} onView={view} onFilterQuery={(q) => edit((d) => (d.response_filter = q))} />
             </div>
           </div>
         </div>

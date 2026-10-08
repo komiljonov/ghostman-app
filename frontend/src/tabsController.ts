@@ -1,6 +1,6 @@
 import { createStore, produce, unwrap } from "solid-js/store";
 import {
-  CancelRequest, GetRequest, GetTabs, ReleaseResponse, SaveRequest, SendRequest, SetTabs,
+  CancelRequest, EvalResponseFilter, GetRequest, GetTabs, ReleaseResponse, SaveRequest, SendRequest, SetTabs,
 } from "../wailsjs/go/main/App";
 import { api, engine, main } from "../wailsjs/go/models";
 import { handleProblem } from "./authStore";
@@ -8,6 +8,7 @@ import { historyChanged } from "./historyStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
 import { BodyView, defaultView } from "./responseView";
 import type { SavedSearch } from "./responseSearch";
+import { afterEval, FilterState, NO_FILTER, shouldAutoApply } from "./responseFilter";
 import { adoptUrlQuery } from "./urlParams";
 import { AuthConfig, normalizeAuth } from "./auth";
 import { sourceLabel, type ResolvedAuth } from "./settingsResolver";
@@ -32,6 +33,7 @@ export interface Draft {
   query_params: Row[];
   body: Body;
   auth: AuthConfig; // the request's own auth setting (cascades: settingsResolver.resolveAuth)
+  response_filter: string; // jq query for the response view (synced; "" = none)
 }
 
 export interface TabState {
@@ -56,6 +58,8 @@ export interface TabState {
   responseView: BodyView;
   // Collapsed JSON nodes of the Pretty view; cleared by every new response.
   responseFolds?: { from: number; to: number }[];
+  // The response filter bar's result (the query itself is draft.response_filter).
+  filter: FilterState;
   // The open response search (query, case, selected match), restored when the
   // body mounts again — switching tabs or views must not lose it. Kept across
   // sends (it re-runs on the new body); cleared when the search is closed.
@@ -68,6 +72,7 @@ export interface TabState {
 const emptyDraft = (): Draft => ({
   method: "GET", url: "", headers: [], query_params: [], body: { type: "none", content_type: "application/json", content: "", fields: [] },
   auth: normalizeAuth(),
+  response_filter: "",
 });
 
 function draftFromRequest(r: api.Request): Draft {
@@ -83,6 +88,7 @@ function draftFromRequest(r: api.Request): Draft {
       fields: (r.body?.fields ?? []).map((f) => ({ ...f })),
     },
     auth: normalizeAuth(r.auth),
+    response_filter: r.response_filter ?? "",
   };
 }
 
@@ -129,7 +135,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
 
   const newTab = (ref: TabRef, name: string, status: TabState["status"]): TabState => ({
     kind: ref.kind, id: ref.id, key: tabKey(ref), name, status, draft: emptyDraft(), save: "idle", sending: false,
-    unresolved: [], section: "params", responseSection: "body", responseView: "raw", responseShare: 0.45,
+    unresolved: [], filter: NO_FILTER, section: "params", responseSection: "body", responseView: "raw", responseShare: 0.45,
     hops: [],
   });
   const addTab = (ref: TabRef, name: string, status: TabState["status"]) => {
@@ -365,7 +371,16 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
         t.responseError = result.error?.message;
         t.unresolved = result.unresolved ?? [];
         t.hops = result.hops ?? [];
+        t.filter = NO_FILTER;
       });
+      // A saved filter applies to the new response at once (✕ shows the full body).
+      const saved = snapshot.response_filter;
+      if (result.data && shouldAutoApply(saved, result.data)) {
+        const r = await EvalResponseFilter(id, saved);
+        update(id, (t) => {
+          if (unwrap(t.response) === result.data) t.filter = afterEval(NO_FILTER, r); // not superseded
+        });
+      }
     },
 
     cancel: (id: string) => void CancelRequest(id),

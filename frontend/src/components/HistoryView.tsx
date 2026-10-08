@@ -1,5 +1,8 @@
 import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
-import { DeleteHistoryEntry, GetHistoryEntry, ListHistory, RestoreHistoryEntry, SaveHistoryResponseToFile } from "../../wailsjs/go/main/App";
+import {
+  CopyHistoryFilteredResult, DeleteHistoryEntry, GetHistoryEntry, ListHistory, RestoreHistoryEntry, SaveHistoryFilteredToFile,
+  SaveHistoryResponseToFile,
+} from "../../wailsjs/go/main/App";
 import { main } from "../../wailsjs/go/models";
 import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 import { handleProblem } from "../authStore";
@@ -146,6 +149,24 @@ export default function HistoryView(props: Props) {
     noticeTimer = setTimeout(() => setNotice(undefined), 8000);
   };
 
+  const flash = (text: string) => {
+    clearTimeout(noticeTimer);
+    setNotice(text);
+    noticeTimer = setTimeout(() => setNotice(undefined), 8000);
+  };
+  const saveFiltered = async (id: number, query: string) => {
+    const result = await SaveHistoryFilteredToFile(id, query);
+    handleProblem(result.error);
+    setError(result.error?.message);
+    if (result.data) flash(`Saved the filtered result (${formatBytes(result.data.bytes_written)}) to ${result.data.path}`);
+  };
+  const copyFiltered = async (id: number, query: string) => {
+    const r = await CopyHistoryFilteredResult(id, query);
+    handleProblem(r.error);
+    setError(r.error?.message);
+    if (!r.error) flash("Copied the filtered result");
+  };
+
   const copyURL = (s: main.HistorySummary) => void ClipboardSetText(s.url_resolved);
 
   const menuItems = (s: main.HistorySummary): MenuEntry[] => {
@@ -254,7 +275,9 @@ export default function HistoryView(props: Props) {
               onOpenOriginal={() => props.onOpenRequest(e.summary.request_id)}
               onCopyURL={() => copyURL(e.summary)}
               onDelete={() => void remove(e.summary.id)}
-              onSave={() => void save(e.summary.id)} />
+              onSave={() => void save(e.summary.id)}
+              onSaveFiltered={(q) => void saveFiltered(e.summary.id, q)}
+              onCopyFiltered={(q) => void copyFiltered(e.summary.id, q)} />
           )}
         </Show>
       </div>
