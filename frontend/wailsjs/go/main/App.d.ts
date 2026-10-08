@@ -52,6 +52,8 @@ export function EvalHistoryFilter(arg1:number,arg2:string):Promise<main.FilterRe
 
 export function EvalResponseFilter(arg1:string,arg2:string):Promise<main.FilterResult>;
 
+export function FormatJSONBody(arg1:string):Promise<main.FormattedBodyResult>;
+
 export function GetAuthState():Promise<session.AuthState>;
 
 export function GetEnvContext(arg1:string):Promise<main.EnvContextResult>;

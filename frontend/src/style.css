@@ -1226,6 +1226,34 @@ button.danger-outline {
   font-size: 12px;
 }
 
+/* Format JSON: the hint (muted, one line) takes the free space, so the Format
+   button sits at the row's right end and nothing moves when the hint appears. */
+.format-hint {
+  flex: 1 1 0; /* basis 0: a long message truncates, it never wraps the row */
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.format-btn {
+  padding: 4px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.format-btn:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.format-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .body-toolbar select,
 .content-type-input {
   padding: 4px 8px;

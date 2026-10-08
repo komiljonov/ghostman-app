@@ -169,6 +169,21 @@ Postman-style shell, logged in:
   One Mod-/ binding in the shared factory (above basicSetup's): gated by the `bulkEditor` facet
   and a closed completion popup; everywhere else (raw body, URL bar, cells, auth) it is
   swallowed as a no-op. Disabled lines are dimmed (`.cm-bulk-disabled`).
+- **Format JSON** in the raw body (Go: `internal/jsonfmt`, bound `FormatJSONBody`; editor side:
+  `src/bodyFormat.ts` + `formatTransaction` / `bodyFormatter` in `src/codemirror.ts`, both tested).
+  Ctrl/Cmd+Shift+F in the raw body editor, or the **Format** button at the right end of the body
+  toolbar (always present; disabled with a reason unless raw + a content type containing "json"
+  + a non-blank body). Go masks every `{{token}}` OUTSIDE string literals (a string-aware scanner,
+  the `engine.FindTokens` grammar; values, array items and object keys) with a JSON string
+  placeholder whose prefix provably occurs nowhere in the input, runs `json.Indent` (2 spaces —
+  re-indents without decoding, so numbers, key order, duplicate keys and escapes stay as
+  written), restores the tokens verbatim and keeps the input's trailing whitespace. Tokens inside
+  strings are already JSON and untouched. The editor applies the result as whitespace-only
+  changes in ONE transaction (`isolateHistory`: one Ctrl+Z restores the exact text; the cursor
+  maps through). Invalid JSON changes nothing: a muted one-line hint left of the button
+  ("can't format: line L, col C: …", full text in its tooltip) until the next edit. The key is a
+  swallowed no-op without a formatter (non-JSON body, bulk editors) or with the completion popup
+  open; single-line editors don't bind it.
 - **URL ↔ Params** (`src/urlParams.ts` is the spec, with its test table): `url` stores only the
   base (before "?"); `query_params` is the one source of truth for the query. The URL input
   shows base + enabled keyed rows as `k=v&…` (empty value → `k=`; no "?" without any). Typing
@@ -415,6 +430,7 @@ environments.go          bound environment/variable methods + local secret acces
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
 responses.go             full response bodies per tab (Go-side), SaveResponseToFile, ReleaseResponse
+body_format.go           bound FormatJSONBody (raw body Format; rules in internal/jsonfmt)
 redirects.go             follow-redirects: local global value, node setters (server), SaveFolderSettings
                          (folder auth + follow in one PATCH), legacy local→server push
 ui_tokens_test.go        fails on color literals outside frontend/src/tokens.css
@@ -423,6 +439,7 @@ internal/api/            typed client for the Ghostman server API (/api/v1)
 internal/session/        server URL resolution, auth state machine, login/logout/settings
 internal/workspace/      current team/project selection: persist, validate, fall back
 internal/envs/           environments: active env, variables with local-only secrets, var map
+internal/jsonfmt/        Format JSON for template bodies: mask {{vars}} outside strings, indent, restore
 internal/filter/         jq (gojq) evaluation for the response filter bar: parse once, cap, note
 internal/store/          SQLite open/migrate, sqlc output (*.sql.go, db.go, models.go)
   migrations/            goose SQL migrations (embedded, also the sqlc schema)
