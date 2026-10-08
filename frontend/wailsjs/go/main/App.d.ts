@@ -64,6 +64,8 @@ export function GetHistorySettings():Promise<main.HistorySettings>;
 
 export function GetHistoryStorageInfo():Promise<main.HistoryStorageResult>;
 
+export function GetLayout(arg1:string):Promise<string>;
+
 export function GetMemberAccess(arg1:string,arg2:string):Promise<main.MemberAccessViewResult>;
 
 export function GetProject(arg1:string):Promise<main.ProjectResult>;
@@ -175,6 +177,8 @@ export function SetFollowRedirectsDefault(arg1:boolean):Promise<main.EmptyResult
 export function SetHistoryMaxEntries(arg1:number):Promise<main.DeletedResult>;
 
 export function SetHistoryMaxResponseBytes(arg1:number):Promise<main.EmptyResult>;
+
+export function SetLayout(arg1:string,arg2:string):Promise<main.EmptyResult>;
 
 export function SetMemberAccess(arg1:string,arg2:string,arg3:boolean,arg4:Array<string>):Promise<main.MemberAccessResult>;
 

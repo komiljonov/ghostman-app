@@ -22,7 +22,7 @@ import SidebarResizer from "./SidebarResizer";
 import TeamSettingsView from "./TeamSettingsView";
 import ProjectSettingsView from "./ProjectSettingsView";
 import InvitationsView from "./InvitationsView";
-import TabBar from "./TabBar";
+import EditorGroups from "./EditorGroups";
 import EnvSwitcher from "./EnvSwitcher";
 import EnvListView from "./EnvListView";
 import EnvVariablesView from "./EnvVariablesView";
@@ -125,9 +125,17 @@ export default function MainScreen(props: Props) {
     next: () => tabsUsable() && tabs()!.cycle(1),
     prev: () => tabsUsable() && tabs()!.cycle(-1),
     close: () => {
-      const key = tabs()?.state.activeKey;
+      const key = tabs()?.activeKey();
       if (tabsUsable() && key) void tabs()!.close(key);
     },
+    // Ctrl/Cmd+\: the active tab moves into a new group on the right.
+    split: () => {
+      const key = tabs()?.activeKey();
+      if (tabsUsable() && key) tabs()!.split(key, "right");
+    },
+    ...Object.fromEntries(Array.from({ length: 9 }, (_, i) => [
+      `focus${i + 1}`, () => tabsUsable() && tabs()!.focusGroupAt(i + 1),
+    ])),
   });
   // One time after the update: old local per-request redirect overrides move to
   // the server — a single attempt; a failure is just shown.
@@ -331,9 +339,7 @@ export default function MainScreen(props: Props) {
             <Match when={pane() === "editor" && tabs() && tabs()!.state.tabs.length > 0 && tabs()}>
               {(controller) => (
                 <div class="editor-area">
-                  <TabBar controller={controller()} />
-                  <Show when={controller().active()} keyed>
-                    {(tab) => (
+                  <EditorGroups controller={controller()} renderTab={(tab) => (
                       <Switch>
                         <Match when={tab.kind === "request"}>
                           <RequestEditor tab={tab} controller={controller()} />
@@ -348,8 +354,7 @@ export default function MainScreen(props: Props) {
                           <HistoryView projectId={projectId()} requestIds={requestIds()} onOpenRequest={openRequest} />
                         </Match>
                       </Switch>
-                    )}
-                  </Show>
+                  )} />
                 </div>
               )}
             </Match>

@@ -1,6 +1,6 @@
 import { createStore, produce, unwrap } from "solid-js/store";
 import {
-  CancelRequest, EvalResponseFilter, GetRequest, GetTabs, ReleaseResponse, SaveRequest, SendRequest, SetTabs,
+  CancelRequest, EvalResponseFilter, GetLayout, GetRequest, ReleaseResponse, SaveRequest, SendRequest, SetLayout,
 } from "../wailsjs/go/main/App";
 import { api, engine, main } from "../wailsjs/go/models";
 import { handleProblem } from "./authStore";
@@ -13,8 +13,13 @@ import { adoptUrlQuery } from "./urlParams";
 import { AuthConfig, normalizeAuth } from "./auth";
 import { sourceLabel, type ResolvedAuth } from "./settingsResolver";
 import { Row } from "./rows";
-import { restoreTabs, saveTabs, TabStorage } from "./tabPersistence";
-import { closeEach, CloseMode, cycleKey, ENV_LIST, HISTORY, reorder, sameTab, syncEnvTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
+import { createLayoutSaver, LayoutStorage, restoreLayout, saveLayout } from "./layoutPersistence";
+import {
+  activateTab, activeTab, allGroups, allTabs, closeTab, enforceMinimums, findGroup, focusedGroup, focusGroup, groupOf, Layout,
+  moveTab, openTab, resetSizes, resize, Side, singleGroup, splitGroup,
+} from "./layoutTree";
+import { applyDrop, DropTarget } from "./dropZone";
+import { closeEach, CloseMode, cycleKey, ENV_LIST, HISTORY, syncEnvTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
 
 export const AUTOSAVE_DELAY_MS = 600;
 
@@ -94,9 +99,9 @@ function draftFromRequest(r: api.Request): Draft {
 
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
-const storage: TabStorage = {
-  get: (projectId) => GetTabs(projectId),
-  set: (projectId, tabs) => SetTabs(projectId, main.Tabs.createFrom(tabs)),
+const layoutStorage: LayoutStorage = {
+  get: (projectId) => GetLayout(projectId),
+  set: (projectId, json) => SetLayout(projectId, json),
 };
 
 export interface TabsHooks {
@@ -114,8 +119,12 @@ export type TabsController = ReturnType<typeof createTabsController>;
 // Tabs of one project. Created when the project is selected, disposed (after
 // flushing pending saves) when another project is selected.
 export function createTabsController(projectId: string, hooks: TabsHooks) {
-  // activeKey: the active tab's key. Savers/bases are keyed by request id (request tabs only).
-  const [state, setState] = createStore<{ tabs: TabState[]; activeKey?: string; restored: boolean }>({ tabs: [], restored: false });
+  // tabs: every open tab's state (any order); layout: which group shows which tabs,
+  // in what order, and the split tree (layoutTree.ts). Savers/bases are keyed by
+  // request id (request tabs only).
+  const [state, setState] = createStore<{ tabs: TabState[]; layout: Layout; restored: boolean }>({
+    tabs: [], layout: singleGroup(), restored: false,
+  });
   const savers = new Map<string, Autosaver>();
   const bases = new Map<string, Draft>(); // last saved state per tab
   const closing = new Map<string, Draft>(); // drafts of closed tabs whose final save is still pending
@@ -128,9 +137,11 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     setState("tabs", (t) => t.kind === "request" && t.id === id, produce(fn));
   const updateKey = (key: string, fn: (t: TabState) => void) => setState("tabs", (t) => t.key === key, produce(fn));
   const refOf = (t: TabState): TabRef => ({ kind: t.kind, id: t.id });
-  const persist = () => {
-    const active = state.activeKey ? byKey(state.activeKey) : undefined;
-    void saveTabs(storage, projectId, state.tabs.map(refOf), active ? refOf(active) : undefined);
+  // The layout is saved (debounced 300 ms) after every change, flushed on quit.
+  const layoutSaver = createLayoutSaver(() => saveLayout(layoutStorage, projectId, unwrap(state.layout)));
+  const setLayout = (next: Layout) => {
+    setState("layout", next);
+    if (state.restored) layoutSaver.change();
   };
 
   const newTab = (ref: TabRef, name: string, status: TabState["status"]): TabState => ({
@@ -199,36 +210,59 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
   };
 
   const removeTab = (key: string) => {
-    const index = state.tabs.findIndex((t) => t.key === key);
-    if (index < 0) return;
-    const wasActive = state.activeKey === key;
+    if (!byKey(key)) return;
     setState("tabs", (tabs) => tabs.filter((t) => t.key !== key));
-    if (wasActive) {
-      const next = state.tabs[Math.min(index, state.tabs.length - 1)];
-      setState("activeKey", next?.key);
-    }
+    setLayout(closeTab(state.layout, key));
   };
   const requestKey = (id: string) => tabKey({ kind: "request", id });
   const ENV_LIST_NAME = "Environments";
   const HISTORY_NAME = "History";
   const fixedName = (ref: TabRef) => (ref.kind === "env_list" ? ENV_LIST_NAME : ref.kind === "history" ? HISTORY_NAME : "");
 
+  // The active tab of the focused group (what Send / Ctrl+W / the tree follow).
+  const activeKey = () => activeTab(state.layout) ?? undefined;
+  // Switching away from a request tab flushes its pending edits (as before).
+  const flushIfLeaving = (next: Layout) => {
+    for (const g of allGroups(state.layout.root)) {
+      const after = findGroup(next.root, g.id)?.activeTabId;
+      if (!g.activeTabId || after === g.activeTabId) continue;
+      const t = byKey(g.activeTabId);
+      if (t?.kind === "request") void savers.get(t.id)?.flush();
+    }
+  };
+  const apply = (next: Layout) => {
+    flushIfLeaving(next);
+    setLayout(next);
+  };
+  const openRef = (ref: TabRef, name: string, status: TabState["status"]) => {
+    addTab(ref, name, status);
+    apply(openTab(state.layout, tabKey(ref)));
+  };
+
   const controller = {
     state,
-    active: () => (state.activeKey ? byKey(state.activeKey) : undefined),
-    activeKind: (): TabKind | undefined => (state.activeKey ? byKey(state.activeKey)?.kind : undefined),
+    activeKey,
+    active: () => {
+      const k = activeKey();
+      return k ? byKey(k) : undefined;
+    },
+    activeKind: (): TabKind | undefined => {
+      const k = activeKey();
+      return k ? byKey(k)?.kind : undefined;
+    },
     // The active request tab's id (for the tree's selection highlight).
     activeRequestId: () => {
-      const t = state.activeKey ? byKey(state.activeKey) : undefined;
+      const k = activeKey();
+      const t = k ? byKey(k) : undefined;
       return t?.kind === "request" ? t.id : undefined;
     },
-    isActive: (ref: TabRef) => {
-      const t = state.activeKey ? byKey(state.activeKey) : undefined;
-      return !!t && sameTab(refOf(t), ref);
-    },
+    isActive: (ref: TabRef) => activeKey() === tabKey(ref),
+    tabByKey: byKey,
+    groups: () => allGroups(state.layout.root),
+    group: (id: string) => findGroup(state.layout.root, id),
 
     async restore() {
-      const saved = await restoreTabs(storage, projectId, async (ref) => {
+      const restored = await restoreLayout(layoutStorage, projectId, async (ref) => {
         if (ref.kind !== "request") {
           // Env tabs are checked against the environment list by syncWithEnvs.
           addTab(ref, fixedName(ref), "ready");
@@ -240,47 +274,46 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
         return disposed || ok;
       });
       if (disposed) return;
-      const keep = new Set(saved.open.map(tabKey));
-      for (const t of [...state.tabs]) if (!keep.has(t.key)) removeTab(t.key);
-      // Loads finish in any order: put the tabs back in their saved order.
-      const order = saved.open.map(tabKey);
-      setState("tabs", (tabs) => [...tabs].sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key)));
-      setState("activeKey", saved.active ? tabKey(saved.active) : state.tabs[state.tabs.length - 1]?.key);
+      const keep = new Set(allTabs(restored.root));
+      setState("tabs", (tabs) => tabs.filter((t) => keep.has(t.key)));
+      setState("layout", restored);
       setState("restored", true);
     },
 
-    // Opens (or focuses) a request tab.
+    // Opens (or reveals) a request tab: in the focused group when it is not open yet.
     open(id: string) {
       if (!tab(id)) {
         addLoadingTab(id);
         void load(id);
       }
-      controller.activate(requestKey(id));
+      apply(openTab(state.layout, requestKey(id)));
     },
 
     openEnv(id: string, name: string) {
-      addTab({ kind: "env", id }, name, "ready");
-      controller.activate(tabKey({ kind: "env", id }));
+      openRef({ kind: "env", id }, name, "ready");
     },
 
     openEnvList() {
-      addTab(ENV_LIST, ENV_LIST_NAME, "ready");
-      controller.activate(tabKey(ENV_LIST));
+      openRef(ENV_LIST, ENV_LIST_NAME, "ready");
     },
 
     openHistory() {
-      addTab(HISTORY, HISTORY_NAME, "ready");
-      controller.activate(tabKey(HISTORY));
+      openRef(HISTORY, HISTORY_NAME, "ready");
     },
 
+    // Activates a tab in its group and focuses that group.
     activate(key: string) {
-      const previous = state.activeKey ? byKey(state.activeKey) : undefined;
-      if (previous && previous.key !== key && previous.kind === "request") {
-        void savers.get(previous.id)?.flush(); // flush on tab switch
-      }
-      // (Env tabs flush their variable edits when their view unmounts.)
-      setState("activeKey", key);
-      persist();
+      apply(activateTab(state.layout, key));
+    },
+
+    focusGroup(id: string) {
+      if (state.layout.focusedGroupId !== id) setLayout(focusGroup(state.layout, id));
+    },
+
+    // Ctrl/Cmd+1..9: the n-th group in visual order (left→right, top→bottom).
+    focusGroupAt(n: number) {
+      const g = allGroups(state.layout.root)[n - 1];
+      if (g) controller.focusGroup(g.id);
     },
 
     async close(key: string) {
@@ -288,7 +321,6 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       if (!target) return;
       if (target.kind !== "request") {
         removeTab(key); // the env view unmounts and flushes its pending edits
-        persist();
         return;
       }
       const id = target.id;
@@ -298,32 +330,58 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       void CancelRequest(id);
       void ReleaseResponse(id); // the full body kept Go-side for "Save to file"
       removeTab(key);
-      persist();
       await saver?.flush(); // pending edits still reach the server
       saver?.dispose();
       closing.delete(id);
       bases.delete(id);
     },
 
-    // Tab context menu: Close / Close Others / Close All, each through close() (which
-    // flushes that tab's pending edits and persists).
+    // Tab context menu: Close / Close Others / Close All — within the tab's group,
+    // each through close() (which flushes that tab's pending edits).
     async closeMany(target: string, mode: CloseMode) {
-      await closeEach(tabsToClose(state.tabs.map((t) => t.key), target, mode), (k) => controller.close(k));
+      const g = groupOf(state.layout.root, target);
+      if (!g) return;
+      await closeEach(tabsToClose([...g.tabs], target, mode), (k) => controller.close(k));
     },
 
-    // Ctrl+Tab / Ctrl+Shift+Tab: next/previous tab in bar order, wrapping.
+    // Ctrl+Tab / Ctrl+Shift+Tab: next/previous tab of the FOCUSED group, wrapping.
     cycle(dir: 1 | -1) {
-      const next = cycleKey(state.tabs.map((t) => t.key), state.activeKey, dir);
-      if (next && next !== state.activeKey) controller.activate(next);
+      const g = focusedGroup(state.layout);
+      const next = cycleKey(g.tabs, g.activeTabId ?? undefined, dir);
+      if (next && next !== g.activeTabId) controller.activate(next);
     },
 
-    // Drag & drop: move the tab at `from` to insertion slot `drop` (see tabModel.reorder).
-    moveTab(from: number, drop: number) {
-      const current = [...state.tabs];
-      const next = reorder(current, from, drop);
-      if (next === current) return;
-      setState("tabs", next);
-      persist();
+    // Drag & drop (dropZone.ts): reorder, move to another group, or split.
+    drop(key: string, target: DropTarget) {
+      const next = applyDrop(state.layout, key, target);
+      if (next) apply(next);
+    },
+
+    // Split Right / Split Down (menu, Ctrl+\): the tab moves into a new group
+    // beside its own. Its group's only tab: the group just moves aside.
+    split(key: string, side: Side) {
+      const g = groupOf(state.layout.root, key);
+      if (g) apply(splitGroup(state.layout, g.id, side, key));
+    },
+
+    // Move to Group N (menu).
+    moveToGroup(key: string, groupId: string) {
+      apply(moveTab(state.layout, key, groupId));
+    },
+
+    // Sash drag / double-click (sizes as fractions; minimums enforced by layoutTree).
+    resize(splitId: string, index: number, delta: number, mins: number[]) {
+      setLayout(resize(state.layout, splitId, index, delta, mins));
+    },
+    resetSizes(splitId: string) {
+      setLayout(resetSizes(state.layout, splitId));
+    },
+    // Sizes below the minimums for the current window are lifted ON SCREEN only:
+    // not saved by itself (a small window must not rewrite the stored proportions
+    // for good); the next real layout change saves whatever is shown.
+    fitTo(widthPx: number, heightPx: number) {
+      const next = enforceMinimums(unwrap(state.layout), widthPx, heightPx);
+      if (JSON.stringify(next) !== JSON.stringify(unwrap(state.layout))) setState("layout", next);
     },
 
     // Applies an edit to a tab's draft and schedules an autosave.
@@ -396,7 +454,6 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
           void ReleaseResponse(t.id);
           savers.delete(t.id);
           removeTab(t.key);
-          persist();
         } else if (node.name !== t.name && t.status === "ready") {
           update(t.id, (x) => (x.name = node.name));
         }
@@ -410,16 +467,17 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       const { rename, close } = syncEnvTabs(state.tabs.map((t) => ({ ref: refOf(t), name: t.name })), envs);
       for (const r of rename) updateKey(tabKey(r.ref), (t) => (t.name = r.name));
       for (const ref of close) removeTab(tabKey(ref));
-      if (close.length > 0) persist();
     },
 
     async flushAll() {
       await Promise.all([...savers.values()].map((s) => s.flush()));
+      await layoutSaver.flush(); // the last layout change is not lost on quit
     },
 
     // Project switch: flush pending saves in the background, then stop.
     dispose() {
       disposed = true;
+      void layoutSaver.flush(); // project switch: write the pending layout
       // Responses are per tab and in memory: drop their Go-side full bodies too.
       for (const t of state.tabs) if (t.kind === "request") void ReleaseResponse(t.id);
       const pending = [...savers.values()];

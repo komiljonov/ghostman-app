@@ -122,6 +122,10 @@ export function GetHistoryStorageInfo() {
   return window['go']['main']['App']['GetHistoryStorageInfo']();
 }
 
+export function GetLayout(arg1) {
+  return window['go']['main']['App']['GetLayout'](arg1);
+}
+
 export function GetMemberAccess(arg1, arg2) {
   return window['go']['main']['App']['GetMemberAccess'](arg1, arg2);
 }
@@ -344,6 +348,10 @@ export function SetHistoryMaxEntries(arg1) {
 
 export function SetHistoryMaxResponseBytes(arg1) {
   return window['go']['main']['App']['SetHistoryMaxResponseBytes'](arg1);
+}
+
+export function SetLayout(arg1, arg2) {
+  return window['go']['main']['App']['SetLayout'](arg1, arg2);
 }
 
 export function SetMemberAccess(arg1, arg2, arg3, arg4) {

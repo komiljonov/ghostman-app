@@ -115,16 +115,37 @@ Postman-style shell, logged in:
   Params | Headers | Body | Auth | Settings | History with the save status at the row's right end; response below a
   draggable divider), `env` (that environment's variables table), `env_list`
   (create / rename / reorder / delete environments) and `history` (see History). There is no separate environments page.
-- **Tabs** are per project, persisted as typed refs in tab-bar order (`ui_tabs_<project_id>`;
-  the old bare-id format is read as request tabs and rewritten) and restored on startup (gone
-  targets dropped silently). Tree renames/deletes relabel/close request tabs; environment
-  renames/deletes relabel/close env tabs. Tabs reorder by dragging (pointer events, 5 px
-  threshold so clicks stay clicks; drop indicator; ghost clamped to the bar); middle-click or ×
-  closes. Right-click opens the tab menu: Close / Close Others / Close All (`tabsToClose`;
-  tabs close one at a time through the normal close, so each flushes its pending save).
+- **Editor groups** (VS Code style; pure rules in `src/layoutTree.ts` and `src/dropZone.ts`,
+  both unit tested): the main pane is a split tree — `SplitNode{direction, children, sizes}` /
+  `GroupNode{tabs, activeTabId}`. Every tab is in exactly one group; exactly one group is
+  focused (it receives opens from the tree, shortcuts and Ctrl+Tab). Each op normalizes the
+  tree: an emptied group is removed, a single-child split collapses, a same-direction child is
+  flattened, and the freed space goes to the siblings in proportion. Groups and sashes are FLAT,
+  absolutely positioned siblings (`layoutRects`), keyed by id, so a split, move or collapse never
+  remounts another group's editors. **Sashes** (`GroupSash.tsx`): minimum 200×120 px per group
+  (clamped while dragging; `fitTo` lifts a group below the minimum for the current window,
+  display-only, never saved); double-click → equal sizes. **Tab drag & drop**
+  (`EditorGroups.tsx`): a press becomes a drag after 5 px; rects are captured at drag start and
+  hit-tested once per frame. Over a tab bar → insertion line (reorder, or move at that index);
+  over a group's content → 5 zones (outer 33 % of each side splits there, the centre appends +
+  activates), previewed by ONE overlay that fades in (150 ms) and animates between zones. No-ops
+  give no preview: own centre, onto itself, a group's sole tab on its own edge (the same
+  layout). Escape or a drop outside any target cancels. New groups grow in from their side and
+  sizes animate (200 ms); off under `prefers-reduced-motion`. Tab menu: Close / Close Others /
+  Close All (this group), Split Right / Split Down, Move to Group N.
+- **Tabs and layout persistence** (`src/layoutPersistence.ts`, `layout.go`): per user + project,
+  versioned JSON (`ui_layout_<user_id>_<project_id>`, `GetLayout`/`SetLayout`, version 1, ≤256 KB),
+  saved 300 ms after a change and flushed on quit/project switch. On restore the JSON is
+  validated (`parseLayout`: unknown version or corrupt → one fresh group; duplicate tabs → first
+  wins; sizes repaired) and gone targets are dropped silently (rewritten once). The old
+  `ui_tabs_<project_id>` list is migrated into one group. `SetLayout` also frees the Go-side
+  bodies of request tabs no longer open. Tree renames/deletes relabel/close request tabs;
+  environment renames/deletes relabel/close env tabs. Middle-click or × closes; tabs close one
+  at a time through the normal close, so each flushes its pending save.
 - **Shortcuts** (one action table, `shortcutAction` in `src/tabModel.ts`): Ctrl/Cmd+Enter sends,
-  Ctrl+Tab / Ctrl+Shift+Tab cycle tabs in bar order (wrapping), Ctrl/Cmd+W closes the active
-  tab. Two entry points, both calling `shortcuts.runShortcut()`: one window keydown handler
+  Ctrl+Tab / Ctrl+Shift+Tab cycle the FOCUSED group's tabs in bar order (wrapping), Ctrl/Cmd+W
+  closes its active tab, Ctrl/Cmd+\ splits it right (no-op on a group's sole tab), Ctrl/Cmd+1..9
+  focuses group N (reading order). Two entry points, both calling `shortcuts.runShortcut()`: one window keydown handler
   (bubble phase, skips events CodeMirror already handled) and a `Prec.highest` CodeMirror
   keymap. Both `preventDefault`, which is enough for WebView2: Ctrl+W never closes or blanks
   the window (verified with real OS keystrokes in `wails dev` and a built exe), so no Wails
@@ -384,7 +405,8 @@ projects.go              bound project/access methods (same pattern)
 workspace.go             bound current-team/project selection (LoadWorkspace, SelectTeam, SelectProject)
 tree.go                  bound folder/request methods + local tree state (GetTreeState/SetTreeState)
 editor.go                bound editor methods: SaveRequest (autosave patch), SendRequest/CancelRequest,
-                         GetTabs/SetTabs (typed tab refs, legacy migration), quit handshake
+                         GetTabs/SetTabs (legacy tab list), quit handshake
+layout.go                bound editor-group layout per user + project (GetLayout/SetLayout, migration)
 history.go               history write path (recordHistory) + bound history methods (list, entry,
                          delete, clear, storage info, retention settings, restore)
 history_media.go         /history-media/{id} + /response-media/{tab} media routes; SaveHistoryResponseToFile
