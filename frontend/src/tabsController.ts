@@ -7,6 +7,7 @@ import { handleProblem } from "./authStore";
 import { historyChanged } from "./historyStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
 import { BodyView, defaultView } from "./responseView";
+import type { SavedSearch } from "./responseSearch";
 import { adoptUrlQuery } from "./urlParams";
 import { AuthConfig, normalizeAuth } from "./auth";
 import { sourceLabel, type ResolvedAuth } from "./settingsResolver";
@@ -55,6 +56,10 @@ export interface TabState {
   responseView: BodyView;
   // Collapsed JSON nodes of the Pretty view; cleared by every new response.
   responseFolds?: { from: number; to: number }[];
+  // The open response search (query, case, selected match), restored when the
+  // body mounts again — switching tabs or views must not lose it. Kept across
+  // sends (it re-runs on the new body); cleared when the search is closed.
+  responseSearch?: SavedSearch;
   // Timing of the last send's hops (also after a failed send); reset by every send.
   hops: engine.Hop[];
   responseShare: number; // fraction of the editor height given to the response

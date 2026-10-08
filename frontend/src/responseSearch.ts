@@ -111,3 +111,18 @@ export function responseFindTarget(c: FindContext): boolean {
   if (c.focusInOtherEditable) return false;
   return c.pointerInResponse;
 }
+
+// ---- Search state per tab (survives switching tabs and Pretty/Raw <-> Preview) ----
+
+// What a tab remembers while its search bar is open; undefined = closed.
+export interface SavedSearch {
+  query: string;
+  caseSensitive: boolean;
+  current: number; // the selected match (index into all matches), -1 = none
+}
+
+// The match to select when the body mounts again with saved search state: the
+// saved one if it still exists (same response), else the usual first unhidden one.
+export function restoredIndex(saved: number, count: number, fallback: number): number {
+  return saved >= 0 && saved < count ? saved : fallback;
+}

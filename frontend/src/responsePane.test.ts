@@ -158,3 +158,13 @@ describe("response context menus", () => {
     expect(allHeadersText([{ key: "A", value: "1" }, { key: "B", value: "x: y" }])).toBe("A: 1\nB: x: y");
   });
 });
+
+describe("search survives a remount (tab switch)", () => {
+  it("restores the saved match when it still exists, else the usual first one", async () => {
+    const { restoredIndex } = await import("./responseSearch");
+    expect(restoredIndex(3, 10, 0)).toBe(3); // same response: same match selected again
+    expect(restoredIndex(12, 10, 0)).toBe(0); // fewer matches now (new body): fall back
+    expect(restoredIndex(-1, 10, 2)).toBe(2); // nothing selected before
+    expect(restoredIndex(0, 0, -1)).toBe(-1); // no matches at all
+  });
+});

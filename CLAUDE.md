@@ -238,7 +238,9 @@ Postman-style shell, logged in:
   document); a jump to a hidden match unfolds exactly the folds covering it (its collapsed
   ancestors, `jsonFold.revealEffects`) in the same transaction that scrolls to it. Typing never
   expands anything (current = first unhidden match, else "–/N" until Enter); closing search
-  keeps whatever expansion navigation produced. **Ctrl/Cmd+F rule** (`responseFindTarget`): the request body
+  keeps whatever expansion navigation produced. The open search (query, Aa, selected match) is kept per tab
+  (`responseSearch`, like `responseFolds`) and restored when the body mounts again — switching tabs
+  or Preview ↔ Pretty/Raw keeps it; closing it clears it. **Ctrl/Cmd+F rule** (`responseFindTarget`): the request body
   editor keeps CodeMirror's own search (it handles the key first); with focus in the response
   pane, or the pointer over it while no other editable has focus, Ctrl+F opens this search.
   **Right-click**: body → Copy (needs a selection) / Copy All (text as displayed) / Search in
