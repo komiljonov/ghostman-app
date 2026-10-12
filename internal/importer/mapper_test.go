@@ -1,4 +1,4 @@
-package postman
+package importer
 
 import (
 	"encoding/json"
@@ -90,14 +90,16 @@ func TestSniff(t *testing.T) {
 	if _, err := Sniff(fixture(t, "v1.postman_collection.json")); !errors.Is(err, ErrCollectionV1) {
 		t.Fatalf("v1: %v", err)
 	}
-	if _, err := Sniff([]byte(`{"openapi": "3.0.0", "paths": {}}`)); !errors.Is(err, ErrNotPostman) {
+	if _, err := Sniff([]byte(`{"asyncapi": "2.6.0", "channels": {}}`)); !errors.Is(err, ErrNotSupported) {
 		t.Fatalf("other JSON: %v", err)
 	}
 	if _, err := Sniff([]byte(`{"info": `)); err == nil || !strings.Contains(err.Error(), "not valid JSON") {
 		t.Fatalf("broken JSON: %v", err)
 	}
-	if !strings.Contains(ErrNotPostman.Error(), "collection") || !strings.Contains(ErrNotPostman.Error(), "environment") {
-		t.Fatal("the error must name both supported kinds")
+	for _, kind := range []string{"OpenAPI", "Swagger", "collection", "environment", "YAML"} {
+		if !strings.Contains(ErrNotSupported.Error(), kind) {
+			t.Fatalf("the error must name %s", kind)
+		}
 	}
 	// A v2.1-shaped file that declares a v1 schema is rejected too.
 	if _, err := Sniff([]byte(`{"info": {"name": "x", "schema": "https://schema.getpostman.com/json/collection/v1.0.0/"}, "item": []}`)); !errors.Is(err, ErrCollectionV1) {
@@ -409,6 +411,15 @@ func TestEveryFallbackEmitsAnEntry(t *testing.T) {
 	seen := map[string]bool{}
 	for _, f := range []string{"shop.postman_collection.json", "legacy_v20.postman_collection.json"} {
 		p, err := PlanCollection(fixture(t, f), f, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range entries(p.Report) {
+			seen[e.Code] = true
+		}
+	}
+	for _, f := range []string{"store.openapi.yaml", "petstore.swagger.json", "minimal.openapi.json"} {
+		p, err := PlanOpenAPI(fixture(t, f), f, nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

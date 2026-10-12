@@ -1,7 +1,7 @@
 import { createEffect, createMemo, createSignal, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
 import { ConfirmQuit, ListMyInvitations, LoadWorkspace, Logout, SelectProject, SelectTeam } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
-import { api, main, postman, workspace } from "../../wailsjs/go/models";
+import { api, importer, main, workspace } from "../../wailsjs/go/models";
 import { handleProblem, setAuthState } from "../authStore";
 import { createTabsController } from "../tabsController";
 import { envContext, loadEnvContext, refreshEnvContext } from "../envStore";
@@ -56,7 +56,7 @@ export default function MainScreen(props: Props) {
   const [treeTick, setTreeTick] = createSignal(0);
   // Postman import: the modal, then its report (always shown once an import ran).
   const [importing, setImporting] = createSignal(false);
-  const [importReport, setImportReport] = createSignal<postman.Report>();
+  const [importReport, setImportReport] = createSignal<importer.Report>();
 
   const teamId = () => ws()?.team_id ?? "";
   // A memo, so that refreshing the workspace (a new ws object with the same project)

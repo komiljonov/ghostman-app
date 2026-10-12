@@ -58,7 +58,7 @@ export default function ProfileMenu(props: Props) {
               title={props.historyDisabled ? "Select a project first" : "Requests sent from this computer"}
               onClick={item(props.onHistory)}>History</button>
             <button type="button" role="menuitem" class="menu-item" disabled={props.importDisabled}
-              title={props.importDisabled ? "Select a project first" : "Import a Postman collection or environment into this project"}
+              title={props.importDisabled ? "Select a project first" : "Import an OpenAPI / Swagger spec or a Postman collection / environment into this project"}
               onClick={item(props.onImport)}>Import…</button>
             <button type="button" role="menuitem" class="menu-item" onClick={item(props.onSettings)}>Settings</button>
             <div class="menu-divider" />

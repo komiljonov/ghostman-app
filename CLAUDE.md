@@ -65,7 +65,7 @@ Postman-style shell, logged in:
   member count, "+ New team", "Team settings") · **Project switcher** (accessible projects of
   the current team in sort order, "+ New project", "Project settings") · refresh (↻) · on the
   right the **env switcher** and then the **profile badge** (initials) whose menu holds user
-  name/email, Invitations (count badge), History, Import… (Postman), Settings (server URL modal), Log out.
+  name/email, Invitations (count badge), History, Import… (OpenAPI / Swagger / Postman), Settings (server URL modal), Log out.
 - **Left sidebar**: only the current project's folders/requests tree (`ProjectTree`). Never
   teams, invitations or other navigation. The tree is built client-side (`src/tree.ts`, unit
   tested) from ONE ListFolders + ONE ListRequests call and rebuilt after every mutation;
@@ -134,7 +134,9 @@ Postman-style shell, logged in:
   activates), previewed by ONE overlay that fades in (150 ms) and animates between zones. No-ops
   give no preview: own centre, onto itself, a group's sole tab on its own edge (the same
   layout). Escape or a drop outside any target cancels. New groups grow in from their side and
-  sizes animate (200 ms); off under `prefers-reduced-motion`. Tab menu: Close / Close Others /
+  sizes animate (200 ms); off under `prefers-reduced-motion`. The grow-in clip exists ONLY while a group
+  grows in (`group-growing`, removed after the animation): a resting `clip-path` would clip the editors'
+  floating tooltips (var hover, completion) at the group's edges. Tab menu: Close / Close Others /
   Close All (this group), Split Right / Split Down, Move to Group N.
 - **Tabs and layout persistence** (`src/layoutPersistence.ts`, `layout.go`): per user + project,
   versioned JSON (`ui_layout_<user_id>_<project_id>`, `GetLayout`/`SetLayout`, version 1, ≤256 KB),
@@ -411,13 +413,16 @@ Postman-style shell, logged in:
   redirect drop rule. History: the resolved copy has the derived header/param; `req_auth_json`
   (migration 00009) keeps the config as authored + its source; Restore sets that effective
   config explicitly on the new root request.
-- **Postman import** (profile menu → Import…; Go: `internal/postman`, bound methods in `import_postman.go`;
-  UI: `ImportModal`, `ImportReport`, layout rules in `src/importReport.ts`). Collections (Collection Format
-  v2.0 / v2.1; v1 → "re-export as v2.1") and environments, into the CURRENT project only, through EXISTING
-  endpoints. `ChooseImportFile`: native open dialog (`openDialog` field, tests replace it) + `postman.Sniff`
-  (collection = "info"+"item", environment = "values"+name/scope; anything else → one error naming both).
-  `ImportPostmanCollection` / `ImportPostmanEnvironment` (one at a time, `importMu`) return the REPORT as
-  their typed result. Pipeline: parse → **plan in memory** (pure, `PlanCollection` / `PlanEnvironment`) →
+- **Import** (profile menu → Import…; Go: `internal/importer`, bound methods in `import_files.go`;
+  UI: `ImportModal`, `ImportReport`, layout rules in `src/importReport.ts`). ONE file picker (.json / .yaml /
+  .yml) for every kind; the sniffer routes by CONTENT: "openapi" 3.x → OpenAPI; "swagger" "2.0" → converted
+  (kin-openapi `openapi2conv`) then the SAME OpenAPI mapper; "info"+"item" → Postman collection (v1 →
+  "re-export as v2.1"); "values"+name/scope → Postman environment; anything else → one error naming all.
+  YAML (yaml.v3) and JSON are read into an ORDER-PRESERVING tree (`tree.go`: spec order matters — tags,
+  operations, body property order); Postman readers accept YAML through it too. Into the CURRENT project
+  only, through EXISTING endpoints. `ChooseImportFile`: native open dialog (`openDialog` field, tests replace
+  it) + `importer.Sniff`. `ImportPostmanCollection` / `ImportPostmanEnvironment` / `ImportOpenAPI` (one at a
+  time, `importMu`) return the REPORT as their typed result. Pipeline: parse → **plan in memory** (pure, `PlanCollection` / `PlanEnvironment`) →
   execute in order (root folder + settings, then each folder top-down + its settings PATCH, requests:
   create + ONE contents PATCH; a rejected PATCH deletes the half-made request), progress events
   `import:progress` {done,total} after each item. A collection = ONE new root folder (name deduped
@@ -441,6 +446,28 @@ Postman-style shell, logged in:
   "Copy full report" copies Go's plain-text rendering (`Report.Text`, details included). After an
   import the tree and env context are re-fetched. Out of scope (backlog): curl paste, OpenAPI, export,
   scripts, file bodies.
+  **OpenAPI** (`openapi.go`, `swagger.go`; same plan → execute → report): the spec → ONE root folder
+  (info.title, deduped) with auth from the global security requirement; ONE level of tag folders by each
+  operation's FIRST tag (declared order, then appearance; untagged → root); one request per path × method
+  in spec order (name = summary → operationId → "METHOD /path", shortened past 100 chars + entry); URL =
+  `{{BASE_URL}}` + path with `{p}` → `{{p}}` (one entry per request); parameters path-level + operation-level
+  (operation wins on name+in) → query / header rows, value = example / default / enum[0] / "", enabled =
+  required (the rule is ONE report note); Accept / Content-Type / Authorization header params ignored (as
+  the spec says); cookie params, TRACE, file fields dropped + entries. Bodies: JSON first (the media example,
+  else GENERATED from the schema: example > default > enum[0] > const > type placeholder, readOnly left out;
+  any local `#/...` JSON-pointer `$ref` resolved — specs point into `paths` too —, cycle guard → null + one
+  entry per schema, nesting cap 8 → null + entry; one "N bodies generated — review" line), else urlencoded /
+  multipart → form rows (required enabled), else raw with that type + entry; `*/*` with a schema → JSON +
+  entry. Auth: http bearer → `{{TOKEN}}`, basic → empty, apiKey header/query → `{{API_KEY}}` (one "set your
+  token" entry per scheme), apiKey cookie / oauth2 / openIdConnect / other → inherit + entry; an operation's
+  own differing requirement → per-request auth when it maps, else an entry. Servers → ONE environment each
+  (description, else host; deduped — names compare case-insensitively, like the server) with regular
+  `BASE_URL` (variables' defaults substituted, else literal + entry; trailing "/" stripped; relative → entry);
+  none → entry. Swagger: one environment per host (schemes merged, https preferred, entry); the converter
+  loses map order, so path / method order is reapplied from the original file (property order inside bodies
+  stays alphabetical). Report `notes` (info lines above the sections): "Converted from Swagger 2.0 before
+  import.", the optional-parameters rule, "Created environments … — activate one to resolve {{BASE_URL}}".
+  Environments are created after the folder tree; a failure there names them in the undo banner.
 - **Current team/project** live in Go (`internal/workspace`), persisted in settings
   (`current_team_id`, `current_project_id`) and validated against fresh server lists on every
   load: a vanished team falls back to the first team with no project, a vanished project to no
@@ -467,7 +494,7 @@ environments.go          bound environment/variable methods + local secret acces
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
 responses.go             full response bodies per tab (Go-side), SaveResponseToFile, ReleaseResponse
-import_postman.go        bound Postman import: ChooseImportFile, ImportPostmanCollection/Environment (internal/postman)
+import_files.go          bound import: ChooseImportFile, ImportPostmanCollection/Environment, ImportOpenAPI (internal/importer)
 body_format.go           bound FormatJSONBody (raw body Format; rules in internal/jsonfmt)
 redirects.go             follow-redirects: local global value, node setters (server), SaveFolderSettings
                          (folder auth + follow in one PATCH), legacy local→server push
@@ -477,7 +504,8 @@ internal/api/            typed client for the Ghostman server API (/api/v1)
 internal/session/        server URL resolution, auth state machine, login/logout/settings
 internal/workspace/      current team/project selection: persist, validate, fall back
 internal/envs/           environments: active env, variables with local-only secrets, var map
-internal/postman/        Postman import: sniff, pure planner (mapper/env), executor, report (+ testdata fixtures)
+internal/importer/       import: sniff, ordered tree, pure planners (Postman mapper/env, OpenAPI + Swagger conversion),
+                         executor, report (+ testdata fixtures)
 internal/jsonfmt/        Format JSON for template bodies: mask {{vars}} outside strings, indent, restore
 internal/filter/         jq (gojq) evaluation for the response filter bar: parse once, cap, note
 internal/store/          SQLite open/migrate, sqlc output (*.sql.go, db.go, models.go)
@@ -510,7 +538,7 @@ frontend/                Vite + Solid + TS
 - Comments in the raw (JSON) body via Ctrl+/: deliberately NOT supported — comments would be
   sent verbatim and break APIs. Revisit only with an opt-in strip-on-send.
 - Cookies; multipart/file bodies; history export / sync.
-- Import: curl paste (next), OpenAPI; export.
+- Import: curl paste (next); external $refs, callbacks / webhooks / links, XML body builders, multipart; export.
 - **Drag-and-drop for the project list**: for now projects use ↑/↓ in Project settings. Reorder
   endpoints need the full sibling set (every team project, so only the team owner and
   all-projects members get ↑/↓).

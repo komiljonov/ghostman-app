@@ -1,4 +1,4 @@
-package postman
+package importer
 
 import (
 	"context"
@@ -68,6 +68,45 @@ func ImportCollection(ctx context.Context, c Client, projectID, projectName stri
 	return rep, failure, nil
 }
 
+// ImportOpenAPI lists the project's root folders and environments (both deduped
+// against), plans the spec (OpenAPI 3.x, or Swagger 2.0 converted) and executes
+// it: the folder tree first, then one environment per server.
+func ImportOpenAPI(ctx context.Context, c Client, vw VariableWriter, projectID, projectName string, data []byte,
+	source string, progress Progress) (rep *Report, failure error, err error) {
+	folders, lerr := c.ListFolders(ctx, projectID)
+	var roots []string
+	for _, f := range folders {
+		if f.ParentID == nil {
+			roots = append(roots, f.Name)
+		}
+	}
+	envs, eerr := c.ListEnvironments(ctx, projectID)
+	names := make([]string, 0, len(envs))
+	for _, e := range envs {
+		names = append(names, e.Name)
+	}
+	plan, err := PlanOpenAPI(data, source, roots, names)
+	if err != nil {
+		return nil, nil, err // a broken spec (or a failed Swagger conversion): nothing was created
+	}
+	rep = plan.Report
+	if lerr != nil || eerr != nil {
+		what, cause := "could not read the project's folders", lerr
+		if lerr == nil {
+			what, cause = "could not read the project's environments", eerr
+		}
+		stopEarly(rep, plan.Root.Path, cause, what)
+		return rep, cause, nil
+	}
+	r := &run{ctx: ctx, c: c, vw: vw, projectID: projectID, rep: rep, total: plan.Items + len(plan.Environments), progress: progress}
+	failure = r.root(plan.Root, projectName)
+	if failure == nil {
+		failure = r.environments(plan.Environments, projectName)
+	}
+	rep.render()
+	return rep, failure, nil
+}
+
 // ImportEnvironment lists the project's environments (dedupe), plans and executes.
 func ImportEnvironment(ctx context.Context, c Client, vw VariableWriter, projectID, projectName string, data []byte,
 	source string, progress Progress) (rep *Report, failure error, err error) {
@@ -112,12 +151,14 @@ func ErrorText(err error) string {
 type run struct {
 	ctx       context.Context
 	c         Client
+	vw        VariableWriter // OpenAPI: server environments' BASE_URL
 	projectID string
 	rep       *Report
-	total     int // items inside the root
+	total     int // items inside the root (+ environments to create)
 	done      int
 	progress  Progress
 	rootName  string
+	envs      []string // environments created so far (for the undo banner)
 }
 
 func (r *run) step() {
@@ -137,6 +178,11 @@ func (r *run) fail(path, kind, what string, err error) error {
 	}
 	r.rep.Stopped = fmt.Sprintf("Import stopped at item %d of %d after a server error. Everything above was created "+
 		"inside folder '%s'; delete that folder to undo, fix the issue, re-import.", r.done+1, r.total, r.rootName)
+	if len(r.envs) > 0 {
+		r.rep.Stopped = fmt.Sprintf("Import stopped at item %d of %d after a server error. Everything above was created "+
+			"inside folder '%s' and %s %s; delete them to undo, fix the issue, re-import.", r.done+1, r.total, r.rootName,
+			word(len(r.envs), "environment", "environments"), quoteList(r.envs))
+	}
 	if left := r.total - r.done - 1; left > 0 {
 		r.rep.add(Entry{Severity: Failed, Code: CodeSkipped,
 			Message: plural(left, "more item was", "more items were") + " not imported because the import stopped."})
@@ -157,7 +203,7 @@ func (r *run) root(f *FolderPlan, projectName string) error {
 		return err
 	}
 	r.rep.add(Entry{Severity: Imported, Code: CodeCreated, Kind: "folder", Path: f.Path,
-		Message: "collection folder created", Location: loc})
+		Message: "root folder created", Location: loc})
 	if r.progress != nil {
 		r.progress(0, r.total)
 	}
@@ -229,6 +275,38 @@ func (r *run) request(folderID string, p *RequestPlan, parentLoc string) error {
 	r.rep.add(Entry{Severity: Imported, Code: CodeCreated, Kind: "request", Path: p.Path, Message: d.Method + " created",
 		Location: parentLoc + " / " + p.Name})
 	r.step()
+	return nil
+}
+
+// environments creates one environment per server with its BASE_URL variable.
+func (r *run) environments(envs []*ServerEnvPlan, projectName string) error {
+	for _, e := range envs {
+		label := "Env '" + e.Name + "'"
+		env, err := r.c.CreateEnvironment(r.ctx, r.projectID, e.Name)
+		if err != nil {
+			return r.fail(label, "environment", "server rejected creating the environment", err)
+		}
+		r.envs = append(r.envs, e.Name)
+		r.rep.Summary.Environments++
+		loc := projectName + " / " + e.Name
+		r.rep.add(Entry{Severity: Imported, Code: CodeCreated, Kind: "environment", Path: label,
+			Message: "environment created", Location: loc})
+		v, err := r.vw.CreateVariable(r.ctx, env.ID, baseURLVariable, VarRegular)
+		if err == nil && e.BaseURL != "" {
+			err = r.vw.SetValue(r.ctx, env.ID, v.ID, e.BaseURL)
+		}
+		if err != nil {
+			return r.fail(label+" / "+baseURLVariable, "variable", "server rejected the variable", err)
+		}
+		r.rep.Summary.Variables++
+		r.rep.add(Entry{Severity: Imported, Code: CodeCreated, Kind: "variable", Path: label + " / " + baseURLVariable,
+			Message: "regular variable created: " + e.BaseURL, Location: loc})
+		r.step()
+	}
+	if len(r.envs) > 0 {
+		r.rep.Notes = append(r.rep.Notes, fmt.Sprintf("Created %s %s — activate one to resolve {{%s}}.",
+			word(len(r.envs), "environment", "environments"), quoteList(r.envs), baseURLVariable))
+	}
 	return nil
 }
 

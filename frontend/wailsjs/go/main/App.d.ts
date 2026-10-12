@@ -94,6 +94,8 @@ export function GetTreeState(arg1:string):Promise<Array<string>>;
 
 export function GetUIPrefs():Promise<main.UIPrefs>;
 
+export function ImportOpenAPI(arg1:string,arg2:string):Promise<main.ImportReportResult>;
+
 export function ImportPostmanCollection(arg1:string,arg2:string):Promise<main.ImportReportResult>;
 
 export function ImportPostmanEnvironment(arg1:string,arg2:string):Promise<main.ImportReportResult>;

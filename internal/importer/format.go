@@ -1,18 +1,20 @@
-// Package postman imports Postman exports — collections (Collection Format v2.0
-// and v2.1) and environments — into a Ghostman project.
+// Package importer imports API definitions into a Ghostman project: Postman
+// exports — collections (Collection Format v2.0 and v2.1) and environments — and
+// OpenAPI specs (3.0, 3.1; Swagger 2.0 via conversion), JSON or YAML.
 //
 // The work is split so the mapping can be tested without a server:
 //
-//	Sniff           what kind of file this is (collection / environment / neither)
-//	PlanCollection  file → an in-memory plan + report entries (pure, mapper.go)
-//	PlanEnvironment file → an in-memory plan + report entries (pure, env.go)
+//	Sniff           what kind of file this is (collection / environment / OpenAPI / neither)
+//	PlanCollection  Postman collection → an in-memory plan + report entries (pure, mapper.go)
+//	PlanEnvironment Postman environment → an in-memory plan + report entries (pure, env.go)
+//	PlanOpenAPI     OpenAPI / Swagger → the same plan + environments per server (pure, openapi.go)
 //	Execute*        plan → server calls, in order, stopping at the first failure
 //	                (execute.go), filling in the rest of the report
 //
 // The report is a complete accounting: every mapping helper returns its value
 // TOGETHER with the report entries its fallbacks produced, so no fallback can
 // change or drop something silently (report.go; pinned by the fixture tests).
-package postman
+package importer
 
 import (
 	"bytes"
@@ -26,12 +28,14 @@ import (
 const (
 	KindCollection  = "collection"
 	KindEnvironment = "environment"
+	KindOpenAPI     = "openapi"
 )
 
 // Human errors for files that cannot be imported (shown as-is in the UI).
 var (
-	ErrNotPostman = errors.New("this file is not a Postman export Ghostman can import. Supported: a Postman " +
-		"collection (Collection v2.0 or v2.1 export) or a Postman environment export")
+	ErrNotSupported = errors.New("this file is not something Ghostman can import. Supported: an OpenAPI spec " +
+		"(3.0 or 3.1) or a Swagger 2.0 spec, as JSON or YAML; a Postman collection (Collection v2.0 or v2.1 " +
+		"export); or a Postman environment export")
 	ErrCollectionV1 = errors.New("this is a Postman Collection v1 file, which is not supported. In Postman, " +
 		"export the collection again and choose Collection v2.1")
 )
@@ -44,21 +48,35 @@ type FileInfo struct {
 	Folders   int    `json:"folders"`
 	Requests  int    `json:"requests"`
 	Variables int    `json:"variables"`
+	Servers   int    `json:"servers"` // OpenAPI: one environment each
 }
 
-// Sniff decides what data is: a collection ("info" + "item"), an environment
-// ("values" + a name or the Postman scope marker), a v1 collection (rejected with
-// an explanation) or anything else (ErrNotPostman).
+// Sniff decides what data (JSON or YAML) is: an OpenAPI spec ("openapi": "3.x"),
+// a Swagger spec ("swagger": "2.0", converted), a Postman collection ("info" +
+// "item"), a Postman environment ("values" + a name or the scope marker), a v1
+// collection (rejected with an explanation) or anything else (ErrNotSupported).
 func Sniff(data []byte) (FileInfo, error) {
-	var probe map[string]json.RawMessage
-	if err := json.Unmarshal(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")), &probe); err != nil {
-		return FileInfo{}, errors.New("the file is not valid JSON (" + jsonProblem(err) + ")")
+	tree, err := decodeTree(data)
+	if err != nil {
+		return FileInfo{}, err
 	}
-	_, hasInfo := probe["info"]
-	_, hasItem := probe["item"]
-	_, hasValues := probe["values"]
-	_, hasRequests := probe["requests"]
-	_, hasOrder := probe["order"]
+	root, ok := tree.(*omap)
+	if !ok {
+		return FileInfo{}, ErrNotSupported
+	}
+	if root.has("openapi") || root.has("swagger") {
+		plan, err := PlanOpenAPI(data, "", nil, nil)
+		if err != nil {
+			return FileInfo{}, err
+		}
+		return FileInfo{Kind: KindOpenAPI, Name: plan.Report.Name, Format: plan.Report.Format, Folders: len(plan.Root.Folders),
+			Requests: countRequests(plan.Root), Servers: len(plan.Environments)}, nil
+	}
+	if data, err = treeJSON(root); err != nil {
+		return FileInfo{}, err
+	}
+	hasInfo, hasItem, hasValues := root.has("info"), root.has("item"), root.has("values")
+	hasRequests, hasOrder := root.has("requests"), root.has("order")
 	switch {
 	case hasInfo && hasItem:
 		c, err := parseCollection(data)
@@ -67,9 +85,9 @@ func Sniff(data []byte) (FileInfo, error) {
 		}
 		folders, requests := countItems(c.Item)
 		return FileInfo{Kind: KindCollection, Name: c.Info.Name, Format: c.format, Folders: folders, Requests: requests}, nil
-	case hasRequests && (hasOrder || probe["folders"] != nil):
+	case hasRequests && (hasOrder || root.has("folders")):
 		return FileInfo{}, ErrCollectionV1
-	case hasValues && (probe["name"] != nil || probe["_postman_variable_scope"] != nil):
+	case hasValues && (root.has("name") || root.has("_postman_variable_scope")):
 		e, err := parseEnvironment(data)
 		if err != nil {
 			return FileInfo{}, err
@@ -80,7 +98,29 @@ func Sniff(data []byte) (FileInfo, error) {
 		}
 		return FileInfo{Kind: KindEnvironment, Name: e.Name, Format: format, Variables: len(e.Values)}, nil
 	}
-	return FileInfo{}, ErrNotPostman
+	return FileInfo{}, ErrNotSupported
+}
+
+func countRequests(f *FolderPlan) int {
+	n := len(f.Requests)
+	for _, sub := range f.Folders {
+		n += countRequests(sub)
+	}
+	return n
+}
+
+// asJSON turns a YAML document into JSON (a JSON one is returned as is), so the
+// Postman readers accept YAML files too.
+func asJSON(data []byte) ([]byte, error) {
+	trimmed := bytes.TrimLeft(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")), " \t\r\n")
+	if len(trimmed) > 0 && (trimmed[0] == '{' || trimmed[0] == '[') {
+		return data, nil
+	}
+	tree, err := decodeYAMLTree(data)
+	if err != nil {
+		return nil, err
+	}
+	return treeJSON(tree)
 }
 
 func countItems(items []pmItem) (folders, requests int) {
@@ -219,6 +259,10 @@ func (f *flexString) UnmarshalJSON(b []byte) error {
 }
 
 func parseCollection(data []byte) (*pmCollection, error) {
+	data, err := asJSON(data)
+	if err != nil {
+		return nil, err
+	}
 	var c pmCollection
 	if err := json.Unmarshal(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")), &c); err != nil {
 		return nil, errors.New("the collection could not be read (" + jsonProblem(err) + ")")
@@ -236,6 +280,10 @@ func parseCollection(data []byte) (*pmCollection, error) {
 }
 
 func parseEnvironment(data []byte) (*pmEnvironment, error) {
+	data, err := asJSON(data)
+	if err != nil {
+		return nil, err
+	}
 	var e pmEnvironment
 	if err := json.Unmarshal(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")), &e); err != nil {
 		return nil, errors.New("the environment could not be read (" + jsonProblem(err) + ")")

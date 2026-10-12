@@ -1,8 +1,8 @@
 import { createSignal, onCleanup, Show } from "solid-js";
-import { ChooseImportFile, ImportPostmanCollection, ImportPostmanEnvironment } from "../../wailsjs/go/main/App";
-import type { main, postman } from "../../wailsjs/go/models";
+import { ChooseImportFile, ImportOpenAPI, ImportPostmanCollection, ImportPostmanEnvironment } from "../../wailsjs/go/main/App";
+import type { importer, main } from "../../wailsjs/go/models";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
-import { fileSummary, progressLabel } from "../importReport";
+import { fileSummary, importDestination, progressLabel } from "../importReport";
 import Icon from "./Icon";
 import Modal from "./Modal";
 
@@ -10,11 +10,12 @@ interface Props {
   projectId: string;
   projectName: string;
   onClose: () => void;
-  onImported: (report: postman.Report) => void; // the import ran (even part-way): show the report
+  onImported: (report: importer.Report) => void; // the import ran (even part-way): show the report
 }
 
-// Profile menu → Import…: pick a Postman export (native dialog; Go sniffs the
-// kind), then import it into the CURRENT project. The file card, the progress row
+// Profile menu → Import…: pick an OpenAPI / Swagger spec or a Postman export, JSON
+// or YAML (native dialog; Go sniffs the kind and routes), then import it into the
+// CURRENT project. The file card, the progress row
 // and the buttons keep their place in every state (nothing jumps); while an import
 // runs the dialog cannot be dismissed — Go is creating things and the report is
 // coming.
@@ -50,9 +51,11 @@ export default function ImportModal(props: Props) {
     setRunning(true);
     setProgress(undefined);
     try {
-      const res = f.kind === "environment"
-        ? await ImportPostmanEnvironment(props.projectId, f.path)
-        : await ImportPostmanCollection(props.projectId, f.path);
+      const res = f.kind === "openapi"
+        ? await ImportOpenAPI(props.projectId, f.path)
+        : f.kind === "environment"
+          ? await ImportPostmanEnvironment(props.projectId, f.path)
+          : await ImportPostmanCollection(props.projectId, f.path);
       if (res.error || !res.data) {
         setError(res.error?.message ?? "The import did not return a report.");
         return;
@@ -64,15 +67,13 @@ export default function ImportModal(props: Props) {
   };
 
   const close = () => !running() && props.onClose();
-  const where = () => (file()?.kind === "environment"
-    ? "as a new environment"
-    : "as one new folder at the top of the tree");
 
   return (
-    <Modal title="Import from Postman" onClose={close} class="import-modal">
+    <Modal title="Import" onClose={close} class="import-modal">
       <p class="muted small import-intro">
-        A collection (Collection v2.0 or v2.1 export) or an environment exported from Postman. Everything is imported
-        into <strong>{props.projectName}</strong>{file() ? ` ${where()}` : ""}; you get a full report afterwards.
+        An OpenAPI spec (3.0, 3.1, or Swagger 2.0), or a Postman collection (v2.0 / v2.1) or environment — JSON or YAML.
+        Everything is imported into <strong>{props.projectName}</strong>{file() ? ` ${importDestination(file()?.kind)}` : ""};
+        you get a full report afterwards.
       </p>
       <div class="import-pick">
         <button type="button" class="import-choose" disabled={running() || choosing()} onClick={() => void choose()}>

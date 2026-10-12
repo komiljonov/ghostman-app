@@ -182,6 +182,10 @@ export function GetUIPrefs() {
   return window['go']['main']['App']['GetUIPrefs']();
 }
 
+export function ImportOpenAPI(arg1, arg2) {
+  return window['go']['main']['App']['ImportOpenAPI'](arg1, arg2);
+}
+
 export function ImportPostmanCollection(arg1, arg2) {
   return window['go']['main']['App']['ImportPostmanCollection'](arg1, arg2);
 }

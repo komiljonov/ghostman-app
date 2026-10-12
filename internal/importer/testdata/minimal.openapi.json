@@ -1,0 +1,33 @@
+{
+  "openapi": "3.0.3",
+  "info": { "title": "Minimal" },
+  "paths": {
+    "/ping": { "get": { "responses": { "200": { "description": "ok" } } } },
+    "/things/{id}": {
+      "post": {
+        "operationId": "createThing",
+        "requestBody": {
+          "$ref": "#/components/requestBodies/Thing"
+        },
+        "responses": { "201": { "description": "created" } }
+      }
+    }
+  },
+  "components": {
+    "requestBodies": {
+      "Thing": {
+        "content": {
+          "application/json": {
+            "examples": {
+              "first": { "$ref": "#/components/examples/ThingExample" },
+              "second": { "value": { "name": "unused" } }
+            }
+          }
+        }
+      }
+    },
+    "examples": {
+      "ThingExample": { "value": { "name": "lamp", "watts": 40 } }
+    }
+  }
+}
