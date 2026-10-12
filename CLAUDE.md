@@ -394,7 +394,11 @@ Postman-style shell, logged in:
   edits, folder changes and moves live. UI: the **Auth sub-tab** and the folder **Settings…**
   modal share `AuthEditor` (mode select whose Inherit option names what it resolves to;
   fields are `VarField`s — standalone single-line CM editors from the shared factory; the
-  basic password is masked (literal text as bullets, `{{vars}}` visible) with a reveal toggle).
+  basic password is masked (literal text as bullets, `{{vars}}` visible) with a reveal toggle;
+  the mask is a CSS mark (`-webkit-text-security`), so it edits per character like a native
+  password input — never a replace widget, which made the text one atomic block). The fields
+  are wrapped in `<div>`s, NOT `<label>`s: a label cannot focus a CodeMirror field, so a click
+  activated its first focusable control instead (the reveal button).
   Request auth rides the autosave (`api.BuildAuthPatch`: type + the changed fields); the folder
   modal saves auth + follow_redirects in ONE PATCH (`SaveFolderSettings`). Sub-tab dots: Auth
   when type ≠ inherit, Settings when follow ≠ inherit (`overridesSomething`). **Send**: TS passes

@@ -47,24 +47,27 @@ export default function AuthEditor(props: Props) {
             No credentials are added, even when a parent folder sets auth{props.noun === "folder" ? " (for everything in this folder that inherits)" : ""}.
           </p>
         </Match>
+        {/* Fields are <div>s, not <label>s: a label cannot focus the CodeMirror field, so a
+            click on it activated the label's first focusable control instead (the password's
+            reveal button — focus stolen, reveal toggled). Each field has its own aria-label. */}
         <Match when={props.auth.type === "bearer"}>
           <div class="auth-fields">
-            <label class="auth-field">
+            <div class="auth-field">
               <span>Token</span>
               <VarField value={props.auth.bearer_token} onChange={(v) => set("bearer_token", v)}
                 placeholder="{{API_TOKEN}}" ariaLabel="Bearer token" />
-            </label>
+            </div>
             <p class="auth-preview muted small">Sent as <code>Authorization: Bearer &lt;token&gt;</code></p>
           </div>
         </Match>
         <Match when={props.auth.type === "basic"}>
           <div class="auth-fields">
-            <label class="auth-field">
+            <div class="auth-field">
               <span>Username</span>
               <VarField value={props.auth.basic_username} onChange={(v) => set("basic_username", v)}
                 placeholder="Username" ariaLabel="Basic auth username" />
-            </label>
-            <label class="auth-field">
+            </div>
+            <div class="auth-field">
               <span>Password</span>
               <span class="auth-secret">
                 <VarField value={props.auth.basic_password} onChange={(v) => set("basic_password", v)}
@@ -75,22 +78,22 @@ export default function AuthEditor(props: Props) {
                   <Icon name={reveal() ? "eye-off" : "eye"} size={14} />
                 </button>
               </span>
-            </label>
+            </div>
             <p class="auth-preview muted small">Sent as <code>Authorization: Basic base64(username:password)</code></p>
           </div>
         </Match>
         <Match when={props.auth.type === "api_key"}>
           <div class="auth-fields">
-            <label class="auth-field">
+            <div class="auth-field">
               <span>Key</span>
               <VarField value={props.auth.api_key_name} onChange={(v) => set("api_key_name", v)}
                 placeholder="X-Api-Key" ariaLabel="API key name" />
-            </label>
-            <label class="auth-field">
+            </div>
+            <div class="auth-field">
               <span>Value</span>
               <VarField value={props.auth.api_key_value} onChange={(v) => set("api_key_value", v)}
                 placeholder="{{API_KEY}}" ariaLabel="API key value" />
-            </label>
+            </div>
             <div class="auth-field">
               <span>Add to</span>
               <div class="segmented small" role="radiogroup" aria-label="Add API key to">
