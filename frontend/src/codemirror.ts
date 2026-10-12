@@ -4,7 +4,7 @@
 // Imported lazily (dynamic import), so CodeMirror stays out of the startup bundle.
 import { basicSetup, EditorView } from "codemirror";
 import {
-  Annotation, Compartment, EditorState, Extension, Facet, Prec, RangeSetBuilder, StateCommand, StateEffect, StateField, Transaction,
+  Annotation, Compartment, EditorSelection, EditorState, Extension, Facet, Prec, RangeSetBuilder, StateCommand, StateEffect, StateField, Transaction,
   TransactionSpec,
 } from "@codemirror/state";
 import {
@@ -669,6 +669,34 @@ export interface LineEditorOptions {
 // One factory for every single-line field: newlines are stripped (a pasted multi-line
 // value is joined), Tab/Shift+Tab move focus as in a normal input, and the shared
 // theme, shortcuts and {{var}} highlighting/hover apply.
+/**
+ * Keeps a line editor on one line: line breaks in inserted text (a pasted URL
+ * copied with a trailing newline, a CRLF in the middle) are dropped. The
+ * transaction's selection is expressed in the UNSTRIPPED document, so each of its
+ * positions moves back by the breaks removed before it — reusing it as-is points
+ * past the end of the shorter document (RangeError: the paste was lost) or one
+ * character too far.
+ */
+export const singleLineFilter = EditorState.transactionFilter.of((tr) => {
+  if (!tr.docChanged || tr.newDoc.lines <= 1) return tr;
+  const changes: { from: number; to: number; insert: string }[] = [];
+  const cuts: number[] = []; // positions of removed characters, in the unstripped new document
+  tr.changes.iterChanges((fromA, toA, fromB, _toB, inserted) => {
+    const text = inserted.toString();
+    for (let i = 0; i < text.length; i++) if (text[i] === "\n" || text[i] === "\r") cuts.push(fromB + i);
+    changes.push({ from: fromA, to: toA, insert: text.replace(/[\r\n]+/g, "") });
+  });
+  const map = (pos: number) => pos - cuts.filter((c) => c < pos).length;
+  const spec: TransactionSpec = { changes, scrollIntoView: tr.scrollIntoView, userEvent: tr.annotation(Transaction.userEvent) };
+  if (tr.selection) {
+    spec.selection = EditorSelection.create(
+      tr.selection.ranges.map((r) => EditorSelection.range(map(r.anchor), map(r.head))),
+      tr.selection.mainIndex,
+    );
+  }
+  return spec;
+});
+
 export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEditorOptions): LineEditorHandle {
   const mask = new Compartment();
   const view = new EditorView({
@@ -683,14 +711,7 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
           ...defaultKeymap.filter((b) => b.key !== "Enter"),
           ...historyKeymap,
         ]),
-        EditorState.transactionFilter.of((tr) => {
-          if (!tr.docChanged || tr.newDoc.lines <= 1) return tr;
-          const changes: { from: number; to: number; insert: string }[] = [];
-          tr.changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
-            changes.push({ from: fromA, to: toA, insert: inserted.toString().replace(/[\r\n]+/g, "") });
-          });
-          return [{ changes, selection: tr.selection, scrollIntoView: tr.scrollIntoView }];
-        }),
+        singleLineFilter,
         placeholderExt(opts.placeholder),
         theme,
         varHighlighting(opts.getEnv, opts.onPin),
