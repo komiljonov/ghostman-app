@@ -9,7 +9,7 @@ import {
 } from "@codemirror/state";
 import {
   closeHoverTooltips, Decoration, DecorationSet, hoverTooltip, keymap, placeholder as placeholderExt, showTooltip, Tooltip,
-  ViewPlugin, ViewUpdate, WidgetType,
+  ViewPlugin, ViewUpdate,
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, isolateHistory } from "@codemirror/commands";
 import {
@@ -603,27 +603,17 @@ export function formatTransaction(state: EditorState, before: string, formatted:
 }
 
 // ---- Masked (password) single-line fields: literal text shows as bullets ----
+// The literal runs (maskRanges: everything but {{vars}}) get a mark whose CSS draws
+// each character as a dot (-webkit-text-security, WebView2 and WebKitGTK). The text
+// stays ordinary text, so it edits like a native password input: click anywhere,
+// arrow keys and Backspace work per character. (A replace widget made each run one
+// atomic block: the caret only at its ends, Backspace deleting the whole password.)
 
-class Bullets extends WidgetType {
-  constructor(readonly n: number) {
-    super();
-  }
-  eq(other: Bullets) {
-    return other.n === this.n;
-  }
-  toDOM() {
-    const s = document.createElement("span");
-    s.className = "cm-masked";
-    s.textContent = "•".repeat(this.n);
-    return s;
-  }
-}
+const maskedMark = Decoration.mark({ class: "cm-masked" });
 
 function maskDecorations(view: EditorView): DecorationSet {
   const b = new RangeSetBuilder<Decoration>();
-  for (const [from, to] of maskRanges(view.state.doc.toString())) {
-    b.add(from, to, Decoration.replace({ widget: new Bullets(to - from) }));
-  }
+  for (const [from, to] of maskRanges(view.state.doc.toString())) b.add(from, to, maskedMark);
   return b.finish();
 }
 
@@ -635,11 +625,7 @@ const maskPlugin = ViewPlugin.fromClass(class {
   update(u: ViewUpdate) {
     if (u.docChanged) this.decorations = maskDecorations(u.view);
   }
-}, {
-  decorations: (v) => v.decorations,
-  // The cursor skips over a masked run as a whole (no caret inside the bullets).
-  provide: (p) => EditorView.atomicRanges.of((view) => view.plugin(p)?.decorations ?? Decoration.none),
-});
+}, { decorations: (v) => v.decorations });
 
 // Marks a programmatic setDoc, so the update listener does not echo it back.
 const externalChange = Annotation.define<boolean>();

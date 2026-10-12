@@ -3393,7 +3393,9 @@ input:disabled {
   border-left-color: var(--text);
 }
 
+/* Masked password text: real characters drawn as dots (see maskPlugin). */
 .cm-masked {
+  -webkit-text-security: disc;
   letter-spacing: 0.05em;
 }
 
