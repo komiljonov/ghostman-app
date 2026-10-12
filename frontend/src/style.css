@@ -3749,6 +3749,11 @@ input:disabled {
   overflow: hidden;
   box-shadow: inset 1px 0 0 var(--border), inset 0 1px 0 var(--border);
   transition: left 200ms ease-out, top 200ms ease-out, width 200ms ease-out, height 200ms ease-out, clip-path 200ms ease-out;
+}
+
+/* Only while growing in (EditorGroup removes it after the animation): a resting
+   clip-path would clip the editors' floating tooltips at the group's edges. */
+.editor-group.group-growing {
   clip-path: inset(0);
 }
 
@@ -3956,6 +3961,31 @@ body.tab-dragging * {
   color: var(--danger);
   font-size: 13px;
   line-height: 1.4;
+}
+
+/* Report notes: info lines that apply to the whole import (always visible). */
+.import-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 10px;
+  list-style: none;
+  line-height: 1.45;
+  background: var(--accent-soft);
+  border-radius: 6px;
+}
+
+.import-notes li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.import-notes svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent);
 }
 
 /* Progress: always laid out, visible only while importing (no layout shift). */

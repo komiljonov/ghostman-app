@@ -1,12 +1,12 @@
 import { createSignal, For, onCleanup, Show } from "solid-js";
-import type { postman } from "../../wailsjs/go/models";
+import type { importer } from "../../wailsjs/go/models";
 import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 import { reportSections, summaryLine } from "../importReport";
 import Icon from "./Icon";
 import Modal from "./Modal";
 
 interface Props {
-  report: postman.Report;
+  report: importer.Report;
   onClose: () => void;
 }
 
@@ -35,12 +35,12 @@ export default function ImportReport(props: Props) {
     timer = setTimeout(() => setCopied(false), 1800);
   };
 
-  const what = () => (r().kind === "environment" ? "environment" : "collection");
+  const what = () => (r().kind === "openapi" ? "API spec" : r().kind === "environment" ? "Postman environment" : "Postman collection");
 
   return (
     <Modal title="Import report" onClose={props.onClose} class="import-report">
       <p class="import-report-head">
-        Postman {what()} <strong>{r().name || r().source}</strong>
+        {what()} <strong>{r().name || r().source}</strong>
         <span class="muted"> ({r().format}, {r().source})</span>
         <Show when={r().target}>
           {" "}→ <strong>{r().target}</strong>
@@ -51,6 +51,15 @@ export default function ImportReport(props: Props) {
           <Icon name="x-circle" size={16} />
           <span>{r().stopped}</span>
         </div>
+      </Show>
+      <Show when={(r().notes ?? []).length > 0}>
+        <ul class="import-notes" aria-label="Notes">
+          <For each={r().notes}>
+            {(n) => (
+              <li><Icon name="info" size={14} /><span>{n}</span></li>
+            )}
+          </For>
+        </ul>
       </Show>
       <div class="import-sections">
         <For each={reportSections(r())}>

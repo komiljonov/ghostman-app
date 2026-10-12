@@ -32,9 +32,23 @@ export default function EditorGroup(props: Props) {
   };
   onMount(() => {
     if (!props.entering) return;
-    // Grow in from the split side: start clipped to nothing, then reveal.
-    el.classList.add(`group-enter-${props.entering}`);
-    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove(`group-enter-${props.entering}`)));
+    // Grow in from the split side: start clipped to nothing, then reveal. The clip
+    // exists ONLY during the animation (group-growing): a resting clip-path would
+    // also clip the editors' floating tooltips (var hover, completion) at the
+    // group's edges.
+    const side = props.entering;
+    el.classList.add("group-growing", `group-enter-${side}`);
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      el.classList.remove("group-growing");
+    };
+    el.addEventListener("transitionend", (e) => e.propertyName === "clip-path" && finish());
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.classList.remove(`group-enter-${side}`);
+      setTimeout(finish, 400); // no transition (reduced motion) → still unclip
+    }));
   });
 
   const style = (): JSX.CSSProperties => ({

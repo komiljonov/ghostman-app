@@ -88,7 +88,7 @@ func TestChooseImportFile(t *testing.T) {
 	a := newTestApp(t, true, nil)
 	picked := ""
 	a.openDialog = func(_ context.Context, o runtime.OpenDialogOptions) (string, error) {
-		if len(o.Filters) != 1 || o.Filters[0].Pattern != "*.json" {
+		if len(o.Filters) != 1 || o.Filters[0].Pattern != "*.json;*.yaml;*.yml" {
 			t.Fatalf("filters %+v", o.Filters)
 		}
 		return picked, nil
@@ -105,10 +105,47 @@ func TestChooseImportFile(t *testing.T) {
 	if r := a.ChooseImportFile(); r.Error == nil || !strings.HasPrefix(r.Error.Message, "This is a Postman Collection v1 file") {
 		t.Fatalf("v1: %+v", r.Error)
 	}
-	picked = writeFile(t, "openapi.json", `{"openapi":"3.0.0"}`)
-	if r := a.ChooseImportFile(); r.Error == nil || !strings.Contains(r.Error.Message, "collection") ||
-		!strings.Contains(r.Error.Message, "environment") {
+	picked = writeFile(t, "asyncapi.json", `{"asyncapi":"2.6.0"}`)
+	if r := a.ChooseImportFile(); r.Error == nil || !strings.Contains(r.Error.Message, "OpenAPI") ||
+		!strings.Contains(r.Error.Message, "collection") || !strings.Contains(r.Error.Message, "environment") {
 		t.Fatalf("other: %+v", r.Error)
+	}
+	// The same picker takes OpenAPI specs, YAML included.
+	picked = writeFile(t, "api.yaml", tinySpec)
+	if r := a.ChooseImportFile(); r.Error != nil || r.Data.Kind != "openapi" || r.Data.Requests != 1 || r.Data.Servers != 1 {
+		t.Fatalf("openapi: %+v %+v", r.Data, r.Error)
+	}
+}
+
+const tinySpec = `openapi: 3.0.3
+info: { title: Tiny API }
+servers: [{ url: "https://tiny.example.com/", description: Dev }]
+paths:
+  /items/{id}:
+    get: { operationId: getItem, tags: [Items] }
+`
+
+func TestImportOpenAPIBound(t *testing.T) {
+	routes, log := importServer(t)
+	a := newTestApp(t, true, routes)
+	a.emit = func(context.Context, string, ...any) {}
+	res := a.ImportOpenAPI("p1", writeFile(t, "api.yaml", tinySpec))
+	if res.Error != nil {
+		t.Fatal(res.Error.Message)
+	}
+	got := strings.Join(*log, "\n")
+	for _, want := range []string{"folder Tiny API", "folder Items", "request getItem GET", "env Dev", "var BASE_URL regular",
+		`"value":"https://tiny.example.com"`} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("server log lacks %q:\n%s", want, got)
+		}
+	}
+	if res.Data.Kind != "openapi" || res.Data.Summary.Environments != 1 {
+		t.Fatalf("report %+v", res.Data)
+	}
+	if r := a.ImportPostmanCollection("p1", writeFile(t, "api.yaml", tinySpec)); r.Error == nil ||
+		r.Error.Message != "This file is an OpenAPI / Swagger spec, not a Postman collection." {
+		t.Fatalf("mismatch: %+v", r.Error)
 	}
 }
 
@@ -141,7 +178,7 @@ func TestImportPostmanCollectionBound(t *testing.T) {
 	}
 	// The wrong method for the file's kind.
 	if r := a.ImportPostmanEnvironment("p1", writeFile(t, "tiny.json", tinyCollection)); r.Error == nil ||
-		r.Error.Message != "This file is a Postman collection, not an environment." {
+		r.Error.Message != "This file is a Postman collection, not a Postman environment." {
 		t.Fatalf("mismatch: %+v", r.Error)
 	}
 }

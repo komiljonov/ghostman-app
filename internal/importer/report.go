@@ -1,4 +1,4 @@
-package postman
+package importer
 
 import (
 	"fmt"
@@ -59,6 +59,10 @@ var FallbackCodes = []string{
 	CodeDescriptions, CodeExamples, CodeCollectionVars, CodeFolderVars, CodeSettingOther,
 	CodeOrderInterleaved, CodeItemEmpty,
 	CodeEnvSecret, CodeEnvDisabled, CodeEnvKeyless, CodeEnvDuplicate, CodeEnvGlobals,
+	CodeOANameLong, CodeOATrace, CodeOAPathParams, CodeOACookieParams, CodeOADeprecated, CodeOASynthesized,
+	CodeOARefCycle, CodeOADepthCap, CodeOARefBroken, CodeOABodyOther, CodeOAAltContent, CodeOAAuthSet,
+	CodeOAAuthCookie, CodeOAAuthCombined, CodeOAOpSecurity, CodeOAServerVar, CodeOAServerRelative,
+	CodeOANoServers, CodeOASchemes,
 }
 
 // Entry is one line of the report.
@@ -97,10 +101,13 @@ type Report struct {
 	Target  string  `json:"target"`
 	Summary Summary `json:"summary"`
 
-	Imported []Entry `json:"imported"`
-	Changed  []Entry `json:"changed"`
-	Dropped  []Entry `json:"dropped"`
-	Failed   []Entry `json:"failed"`
+	// Notes are info lines shown once at the top of the Imported section ("Converted
+	// from Swagger 2.0 before import.", the optional-parameters rule, created envs).
+	Notes    []string `json:"notes"`
+	Imported []Entry  `json:"imported"`
+	Changed  []Entry  `json:"changed"`
+	Dropped  []Entry  `json:"dropped"`
+	Failed   []Entry  `json:"failed"`
 	// Stopped is the banner when execution stopped early ("" = it ran to the end).
 	Stopped string `json:"stopped"`
 	// Text is the whole report as plain text, collapsed details included ("Copy full report").
@@ -108,7 +115,7 @@ type Report struct {
 }
 
 func newReport(kind, source, format, name string) *Report {
-	return &Report{Kind: kind, Source: source, Format: format, Name: name,
+	return &Report{Kind: kind, Source: source, Format: format, Name: name, Notes: []string{},
 		Imported: []Entry{}, Changed: []Entry{}, Dropped: []Entry{}, Failed: []Entry{}}
 }
 
@@ -136,6 +143,14 @@ func drop(code, path, msg, action string) Entry {
 	return Entry{Severity: Dropped, Code: code, Path: path, Message: msg, Action: action}
 }
 
+// word is one or many by n, without the number.
+func word(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
+}
+
 func plural(n int, one, many string) string {
 	if n == 1 {
 		return "1 " + one
@@ -146,11 +161,14 @@ func plural(n int, one, many string) string {
 // render fills r.Text: every section, every entry, every detail.
 func (r *Report) render() {
 	var b strings.Builder
-	what := "collection"
-	if r.Kind == KindEnvironment {
-		what = "environment"
+	what := "Postman collection"
+	switch r.Kind {
+	case KindEnvironment:
+		what = "Postman environment"
+	case KindOpenAPI:
+		what = "API spec"
 	}
-	fmt.Fprintf(&b, "Ghostman import report — Postman %s %q (%s, file %s)\n", what, r.Name, r.Format, r.Source)
+	fmt.Fprintf(&b, "Ghostman import report — %s %q (%s, file %s)\n", what, r.Name, r.Format, r.Source)
 	if r.Target != "" {
 		fmt.Fprintf(&b, "Imported into: %s\n", r.Target)
 	}
@@ -158,6 +176,9 @@ func (r *Report) render() {
 	fmt.Fprintf(&b, "Created: %s, %s, %s, %s\n",
 		plural(s.Folders, "folder", "folders"), plural(s.Requests, "request", "requests"),
 		plural(s.Environments, "environment", "environments"), plural(s.Variables, "variable", "variables"))
+	for _, n := range r.Notes {
+		fmt.Fprintf(&b, "Note: %s\n", n)
+	}
 	if r.Stopped != "" {
 		fmt.Fprintf(&b, "\n!! %s\n", r.Stopped)
 	}

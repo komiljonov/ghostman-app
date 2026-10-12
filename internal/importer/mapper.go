@@ -1,4 +1,4 @@
-package postman
+package importer
 
 import (
 	"bytes"
@@ -42,6 +42,8 @@ type CollectionPlan struct {
 	Report *Report
 	Root   *FolderPlan
 	Items  int // folders + requests inside the root (the progress total, root excluded)
+	// Environments are created after the folder tree (OpenAPI: one per server).
+	Environments []*ServerEnvPlan
 }
 
 // MethodsSupported are the methods the server accepts.
@@ -175,12 +177,16 @@ func (m *mapper) request(into *FolderPlan, it pmItem) {
 }
 
 // UniqueName returns name, or "name (2)", "name (3)", ... — the first not taken.
+// Names compare case-insensitively, as the server does ("Dev" is taken by "dev").
 func UniqueName(name string, taken []string) string {
-	if !slices.Contains(taken, name) {
+	isTaken := func(c string) bool {
+		return slices.ContainsFunc(taken, func(t string) bool { return strings.EqualFold(strings.TrimSpace(t), c) })
+	}
+	if !isTaken(name) {
 		return name
 	}
 	for n := 2; ; n++ {
-		if c := fmt.Sprintf("%s (%d)", name, n); !slices.Contains(taken, c) {
+		if c := fmt.Sprintf("%s (%d)", name, n); !isTaken(c) {
 			return c
 		}
 	}

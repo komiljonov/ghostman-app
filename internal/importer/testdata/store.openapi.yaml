@@ -1,0 +1,207 @@
+openapi: 3.1.0
+info:
+  title: Pet Store
+  version: 1.0.0
+  description: A small store API that exercises every OpenAPI mapping path.
+servers:
+  - url: https://{region}.example.com/v1/
+    description: Production
+    variables:
+      region:
+        default: eu
+        enum: [eu, us]
+  - url: https://staging.example.com/{version}
+  - url: /relative
+    description: Local proxy
+security:
+  - BearerAuth: []
+tags:
+  - name: Pets
+    description: Everything about pets
+  - name: Store
+  - name: Unused
+paths:
+  /pets:
+    get:
+      tags: [Pets]
+      summary: List pets
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: status
+          in: query
+          required: true
+          schema: { type: string, enum: [available, sold] }
+        - name: X-Request-Id
+          in: header
+          example: req-123
+        - name: Accept
+          in: header
+          schema: { type: string }
+        - name: session
+          in: cookie
+          schema: { type: string }
+    post:
+      tags: [Pets]
+      operationId: createPet
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Pet" }
+          application/xml:
+            schema: { $ref: "#/components/schemas/Pet" }
+  /pets/{petId}:
+    parameters:
+      - name: petId
+        in: path
+        required: true
+        schema: { type: string }
+      - name: verbose
+        in: query
+        schema: { type: boolean, default: false }
+    get:
+      tags: [Pets]
+      parameters:
+        - name: verbose
+          in: query
+          required: true
+          example: true
+    delete:
+      tags: [Pets]
+      summary: Delete a pet
+      deprecated: true
+    trace:
+      tags: [Pets]
+      summary: Trace a pet
+  /pets/{petId}/photo:
+    post:
+      tags: [Pets]
+      summary: Upload a photo
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [caption]
+              properties:
+                caption: { type: string, example: "On the sofa" }
+                photo: { type: string, format: binary }
+                album: { type: string }
+  /store/orders:
+    post:
+      tags: [Store]
+      summary: Place an order
+      description: Places an order for a pet.
+      security:
+        - QueryKey: []
+      requestBody:
+        content:
+          application/json:
+            example: { petId: "{{petId}}", quantity: 2, note: "deliver after 5pm" }
+  /store/feedback:
+    post:
+      tags: [Store]
+      summary: Send feedback
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating: { type: integer, enum: [5, 4, 3] }
+                comment: { type: string }
+  /store/inventory:
+    put:
+      tags: [Store]
+      summary: Replace the inventory list
+      requestBody:
+        content:
+          text/plain:
+            example: "dog=3\ncat=5"
+  /store/deep:
+    put:
+      tags: [Store]
+      summary: Deeply nested document
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/L1" }
+  /admin/stats:
+    get:
+      tags: [Admin]
+      summary: Statistics
+      security:
+        - OAuth: [read]
+  /admin/session:
+    get:
+      tags: [Admin]
+      summary: Session info
+      security:
+        - CookieKey: []
+  /admin/both:
+    get:
+      tags: [Admin]
+      summary: Needs two credentials
+      security:
+        - BearerAuth: []
+          QueryKey: []
+  /admin/report:
+    get:
+      tags: [Admin]
+      summary: This report operation has an extraordinarily long summary that keeps going well past the one hundred character limit of names
+  /health:
+    get:
+      summary: Health check
+      security: []
+components:
+  securitySchemes:
+    BearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    QueryKey: { type: apiKey, in: query, name: api_key }
+    CookieKey: { type: apiKey, in: cookie, name: sid }
+    OAuth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/token
+          scopes: { read: read access }
+  schemas:
+    Pet:
+      type: object
+      required: [name]
+      properties:
+        id: { type: integer, readOnly: true }
+        name: { type: string, example: Rex }
+        status: { type: string, enum: [available, pending, sold] }
+        weight: { type: [number, "null"] }
+        vaccinated: { type: boolean }
+        category: { $ref: "#/components/schemas/Category" }
+        tags:
+          type: array
+          items: { $ref: "#/components/schemas/Tag" }
+        parent: { $ref: "#/components/schemas/Pet" }
+        owner: { $ref: "#/components/schemas/Missing" }
+    Category:
+      allOf:
+        - { $ref: "#/components/schemas/Named" }
+        - type: object
+          properties:
+            slug: { type: string, default: dogs }
+    Named:
+      type: object
+      properties:
+        name: { type: string }
+    Tag:
+      type: object
+      properties:
+        label: { type: string }
+    L1: { type: object, properties: { l2: { $ref: "#/components/schemas/L2" } } }
+    L2: { type: object, properties: { l3: { $ref: "#/components/schemas/L3" } } }
+    L3: { type: object, properties: { l4: { $ref: "#/components/schemas/L4" } } }
+    L4: { type: object, properties: { l5: { $ref: "#/components/schemas/L5" } } }
+    L5: { type: object, properties: { l6: { $ref: "#/components/schemas/L6" } } }
+    L6: { type: object, properties: { l7: { $ref: "#/components/schemas/L7" } } }
+    L7: { type: object, properties: { l8: { $ref: "#/components/schemas/L8" } } }
+    L8: { type: object, properties: { l9: { $ref: "#/components/schemas/L9" } } }
+    L9: { type: object, properties: { l10: { type: string } } }

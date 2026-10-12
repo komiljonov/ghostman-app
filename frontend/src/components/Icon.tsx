@@ -74,6 +74,13 @@ const SHAPES = {
       <path d="M5.75 5.75l4.5 4.5M10.25 5.75l-4.5 4.5" />
     </>
   ),
+  // An info line (import report notes).
+  info: () => (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 7.25v4M8 4.75v.25" />
+    </>
+  ),
   // Import: an arrow into a tray.
   import: () => <path d="M8 2.5v7.25M5 6.75L8 9.75l3-3M2.75 10.5v1.75c0 .55.45 1 1 1h8.5c.55 0 1-.45 1-1V10.5" />,
   // An external link (opens in the browser).

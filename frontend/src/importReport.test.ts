@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { fileSummary, progressLabel, reportSections, summaryLine } from "./importReport";
-import type { postman } from "../wailsjs/go/models";
+import { fileSummary, importDestination, progressLabel, reportSections, summaryLine } from "./importReport";
+import type { importer } from "../wailsjs/go/models";
 
-const entry = (severity: string, message = "x") => ({ severity, code: "c", path: "A / B", message }) as postman.Entry;
+const entry = (severity: string, message = "x") => ({ severity, code: "c", path: "A / B", message }) as importer.Entry;
 
 describe("import report layout", () => {
   it("keeps the four sections in order and hides empty ones", () => {
@@ -15,10 +15,18 @@ describe("import report layout", () => {
     expect(reportSections({ imported: [], changed: [], dropped: [], failed: [] })).toEqual([]);
   });
   it("summarises what was created, per kind", () => {
-    const summary = { folders: 7, requests: 1, environments: 0, variables: 0 } as postman.Summary;
+    const summary = { folders: 7, requests: 1, environments: 0, variables: 0 } as importer.Summary;
     expect(summaryLine({ kind: "collection", summary })).toBe("7 folders, 1 request");
-    expect(summaryLine({ kind: "environment", summary: { ...summary, environments: 1, variables: 0 } as postman.Summary }))
+    expect(summaryLine({ kind: "environment", summary: { ...summary, environments: 1, variables: 0 } as importer.Summary }))
       .toBe("1 environment, 0 variables");
+  });
+  it("summarises an OpenAPI import and describes the spec", () => {
+    const summary = { folders: 86, requests: 464, environments: 2, variables: 2 } as importer.Summary;
+    expect(summaryLine({ kind: "openapi", summary })).toBe("86 folders, 464 requests, 2 environments");
+    expect(fileSummary({ kind: "openapi", format: "OpenAPI 3.0.0", folders: 85, requests: 464, variables: 0, servers: 2 }))
+      .toBe("API spec · OpenAPI 3.0.0 · 85 tags, 464 operations, 2 servers");
+    expect(importDestination("openapi")).toContain("one environment per server");
+    expect(importDestination(undefined)).toBe("");
   });
   it("describes the picked file", () => {
     expect(fileSummary({ kind: "collection", format: "Collection v2.1", folders: 6, requests: 21, variables: 0 }))
