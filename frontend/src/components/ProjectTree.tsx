@@ -5,7 +5,7 @@ import {
 } from "../../wailsjs/go/main/App";
 import { handleProblem } from "../authStore";
 import { buildTree, Tree, TreeNode } from "../tree";
-import { duplicateAndOpen } from "../treeActions";
+import { createAndOpen, duplicateAndOpen } from "../treeActions";
 import { TreeContext, TreeCtx } from "../treeContext";
 import { canUseTreeKeys, navigate, shortcutApplies, treeShortcut, visibleRows } from "../treeNav";
 import { createTreeDrag } from "../treeDrag";
@@ -152,15 +152,18 @@ export default function ProjectTree(props: Props) {
     askFolderSettings: (id) => setFolderSettings(id),
     askDelete: setDeleting,
     create: async (kind, parentId) => {
-      const result = kind === "folder"
-        ? await CreateFolder(props.projectId, "New folder", parentId)
-        : await CreateRequest(props.projectId, "New request", parentId);
-      handleProblem(result.error);
-      if (result.error || !result.data) return result.error;
-      if (parentId) ctx.expand(parentId);
-      await reload();
-      setRenamingId(result.data.id);
-      return undefined;
+      const problem = await createAndOpen(kind, parentId, {
+        create: () => kind === "folder"
+          ? CreateFolder(props.projectId, "New folder", parentId)
+          : CreateRequest(props.projectId, "New request", parentId),
+        reload,
+        expand: (id) => ctx.expand(id),
+        select,
+        open: props.onOpenRequest,
+        rename: setRenamingId,
+      });
+      handleProblem(problem);
+      return problem;
     },
   };
 
