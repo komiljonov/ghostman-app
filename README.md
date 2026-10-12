@@ -34,7 +34,7 @@ redirects are followed cascades: a request or folder can follow, not follow, use
 folder's Settings…, shared with the team. The editor splits into **groups**, like VS Code: drag a
 tab onto another tab bar to move it, or onto an edge of a group to split there (the preview shows
 where it lands; Escape cancels); drag the dividers to resize (double-click → equal). Right-click a
-tab for Close / Close Others / Close All, Split Right / Split Down and Move to Group N. Settings has a System / Dark / Light theme.
+tab for Close / Close Others / Close All, Split Right / Split Down and Move to Group N. Settings has a System / Dark / Light theme. **Import from Postman** (profile menu → Import…) brings a collection (Collection v2.0 / v2.1 export) or an environment into the current project: a collection becomes one new folder (delete it to undo), an environment a new environment. A report lists everything that was imported, changed (e.g. an unsupported method imported as GET), dropped (scripts are kept in the report as text) or failed. Secret variable values are not imported — set them locally afterwards.
 **Auth** (the request's Auth sub-tab, and a folder's Settings…): Bearer token, Basic auth or an
 API key (header or query parameter); "Inherit from parent" uses the nearest folder that sets auth
 (or none), "No auth" sends nothing even inside such a folder. Values can use `{{variables}}` —

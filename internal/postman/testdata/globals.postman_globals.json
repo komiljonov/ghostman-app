@@ -1,0 +1,6 @@
+{
+  "id": "9a9a0000-0000-4000-8000-000000000000",
+  "name": "My Workspace Globals",
+  "values": [{ "key": "region", "value": "eu", "enabled": true }],
+  "_postman_variable_scope": "globals"
+}

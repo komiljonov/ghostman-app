@@ -1,0 +1,24 @@
+{
+  "info": {
+    "name": "Legacy",
+    "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+  },
+  "auth": { "type": "basic", "basic": { "username": "{{u}}", "password": "{{p}}" } },
+  "item": [
+    {
+      "name": "Docs",
+      "auth": { "type": "bearer", "bearer": { "token": "{{docToken}}" } },
+      "item": [
+        {
+          "name": "Read",
+          "request": {
+            "url": "{{host}}/docs?lang=en&draft",
+            "method": "GET",
+            "header": "Accept: application/json\n//X-Old: 1\nX-Empty:",
+            "auth": { "type": "apikey", "apikey": { "key": "X-Key", "value": "{{k}}", "in": "header" } }
+          }
+        }
+      ]
+    }
+  ]
+}

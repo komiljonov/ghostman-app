@@ -54,6 +54,28 @@ const SHAPES = {
       <path d="M2.5 13.5l11-11" />
     </>
   ),
+  // Import report sections: imported / changed / dropped / failed.
+  "check-circle": () => (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M5.5 8.25l1.75 1.75 3.25-3.5" />
+    </>
+  ),
+  alert: () => <path d="M8 2.25l6 10.5H2zM8 6.5v3M8 11.25v.25" />,
+  ban: () => (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M3.75 3.75l8.5 8.5" />
+    </>
+  ),
+  "x-circle": () => (
+    <>
+      <circle cx="8" cy="8" r="6" />
+      <path d="M5.75 5.75l4.5 4.5M10.25 5.75l-4.5 4.5" />
+    </>
+  ),
+  // Import: an arrow into a tray.
+  import: () => <path d="M8 2.5v7.25M5 6.75L8 9.75l3-3M2.75 10.5v1.75c0 .55.45 1 1 1h8.5c.55 0 1-.45 1-1V10.5" />,
   // An external link (opens in the browser).
   external: () => <path d="M9.5 2.75h3.75V6.5M13.25 2.75L7.5 8.5M11.75 9.25v3c0 .55-.45 1-1 1h-7c-.55 0-1-.45-1-1v-7c0-.55.45-1 1-1h3" />,
   // History: a clock face.

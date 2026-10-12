@@ -8,6 +8,8 @@ export function AcceptInvitation(arg1:string):Promise<main.AcceptedInvitationRes
 
 export function CancelRequest(arg1:string):Promise<void>;
 
+export function ChooseImportFile():Promise<main.ImportFileResult>;
+
 export function ClearHistory(arg1:string,arg2:string):Promise<main.DeletedResult>;
 
 export function ConfirmQuit():Promise<void>;
@@ -91,6 +93,10 @@ export function GetTheme():Promise<string>;
 export function GetTreeState(arg1:string):Promise<Array<string>>;
 
 export function GetUIPrefs():Promise<main.UIPrefs>;
+
+export function ImportPostmanCollection(arg1:string,arg2:string):Promise<main.ImportReportResult>;
+
+export function ImportPostmanEnvironment(arg1:string,arg2:string):Promise<main.ImportReportResult>;
 
 export function ListFolders(arg1:string):Promise<main.FolderListResult>;
 

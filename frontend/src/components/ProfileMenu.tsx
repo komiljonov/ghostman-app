@@ -9,6 +9,8 @@ interface Props {
   onInvitations: () => void;
   onHistory: () => void;
   historyDisabled: boolean; // no project selected (tabs belong to a project)
+  onImport: () => void;
+  importDisabled: boolean; // no project selected (imports land in the current project)
   onSettings: () => void;
   onLogout: () => void;
 }
@@ -55,6 +57,9 @@ export default function ProfileMenu(props: Props) {
             <button type="button" role="menuitem" class="menu-item" disabled={props.historyDisabled}
               title={props.historyDisabled ? "Select a project first" : "Requests sent from this computer"}
               onClick={item(props.onHistory)}>History</button>
+            <button type="button" role="menuitem" class="menu-item" disabled={props.importDisabled}
+              title={props.importDisabled ? "Select a project first" : "Import a Postman collection or environment into this project"}
+              onClick={item(props.onImport)}>Import…</button>
             <button type="button" role="menuitem" class="menu-item" onClick={item(props.onSettings)}>Settings</button>
             <div class="menu-divider" />
             <button type="button" role="menuitem" class="menu-item" disabled={props.loggingOut}
