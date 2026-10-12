@@ -6,7 +6,7 @@ import {
   bodyText, defaultView, effectiveView, isHTML, previewFrameAttrs, ResponseLike, toolbarControls, viewAvailability,
 } from "./responseView";
 import type { TreeNode } from "./tree";
-import { duplicateAndOpen } from "./treeActions";
+import { createAndOpen, duplicateAndOpen } from "./treeActions";
 import { canUseTreeKeys, isEditableTarget, navigate, shortcutApplies, treeShortcut, visibleRows } from "./treeNav";
 
 describe("sidebar width", () => {
@@ -224,5 +224,44 @@ describe("media responses in the response pane", () => {
     expect(defaultView(img)).toBe("preview");
     expect(effectiveView(img, "raw")).toBe("preview");
     expect(effectiveView(bin, "pretty")).toBe("preview");
+  });
+});
+
+describe("create from the tree", () => {
+  const make = (result: { data?: { id: string } | null; error?: { kind: string; message: string } }) => {
+    const calls: string[] = [];
+    const deps = {
+      create: vi.fn(async () => {
+        calls.push("create");
+        return result;
+      }),
+      reload: vi.fn(async () => void calls.push("reload")),
+      expand: vi.fn((id: string) => void calls.push(`expand ${id}`)),
+      select: vi.fn((id: string) => void calls.push(`select ${id}`)),
+      open: vi.fn((id: string) => void calls.push(`open ${id}`)),
+      rename: vi.fn((id: string) => void calls.push(`rename ${id}`)),
+    };
+    return { calls, deps };
+  };
+  it("a new request is selected and opened in a tab, then renamed inline", async () => {
+    const { calls, deps } = make({ data: { id: "new-1" } });
+    expect(await createAndOpen("request", "f1", deps)).toBeUndefined();
+    expect(calls).toEqual(["create", "expand f1", "reload", "select new-1", "open new-1", "rename new-1"]);
+  });
+  it("at the project root nothing is expanded", async () => {
+    const { calls, deps } = make({ data: { id: "new-1" } });
+    await createAndOpen("request", "", deps);
+    expect(calls).toEqual(["create", "reload", "select new-1", "open new-1", "rename new-1"]);
+  });
+  it("a new folder is selected and renamed, never opened", async () => {
+    const { calls, deps } = make({ data: { id: "fold-1" } });
+    await createAndOpen("folder", undefined, deps);
+    expect(calls).toEqual(["create", "reload", "select fold-1", "rename fold-1"]);
+  });
+  it("on failure returns the problem and touches nothing else", async () => {
+    const problem = { kind: "server", message: "no access" };
+    const { calls, deps } = make({ data: null, error: problem });
+    expect(await createAndOpen("request", "f1", deps)).toBe(problem);
+    expect(calls).toEqual(["create"]);
   });
 });

@@ -99,6 +99,9 @@ Postman-style shell, logged in:
   get → create "<name> copy" in the same folder → patch method/url/headers/params/body; if a
   step after the create fails, the half-made copy is deleted and one error is returned. The UI
   then re-fetches the tree and selects + opens the copy (`src/treeActions.ts`).
+- **New request / folder** ("+" at the root, or a folder's menu; `createAndOpen` in
+  `src/treeActions.ts`): create → re-fetch the tree → select it → a REQUEST opens in the focused
+  group's tab → inline rename starts (after the open, so the rename input keeps focus).
 - **Context menu**: one component, `ContextMenu.tsx`, for tree rows and tabs. Its top-left
   corner sits at the pointer and it flips per axis at the window's right/bottom edge so a
   corner stays on the cursor (`src/menuPosition.ts`, unit tested); compact (13 px, icon +
