@@ -3888,3 +3888,258 @@ body.tab-dragging * {
     transition: none;
   }
 }
+
+/* ---- Postman import: modal + report (ImportModal.tsx, ImportReport.tsx) ---- */
+
+.modal.import-modal {
+  width: min(540px, 100%);
+}
+
+.import-intro {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.import-pick {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.import-choose {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.import-choose:hover:not(:disabled),
+.import-report .modal-actions button:not(.primary):hover {
+  background: var(--hover);
+}
+
+/* The file card: one fixed-height slot for "no file" / the file / an error. */
+.import-file {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.import-file.empty {
+  border-style: dashed;
+}
+
+.import-file.error {
+  border-color: var(--danger);
+}
+
+.import-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-file .small {
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.import-error {
+  color: var(--danger);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Progress: always laid out, visible only while importing (no layout shift). */
+.import-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  visibility: hidden;
+}
+
+.import-progress.active {
+  visibility: visible;
+}
+
+.import-bar {
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+  background: var(--hover);
+  border-radius: 3px;
+}
+
+.import-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 150ms ease-out;
+}
+
+.modal.import-report {
+  width: min(780px, 100%);
+  max-height: 86vh;
+}
+
+.import-report-head {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.import-stopped {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  line-height: 1.45;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+}
+
+.import-stopped svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--danger);
+}
+
+.import-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.import-section {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.import-section > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  list-style: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.import-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.import-section > summary:hover {
+  background: var(--hover);
+}
+
+.import-section > summary:focus-visible,
+.import-detail > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.import-section > summary > svg {
+  color: var(--muted);
+  transition: transform 120ms;
+}
+
+.import-section[open] > summary > svg {
+  transform: rotate(90deg);
+}
+
+.import-section-icon {
+  display: inline-flex;
+}
+
+.import-section.imported .import-section-icon { color: var(--ok); }
+.import-section.changed .import-section-icon { color: var(--warn); }
+.import-section.dropped .import-section-icon { color: var(--muted); }
+.import-section.failed .import-section-icon { color: var(--danger); }
+
+.import-section-title {
+  font-weight: 600;
+}
+
+.import-summary {
+  margin-left: auto;
+}
+
+.import-entries {
+  margin: 0;
+  padding: 0 10px 6px 34px;
+  list-style: none;
+}
+
+.import-entries > li {
+  padding: 6px 0;
+  line-height: 1.45;
+  border-top: 1px solid var(--row-border);
+}
+
+.import-entry {
+  overflow-wrap: anywhere;
+}
+
+.import-kind {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 5px;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.import-action {
+  color: var(--muted);
+}
+
+.import-detail {
+  margin-top: 4px;
+}
+
+.import-detail > summary {
+  width: fit-content;
+  padding: 1px 4px;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.import-detail > summary:hover {
+  background: var(--hover);
+}
+
+.import-detail pre {
+  max-height: 240px;
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  font: 12px/1.5 var(--mono);
+  color: var(--cm-text);
+  background: var(--cm-bg);
+  border-radius: 6px;
+}
+
+.import-copied {
+  margin-right: auto;
+  align-self: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .import-bar-fill,
+  .import-section > summary > svg {
+    transition: none;
+  }
+}

@@ -10,6 +10,10 @@ export function CancelRequest(arg1) {
   return window['go']['main']['App']['CancelRequest'](arg1);
 }
 
+export function ChooseImportFile() {
+  return window['go']['main']['App']['ChooseImportFile']();
+}
+
 export function ClearHistory(arg1, arg2) {
   return window['go']['main']['App']['ClearHistory'](arg1, arg2);
 }
@@ -176,6 +180,14 @@ export function GetTreeState(arg1) {
 
 export function GetUIPrefs() {
   return window['go']['main']['App']['GetUIPrefs']();
+}
+
+export function ImportPostmanCollection(arg1, arg2) {
+  return window['go']['main']['App']['ImportPostmanCollection'](arg1, arg2);
+}
+
+export function ImportPostmanEnvironment(arg1, arg2) {
+  return window['go']['main']['App']['ImportPostmanEnvironment'](arg1, arg2);
 }
 
 export function ListFolders(arg1) {

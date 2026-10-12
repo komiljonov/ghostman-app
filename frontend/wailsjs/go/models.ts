@@ -1657,6 +1657,96 @@ export namespace main {
 		}
 	}
 	
+	export class ImportFile {
+	    path: string;
+	    file_name: string;
+	    kind: string;
+	    name: string;
+	    format: string;
+	    folders: number;
+	    requests: number;
+	    variables: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.file_name = source["file_name"];
+	        this.kind = source["kind"];
+	        this.name = source["name"];
+	        this.format = source["format"];
+	        this.folders = source["folders"];
+	        this.requests = source["requests"];
+	        this.variables = source["variables"];
+	    }
+	}
+	export class ImportFileResult {
+	    data?: ImportFile;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportFileResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], ImportFile);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ImportReportResult {
+	    data?: postman.Report;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportReportResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], postman.Report);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class InvitationResult {
 	    data?: api.Invitation;
 	    error?: session.Problem;
@@ -2461,6 +2551,109 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = this.convertValues(source["data"], workspace.Workspace);
 	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace postman {
+	
+	export class Entry {
+	    severity: string;
+	    code: string;
+	    path: string;
+	    message: string;
+	    action?: string;
+	    detail?: string;
+	    detail_label?: string;
+	    kind?: string;
+	    location?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Entry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.severity = source["severity"];
+	        this.code = source["code"];
+	        this.path = source["path"];
+	        this.message = source["message"];
+	        this.action = source["action"];
+	        this.detail = source["detail"];
+	        this.detail_label = source["detail_label"];
+	        this.kind = source["kind"];
+	        this.location = source["location"];
+	    }
+	}
+	export class Summary {
+	    folders: number;
+	    requests: number;
+	    environments: number;
+	    variables: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Summary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.folders = source["folders"];
+	        this.requests = source["requests"];
+	        this.environments = source["environments"];
+	        this.variables = source["variables"];
+	    }
+	}
+	export class Report {
+	    kind: string;
+	    source: string;
+	    format: string;
+	    name: string;
+	    target: string;
+	    summary: Summary;
+	    imported: Entry[];
+	    changed: Entry[];
+	    dropped: Entry[];
+	    failed: Entry[];
+	    stopped: string;
+	    text: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Report(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.source = source["source"];
+	        this.format = source["format"];
+	        this.name = source["name"];
+	        this.target = source["target"];
+	        this.summary = this.convertValues(source["summary"], Summary);
+	        this.imported = this.convertValues(source["imported"], Entry);
+	        this.changed = this.convertValues(source["changed"], Entry);
+	        this.dropped = this.convertValues(source["dropped"], Entry);
+	        this.failed = this.convertValues(source["failed"], Entry);
+	        this.stopped = source["stopped"];
+	        this.text = source["text"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

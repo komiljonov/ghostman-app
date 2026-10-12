@@ -38,6 +38,9 @@ type App struct {
 
 	responses  *responseStore // full bodies of the tabs' active responses (Go-side only)
 	saveDialog saveDialog     // native save dialog (tests replace it)
+	openDialog openDialog     // native open dialog (tests replace it)
+	emit       eventEmitter   // Wails events to the UI (tests replace it)
+	importMu   sync.Mutex     // one Postman import at a time
 	clipboard  clipboardFunc  // system clipboard (tests replace it)
 	historyDoc historyDocCache
 
@@ -65,6 +68,8 @@ func NewApp(eng *engine.Engine, defaultServerURL string) *App {
 
 		responses:  newResponseStore(),
 		saveDialog: runtime.SaveFileDialog,
+		openDialog: runtime.OpenFileDialog,
+		emit:       runtime.EventsEmit,
 		clipboard:  runtime.ClipboardSetText,
 	}
 }

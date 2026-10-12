@@ -1,0 +1,189 @@
+{
+  "info": {
+    "_postman_id": "0b1c2d3e-0000-4000-8000-000000000001",
+    "name": "Shop API",
+    "description": "The shop's public API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+  "event": [
+    { "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["pm.environment.set('ts', Date.now());"] } },
+    { "listen": "test", "script": { "type": "text/javascript", "exec": [""] } }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "https://httpbin.org" },
+    { "key": "retries", "value": 3 }
+  ],
+  "item": [
+    {
+      "name": "Ping",
+      "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/get#top", "host": ["{{baseUrl}}"], "path": ["get"], "hash": "top" } }
+    },
+    {
+      "name": "Orders",
+      "description": "Order endpoints",
+      "item": [
+        {
+          "name": "Create order",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": { "exec": ["const id = pm.variables.replaceIn('{{$guid}}');", "pm.variables.set('orderId', id);", "console.log(id);"], "type": "text/javascript" }
+            },
+            { "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));"], "type": "text/javascript" } }
+          ],
+          "request": {
+            "method": "POST",
+            "description": "Creates an order.",
+            "header": [
+              { "key": "X-Trace", "value": "{{trace}}" },
+              { "key": "X-Debug", "value": "1", "disabled": true },
+              { "key": "", "value": "orphan-value" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{sku}}\",\n  \"qty\": {{qty}},\n  \"note\": \"ünïcödé {{ spaced }}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/post?source=postman&debug=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["post"],
+              "query": [
+                { "key": "source", "value": "postman" },
+                { "key": "debug", "value": "1", "disabled": true }
+              ]
+            }
+          },
+          "response": [{ "name": "Created", "code": 201 }, { "name": "Bad", "code": 400 }]
+        },
+        {
+          "name": "Export",
+          "request": { "method": "PURGE", "header": [], "url": "{{baseUrl}}/anything/export" }
+        },
+        {
+          "name": "Archive",
+          "item": [
+            {
+              "name": "Old",
+              "item": [
+                {
+                  "name": "Get old",
+                  "request": {
+                    "method": "get",
+                    "url": {
+                      "protocol": "https",
+                      "host": ["api", "example", "com"],
+                      "port": "8443",
+                      "path": ["orders", "old"],
+                      "query": [{ "key": "page", "value": "{{page}}" }, { "key": "all", "value": null }]
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "auth": { "type": "oauth2", "oauth2": [{ "key": "accessToken", "value": "x" }] },
+      "variable": [{ "key": "adminRole", "value": "root" }],
+      "item": [
+        {
+          "name": "Purge cache",
+          "event": [{ "listen": "onEnd", "script": { "exec": "console.log('done')" } }],
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/delete" }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get user",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/users/:id/posts", "host": ["{{baseUrl}}"], "path": ["users", ":id", "posts"], "variable": [{ "key": "id", "value": "42" }] }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "basic", "basic": [{ "key": "username", "value": "{{user}}" }, { "key": "password", "value": "{{pass}}" }] },
+            "method": "POST",
+            "body": { "mode": "urlencoded", "urlencoded": [{ "key": "remember", "value": "true" }, { "key": "otp", "value": "", "disabled": true }] },
+            "url": "{{baseUrl}}/post"
+          }
+        },
+        {
+          "name": "Key in query",
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "key", "value": "api_key" }, { "key": "value", "value": "{{apiKey}}" }, { "key": "in", "value": "query" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/get"
+          }
+        },
+        {
+          "name": "Key in cookie",
+          "request": {
+            "auth": { "type": "apikey", "apikey": [{ "key": "key", "value": "sid" }, { "key": "value", "value": "abc" }, { "key": "in", "value": "cookie" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/get"
+          }
+        },
+        { "name": "Public", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/get" } },
+        { "name": "Signed", "request": { "auth": { "type": "awsv4", "awsv4": [] }, "method": "GET", "url": "{{baseUrl}}/get" } }
+      ]
+    },
+    {
+      "name": "Bodies",
+      "item": [
+        {
+          "name": "Search",
+          "request": {
+            "method": "POST",
+            "body": { "mode": "graphql", "graphql": { "query": "query Q($n: Int) { items(first: $n) { id } }", "variables": "{\"n\": {{limit}}}" } },
+            "url": "{{baseUrl}}/post"
+          }
+        },
+        {
+          "name": "Upload avatar",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "user", "value": "{{userId}}", "type": "text" },
+                { "key": "file", "type": "file", "src": "/home/me/avatar.png" }
+              ]
+            },
+            "url": "{{baseUrl}}/post"
+          }
+        },
+        {
+          "name": "XML by header",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/xml" }],
+            "body": { "mode": "raw", "raw": "<a>{{x}}</a>" },
+            "url": "{{baseUrl}}/post"
+          }
+        },
+        { "name": "Plain", "request": { "method": "POST", "body": { "mode": "raw", "raw": "hello" }, "url": "{{baseUrl}}/post" } },
+        { "name": "Binary", "request": { "method": "PUT", "body": { "mode": "file", "file": { "src": "/tmp/blob.bin" } }, "url": "{{baseUrl}}/put" } },
+        { "name": "Odd mode", "request": { "method": "POST", "body": { "mode": "telepathy", "raw": "think" }, "url": "{{baseUrl}}/post" } },
+        { "name": "Muted body", "request": { "method": "POST", "body": { "mode": "raw", "raw": "{\"off\": true}", "disabled": true }, "url": "{{baseUrl}}/post" } },
+        {
+          "name": "No redirects",
+          "protocolProfileBehavior": { "followRedirects": false, "disableBodyPruning": true },
+          "request": { "method": "GET", "url": "{{baseUrl}}/redirect/2" }
+        }
+      ]
+    },
+    { "name": "Bare string", "request": "https://example.com/plain" },
+    { "name": "Placeholder" },
+    { "name": "   ", "request": { "method": "GET", "url": "{{baseUrl}}/get" } }
+  ]
+}

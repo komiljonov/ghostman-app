@@ -1,7 +1,7 @@
 import { createEffect, createMemo, createSignal, Match, on, onCleanup, onMount, Show, Switch } from "solid-js";
 import { ConfirmQuit, ListMyInvitations, LoadWorkspace, Logout, SelectProject, SelectTeam } from "../../wailsjs/go/main/App";
 import { EventsOn } from "../../wailsjs/runtime/runtime";
-import { api, main, workspace } from "../../wailsjs/go/models";
+import { api, main, postman, workspace } from "../../wailsjs/go/models";
 import { handleProblem, setAuthState } from "../authStore";
 import { createTabsController } from "../tabsController";
 import { envContext, loadEnvContext, refreshEnvContext } from "../envStore";
@@ -29,6 +29,8 @@ import EnvVariablesView from "./EnvVariablesView";
 import HistoryView from "./HistoryView";
 import { publishProjectId } from "../workspaceStore";
 import RequestEditor from "./RequestEditor";
+import ImportModal from "./ImportModal";
+import ImportReport from "./ImportReport";
 
 interface Props {
   onOpenSettings: () => void;
@@ -52,6 +54,9 @@ export default function MainScreen(props: Props) {
   const [refreshTick, setRefreshTick] = createSignal(0);
   // Bumped when a save changed something the tree shows (method badge).
   const [treeTick, setTreeTick] = createSignal(0);
+  // Postman import: the modal, then its report (always shown once an import ran).
+  const [importing, setImporting] = createSignal(false);
+  const [importReport, setImportReport] = createSignal<postman.Report>();
 
   const teamId = () => ws()?.team_id ?? "";
   // A memo, so that refreshing the workspace (a new ws object with the same project)
@@ -264,11 +269,27 @@ export default function MainScreen(props: Props) {
           }}
           onHistory={openHistory}
           historyDisabled={!projectId()}
+          onImport={() => setImporting(true)}
+          importDisabled={!projectId()}
           onSettings={props.onOpenSettings}
           onLogout={logout}
         />
         </div>
       </header>
+      <Show when={importing() && projectId()}>
+        <ImportModal projectId={projectId()} projectName={currentProject()?.name ?? "this project"}
+          onClose={() => setImporting(false)}
+          onImported={(report) => {
+            setImporting(false);
+            setImportReport(report);
+            // Server data is never patched locally: re-fetch what the import created.
+            setTreeTick((n) => n + 1);
+            void refreshEnvContext();
+          }} />
+      </Show>
+      <Show when={importReport()}>
+        {(r) => <ImportReport report={r()} onClose={() => setImportReport(undefined)} />}
+      </Show>
       <Show when={wsError()}>
         <p class="form-error banner">{wsError()}</p>
       </Show>

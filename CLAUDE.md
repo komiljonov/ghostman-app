@@ -65,7 +65,7 @@ Postman-style shell, logged in:
   member count, "+ New team", "Team settings") · **Project switcher** (accessible projects of
   the current team in sort order, "+ New project", "Project settings") · refresh (↻) · on the
   right the **env switcher** and then the **profile badge** (initials) whose menu holds user
-  name/email, Invitations (count badge), History, Settings (server URL modal), Log out.
+  name/email, Invitations (count badge), History, Import… (Postman), Settings (server URL modal), Log out.
 - **Left sidebar**: only the current project's folders/requests tree (`ProjectTree`). Never
   teams, invitations or other navigation. The tree is built client-side (`src/tree.ts`, unit
   tested) from ONE ListFolders + ONE ListRequests call and rebuilt after every mutation;
@@ -411,6 +411,36 @@ Postman-style shell, logged in:
   redirect drop rule. History: the resolved copy has the derived header/param; `req_auth_json`
   (migration 00009) keeps the config as authored + its source; Restore sets that effective
   config explicitly on the new root request.
+- **Postman import** (profile menu → Import…; Go: `internal/postman`, bound methods in `import_postman.go`;
+  UI: `ImportModal`, `ImportReport`, layout rules in `src/importReport.ts`). Collections (Collection Format
+  v2.0 / v2.1; v1 → "re-export as v2.1") and environments, into the CURRENT project only, through EXISTING
+  endpoints. `ChooseImportFile`: native open dialog (`openDialog` field, tests replace it) + `postman.Sniff`
+  (collection = "info"+"item", environment = "values"+name/scope; anything else → one error naming both).
+  `ImportPostmanCollection` / `ImportPostmanEnvironment` (one at a time, `importMu`) return the REPORT as
+  their typed result. Pipeline: parse → **plan in memory** (pure, `PlanCollection` / `PlanEnvironment`) →
+  execute in order (root folder + settings, then each folder top-down + its settings PATCH, requests:
+  create + ONE contents PATCH; a rejected PATCH deletes the half-made request), progress events
+  `import:progress` {done,total} after each item. A collection = ONE new root folder (name deduped
+  "<name> (2)" against root folders), collection-level auth on it (the cascade reproduces Postman's);
+  an environment = ONE new environment (deduped, never merged), variable writes through `internal/envs`.
+  Mapping rules are the package doc + mapper.go: raw url verbatim ({{vars}} byte-for-byte) split into base
+  + query rows (url.query wins, else parsed like the URL bar), `:id` path variables kept literally,
+  methods outside the 7 → GET, raw content type from options.raw.language → Content-Type header →
+  text/plain, urlencoded → form, formdata → form (text fields; file fields dropped; multipart noted),
+  graphql → raw JSON {query, variables}, file / unknown / disabled bodies → none, auth bearer / basic /
+  apikey (v2.0 object and v2.1 list forms) / noauth → ours, anything else → inherit, protocolProfileBehavior
+  followRedirects → follow_redirects. Secret env values are NOT imported (key only); Postman-disabled
+  vars import enabled. **Complete accounting by construction**: every mapping helper returns
+  `(value, []Entry)`; every deviation has a code in `FallbackCodes`, and a test fails unless every code is
+  produced by a fixture (`internal/postman/testdata`). Entries: severity imported | warning | dropped |
+  failed, the FULL Postman path, plain-words message, action; scripts (full text), dropped variables,
+  keyless rows keep their text in `Detail`. No server limits are pre-checked: the server's own message
+  lands in Failed. First server error → stop (no rollback; the banner says "delete that folder to undo"),
+  plus "N more items were not imported". Report dialog: banner, then Imported (summary + created items
+  with their new location, collapsed) / Imported with changes / Dropped / Failed, empty ones hidden;
+  "Copy full report" copies Go's plain-text rendering (`Report.Text`, details included). After an
+  import the tree and env context are re-fetched. Out of scope (backlog): curl paste, OpenAPI, export,
+  scripts, file bodies.
 - **Current team/project** live in Go (`internal/workspace`), persisted in settings
   (`current_team_id`, `current_project_id`) and validated against fresh server lists on every
   load: a vanished team falls back to the first team with no project, a vanished project to no
@@ -437,6 +467,7 @@ environments.go          bound environment/variable methods + local secret acces
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
 responses.go             full response bodies per tab (Go-side), SaveResponseToFile, ReleaseResponse
+import_postman.go        bound Postman import: ChooseImportFile, ImportPostmanCollection/Environment (internal/postman)
 body_format.go           bound FormatJSONBody (raw body Format; rules in internal/jsonfmt)
 redirects.go             follow-redirects: local global value, node setters (server), SaveFolderSettings
                          (folder auth + follow in one PATCH), legacy local→server push
@@ -446,6 +477,7 @@ internal/api/            typed client for the Ghostman server API (/api/v1)
 internal/session/        server URL resolution, auth state machine, login/logout/settings
 internal/workspace/      current team/project selection: persist, validate, fall back
 internal/envs/           environments: active env, variables with local-only secrets, var map
+internal/postman/        Postman import: sniff, pure planner (mapper/env), executor, report (+ testdata fixtures)
 internal/jsonfmt/        Format JSON for template bodies: mask {{vars}} outside strings, indent, restore
 internal/filter/         jq (gojq) evaluation for the response filter bar: parse once, cap, note
 internal/store/          SQLite open/migrate, sqlc output (*.sql.go, db.go, models.go)
@@ -478,6 +510,7 @@ frontend/                Vite + Solid + TS
 - Comments in the raw (JSON) body via Ctrl+/: deliberately NOT supported — comments would be
   sent verbatim and break APIs. Revisit only with an opt-in strip-on-send.
 - Cookies; multipart/file bodies; history export / sync.
+- Import: curl paste (next), OpenAPI; export.
 - **Drag-and-drop for the project list**: for now projects use ↑/↓ in Project settings. Reorder
   endpoints need the full sibling set (every team project, so only the team owner and
   all-projects members get ↑/↓).
