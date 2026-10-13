@@ -22,7 +22,9 @@ import { LOCK_PATH } from "./iconPaths";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { json } from "@codemirror/lang-json";
-import { javascript } from "@codemirror/lang-javascript";
+import { completionPath, javascript, javascriptLanguage } from "@codemirror/lang-javascript";
+import { buildMembers, Member, memberOptions } from "./scriptComplete";
+import { scriptDocs } from "./scriptDocs";
 import { classify, createFromTooltip, EnvDisplay, maskRanges, saveFromTooltip, tooltipActions, tooltipModel } from "./vars";
 import { runShortcut } from "./shortcuts";
 import type { ShortcutAction } from "./tabModel";
@@ -380,6 +382,35 @@ export function createCodeEditor(
 // highlighting or completion: scripts read variables with gm.environment.get.
 // Unlike the raw body, Ctrl+/ toggles JS comments here (basicSetup's): they are code.
 
+// gm.* / console.* completion: the sandbox injects these globals at run time, so
+// the JS language support cannot know them. The member tree comes from the gm API
+// docs (scriptComplete.ts), fetched once; completionPath finds the member
+// expression at the cursor (and stays out of strings and comments).
+let membersPromise: Promise<Member> | undefined;
+function scriptMembers(): Promise<Member> {
+  membersPromise ??= scriptDocs().then((docs) => {
+    if (docs.length === 0) membersPromise = undefined; // not loaded (yet): try again next time
+    return buildMembers(docs);
+  });
+  return membersPromise;
+}
+
+const scriptCompletion = javascriptLanguage.data.of({
+  autocomplete: async (ctx: CompletionContext): Promise<CompletionResult | null> => {
+    const at = completionPath(ctx);
+    if (!at) return null;
+    // A bare identifier: offer gm / console once something is typed (or on Ctrl+Space).
+    if (at.path.length === 0 && at.name === "" && !ctx.explicit) return null;
+    const options = memberOptions(await scriptMembers(), at.path);
+    if (!options || options.length === 0) return null;
+    return {
+      from: ctx.pos - at.name.length,
+      options: options.map((o) => ({ label: o.label, type: o.type, detail: o.detail, info: o.info || undefined })),
+      validFor: /^[\w$]*$/,
+    };
+  },
+});
+
 export interface ScriptEditorHandle {
   // Replaces the text programmatically: not reported to onChange, not in undo history.
   setDoc: (text: string) => void;
@@ -402,6 +433,7 @@ export function createScriptEditor(
         basicSetup,
         theme,
         javascript(),
+        scriptCompletion,
         placeholderExt(opts.placeholder),
         EditorView.contentAttributes.of({ "aria-label": opts.ariaLabel, spellcheck: "false" }),
         EditorView.updateListener.of((u) => {
