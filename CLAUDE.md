@@ -115,7 +115,7 @@ Postman-style shell, logged in:
 - **Main pane**: the **tabs** by default, or Team settings / Project settings / Invitations
   when opened. Empty state without tabs. Tabs are typed (`src/tabModel.ts`):
   `request` (method | URL (stretches) | Send / Cancel in one fixed slot at the far right;
-  Params | Headers | Body | Auth | Settings | History with the save status at the row's right end; response below a
+  Params | Headers | Body | Auth | Scripts | Settings | History with the save status at the row's right end; response below a
   draggable divider), `env` (that environment's variables table), `env_list`
   (create / rename / reorder / delete environments) and `history` (see History). There is no separate environments page.
 - **Editor groups** (VS Code style; pure rules in `src/layoutTree.ts` and `src/dropZone.ts`,
@@ -468,6 +468,42 @@ Postman-style shell, logged in:
   stays alphabetical). Report `notes` (info lines above the sections): "Converted from Swagger 2.0 before
   import.", the optional-parameters rule, "Created environments … — activate one to resolve {{BASE_URL}}".
   Environments are created after the folder tree; a failure there names them in the undo banner.
+- **Scripts** (pre-request / post-response; Go: `internal/scripting` on goja, send wiring in `editor.go` +
+  `scripts.go`; UI: `ScriptsPanel` / `ScriptEditor` / `ScriptHelp` / `ConsoleView`, rules in `src/scriptChain.ts`,
+  `src/consoleView.ts`, `src/scriptDocs.ts`). Requests and folders store `pre_script` / `post_script` **on the
+  server** (≤ 32768 chars; the request LIST omits them, GET/PATCH carry them; folders carry them in the list).
+  Scripts ACCUMULATE — every folder's runs — they are NOT the inherit/override cascade. **Order per send**:
+  folder pre-scripts OUTERMOST first → request pre-script → `{{var}}` resolution → send → folder post-scripts
+  outermost first → request post-script. TS sends the folder chain (`SendOptions.folders`, `scriptChain` over
+  the tree store, like settings resolution); the request's own scripts ride the draft. Pre-scripts run on a
+  CLONE of the template BEFORE resolution: `gm.request` mutations reach THIS send only (the stored request is
+  never modified), and `gm.environment.set` changes this send's resolution (token / signature use case).
+  **Sandbox** (scripts are teammate code = untrusted): a FRESH VM per script (nothing leaks between scripts or
+  sends), ECMAScript built-ins + the gm API only (no require / fetch / XMLHttpRequest / process / timers /
+  files), 2 s budget via `vm.Interrupt` from a watchdog ("script timed out after 2s"), a heap-growth cap (256 MB
+  while it runs — a doubling string OOMs Go, which is fatal), the send's cancel, a bounded call stack; empty
+  scripts cost nothing (no VM). **gm API** (`api.go`; documented ONCE in `docs.go`, `TestDocsMatchTheAPI` keeps
+  docs and VM in step; bound `GetScriptAPIDocs` feeds the ? popover): `gm.environment` get / set / unset (clears
+  the value; the variable stays) / name — writes go to the ACTIVE env, queued in `EnvState.Pending` (the in-VM
+  view updates at once) and applied after each script by `flushEnv` through `internal/envs`: a secret → local
+  store only, a regular → server, a new key → a new regular variable; no active env → throws. `gm.request`
+  method / url (template form) / headers + query get / set / add / remove / all / body get / set / bodyType —
+  read-only in post-scripts. `gm.response` (post only) status / durationMs / headers / text() / json().
+  `gm.crypto` hmacSHA256/1/512, sha256, md5, base64Encode/Decode, uuid, randomHex(n bytes), timestamp.
+  `console.log/warn/error/info` (= `gm.console`), args formatted (objects as JSON), capped (500 entries, 10k
+  chars each). **Failures**: a pre-script error (throw, timeout, syntax, API misuse, failed env write) ABORTS
+  the send — `Problem` "pre-script of folder 'api v2' failed: Error: boom (line 3)" + the console; a
+  post-script error goes to the console and the response shows normally; no response (send failed) → post
+  scripts skipped with a console line. Script error messages are never logged (they may hold secrets).
+  **UI**: request Scripts sub-tab (after Auth; dot when the request has a script; saves ride the autosave PATCH —
+  `api.BuildRequestPatch` diffs them), folder Settings… → collapsible "Scripts" section (the modal scrolls; ONE
+  PATCH with everything changed, `SaveFolderSettings(id, saved, next FolderSettingsInput)`). The editors are
+  `createScriptEditor`: JS (@codemirror/lang-javascript), the shared theme + app shortcuts, NO `{{var}}`
+  highlighting / completion; Ctrl+/ toggles JS comments there (code, unlike the raw body). Response pane
+  **Console** tab (Body | Headers | Console): enabled whenever the send produced output (also after an abort),
+  count badge, red with an error; per send, never persisted, cleared by every send. **History**: `console_json`
+  (migration 00010) stores the output; the detail has a Console tab; the summary method / resolved copy are AS
+  SENT (post-mutation), the template copy is the stored request.
 - **Current team/project** live in Go (`internal/workspace`), persisted in settings
   (`current_team_id`, `current_project_id`) and validated against fresh server lists on every
   load: a vanished team falls back to the first team with no project, a vanished project to no
@@ -495,6 +531,7 @@ theme.go                 bound theme preference (GetTheme/SetTheme, local settin
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
 responses.go             full response bodies per tab (Go-side), SaveResponseToFile, ReleaseResponse
 import_files.go          bound import: ChooseImportFile, ImportPostmanCollection/Environment, ImportOpenAPI (internal/importer)
+scripts.go               send scripts: gatherScripts (run order), cloneSpec, flushEnv (env writes via envs), GetScriptAPIDocs
 body_format.go           bound FormatJSONBody (raw body Format; rules in internal/jsonfmt)
 redirects.go             follow-redirects: local global value, node setters (server), SaveFolderSettings
                          (folder auth + follow in one PATCH), legacy local→server push
@@ -506,6 +543,7 @@ internal/workspace/      current team/project selection: persist, validate, fall
 internal/envs/           environments: active env, variables with local-only secrets, var map
 internal/importer/       import: sniff, ordered tree, pure planners (Postman mapper/env, OpenAPI + Swagger conversion),
                          executor, report (+ testdata fixtures)
+internal/scripting/      pre/post scripts: sandboxed goja VM per script, watchdog budgets, gm API, console, API docs
 internal/jsonfmt/        Format JSON for template bodies: mask {{vars}} outside strings, indent, restore
 internal/filter/         jq (gojq) evaluation for the response filter bar: parse once, cap, note
 internal/store/          SQLite open/migrate, sqlc output (*.sql.go, db.go, models.go)
@@ -538,6 +576,8 @@ frontend/                Vite + Solid + TS
 - Comments in the raw (JSON) body via Ctrl+/: deliberately NOT supported — comments would be
   sent verbatim and break APIs. Revisit only with an opt-in strip-on-send.
 - Cookies; multipart/file bodies; history export / sync.
+- Scripts: gm.sendRequest, async / timers, require, collection / global variable scopes, script import
+  translation (Postman pm.* → gm.*).
 - Import: curl paste (next); external $refs, callbacks / webhooks / links, XML body builders, multipart; export.
 - **Drag-and-drop for the project list**: for now projects use ↑/↓ in Project settings. Reorder
   endpoints need the full sibling set (every team project, so only the team owner and

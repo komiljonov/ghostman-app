@@ -70,7 +70,7 @@ func (q *Queries) DeleteHistoryForProject(ctx context.Context, projectID sql.Nul
 }
 
 const getHistoryEntry = `-- name: GetHistoryEntry :one
-SELECT id, created_at, project_id, request_id, request_name, method, url_template, url_resolved, env_id, env_name, req_headers_json, req_params_json, req_body_json, req_headers_resolved_json, req_body_resolved, status, duration_ms, error, resp_headers_json, resp_body, resp_body_size, resp_truncated, timings_json, req_auth_json FROM history WHERE id = ?
+SELECT id, created_at, project_id, request_id, request_name, method, url_template, url_resolved, env_id, env_name, req_headers_json, req_params_json, req_body_json, req_headers_resolved_json, req_body_resolved, status, duration_ms, error, resp_headers_json, resp_body, resp_body_size, resp_truncated, timings_json, req_auth_json, console_json FROM history WHERE id = ?
 `
 
 func (q *Queries) GetHistoryEntry(ctx context.Context, id int64) (History, error) {
@@ -101,6 +101,7 @@ func (q *Queries) GetHistoryEntry(ctx context.Context, id int64) (History, error
 		&i.RespTruncated,
 		&i.TimingsJson,
 		&i.ReqAuthJson,
+		&i.ConsoleJson,
 	)
 	return i, err
 }
@@ -110,8 +111,8 @@ INSERT INTO history (
     created_at, project_id, request_id, request_name, method, url_template, url_resolved,
     env_id, env_name, req_headers_json, req_params_json, req_body_json,
     req_headers_resolved_json, req_body_resolved, status, duration_ms, error,
-    resp_headers_json, resp_body, resp_body_size, resp_truncated, timings_json, req_auth_json
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    resp_headers_json, resp_body, resp_body_size, resp_truncated, timings_json, req_auth_json, console_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id
 `
 
@@ -139,6 +140,7 @@ type InsertHistoryParams struct {
 	RespTruncated          int64          `json:"respTruncated"`
 	TimingsJson            sql.NullString `json:"timingsJson"`
 	ReqAuthJson            sql.NullString `json:"reqAuthJson"`
+	ConsoleJson            sql.NullString `json:"consoleJson"`
 }
 
 func (q *Queries) InsertHistory(ctx context.Context, arg InsertHistoryParams) (int64, error) {
@@ -166,6 +168,7 @@ func (q *Queries) InsertHistory(ctx context.Context, arg InsertHistoryParams) (i
 		arg.RespTruncated,
 		arg.TimingsJson,
 		arg.ReqAuthJson,
+		arg.ConsoleJson,
 	)
 	var id int64
 	err := row.Scan(&id)

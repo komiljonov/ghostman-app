@@ -150,6 +150,10 @@ export function GetRequest(arg1) {
   return window['go']['main']['App']['GetRequest'](arg1);
 }
 
+export function GetScriptAPIDocs() {
+  return window['go']['main']['App']['GetScriptAPIDocs']();
+}
+
 export function GetSecretValue(arg1, arg2) {
   return window['go']['main']['App']['GetSecretValue'](arg1, arg2);
 }
@@ -314,8 +318,8 @@ export function SaveFilteredResponseToFile(arg1, arg2) {
   return window['go']['main']['App']['SaveFilteredResponseToFile'](arg1, arg2);
 }
 
-export function SaveFolderSettings(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['SaveFolderSettings'](arg1, arg2, arg3, arg4, arg5);
+export function SaveFolderSettings(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveFolderSettings'](arg1, arg2, arg3);
 }
 
 export function SaveHistoryFilteredToFile(arg1, arg2) {

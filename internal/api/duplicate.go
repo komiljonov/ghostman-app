@@ -36,6 +36,12 @@ func (c *APIClient) CreateRequestFrom(ctx context.Context, projectID string, fol
 	if d.ResponseFilter != "" {
 		patch.ResponseFilter = &d.ResponseFilter // a copy keeps its filter
 	}
+	if d.PreScript != "" {
+		patch.PreScript = &d.PreScript // ... and its scripts
+	}
+	if d.PostScript != "" {
+		patch.PostScript = &d.PostScript
+	}
 	updated, err := c.UpdateRequest(ctx, created.ID, patch)
 	if err != nil {
 		if delErr := c.DeleteRequest(context.WithoutCancel(ctx), created.ID); delErr != nil {

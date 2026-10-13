@@ -13,6 +13,7 @@ import (
 
 	"ghostman/internal/api"
 	"ghostman/internal/engine"
+	"ghostman/internal/scripting"
 	"ghostman/internal/session"
 	"ghostman/internal/store"
 )
@@ -36,6 +37,7 @@ type historyRecord struct {
 	resp                              *engine.Response // nil when the send failed
 	err                               error
 	start                             time.Time
+	console                           *scripting.Console // script output; nil / empty = none
 }
 
 func jsonText(v any) sql.NullString {
@@ -58,7 +60,9 @@ func historyBodyCap(limits store.HistoryLimits) int64 {
 }
 
 func (a *App) recordHistory(r historyRecord) {
-	method := strings.ToUpper(strings.TrimSpace(r.template.Method))
+	// The AS-SENT method (a pre-script may have changed it); the template copy
+	// below stays the stored request.
+	method := strings.ToUpper(strings.TrimSpace(r.resolved.Method))
 	if method == "" {
 		method = "GET"
 	}
@@ -82,6 +86,9 @@ func (a *App) recordHistory(r historyRecord) {
 	if r.auth != nil {
 		entry.ReqAuthJson = jsonText(historyAuth{Config: api.NormalizeAuth(*r.auth), Source: r.authSource})
 	}
+	if r.console != nil && len(r.console.Entries) > 0 {
+		entry.ConsoleJson = jsonText(r.console)
+	}
 	if body, _ := engine.SentBody(r.resolved.Body); body != "" {
 		entry.ReqBodyResolved = nullText(body)
 	}
@@ -89,7 +96,13 @@ func (a *App) recordHistory(r historyRecord) {
 		entry.DurationMs = time.Since(r.start).Milliseconds()
 		entry.Error = nullText(r.err.Error())
 		entry.TimingsJson = jsonText(nonNilHops(engine.HopsOf(r.err)))
-		slog.Info("request failed", "method", entry.Method, "url", entry.UrlTemplate, "err", r.err)
+		var se *scripting.ScriptError
+		if errors.As(r.err, &se) {
+			// A script's message is teammate-written text (it may hold a secret): never logged.
+			slog.Info("request not sent: a script failed", "method", entry.Method, "url", entry.UrlTemplate, "script", se.Owner, "phase", se.Phase)
+		} else {
+			slog.Info("request failed", "method", entry.Method, "url", entry.UrlTemplate, "err", r.err)
+		}
 	} else {
 		entry.Status = int64(r.resp.Status)
 		entry.DurationMs = r.resp.DurationMs
@@ -268,6 +281,8 @@ type HistoryEntry struct {
 	// was in effect or the entry predates auth.
 	Auth       *api.Auth `json:"auth"`
 	AuthSource string    `json:"auth_source"`
+	// Console is the send's script output (nil when the send ran no scripts).
+	Console *scripting.Console `json:"console"`
 }
 
 type HistoryEntryResult struct {
@@ -329,6 +344,13 @@ func (a *App) GetHistoryEntry(id int64) HistoryEntryResult {
 	}
 	if ha := unmarshalOr(h.ReqAuthJson, historyAuth{}); h.ReqAuthJson.Valid {
 		e.Auth, e.AuthSource = &ha.Config, ha.Source
+	}
+	if h.ConsoleJson.Valid {
+		c := unmarshalOr(h.ConsoleJson, scripting.Console{})
+		if c.Entries == nil {
+			c.Entries = []scripting.Entry{}
+		}
+		e.Console = &c
 	}
 	if !h.Error.Valid {
 		headers := unmarshalOr(h.RespHeadersJson, []engine.Header{})

@@ -66,6 +66,10 @@ type RequestDraft struct {
 	Auth        Auth        `json:"auth"`
 	// ResponseFilter is the jq query for the response view ("" = none).
 	ResponseFilter string `json:"response_filter"`
+	// PreScript / PostScript are the request's own scripts (its folders' scripts
+	// run around them, outer first: internal/scripting).
+	PreScript  string `json:"pre_script"`
+	PostScript string `json:"post_script"`
 }
 
 // NormalizeRows drops rows without a key (the editor's trailing empty row, or a
@@ -125,6 +129,14 @@ func BuildRequestPatch(base, draft RequestDraft) (RequestPatch, bool) {
 	if draft.ResponseFilter != base.ResponseFilter {
 		f := draft.ResponseFilter
 		p.ResponseFilter, changed = &f, true
+	}
+	if draft.PreScript != base.PreScript {
+		s := draft.PreScript
+		p.PreScript, changed = &s, true
+	}
+	if draft.PostScript != base.PostScript {
+		s := draft.PostScript
+		p.PostScript, changed = &s, true
 	}
 	return p, changed
 }

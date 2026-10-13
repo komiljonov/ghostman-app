@@ -26,7 +26,7 @@ func TestBoundTreeMethods(t *testing.T) {
 	})
 
 	if got, want := toJSON(t, a.ListFolders("p1")),
-		`{"data":[{"id":"f1","parent_id":null,"name":"A","follow_redirects":"off","auth":{"type":"inherit","bearer_token":"","basic_username":"","basic_password":"","api_key_name":"","api_key_value":"","api_key_in":"header"},"sort_order":0,"created_at":"x"}]}`; got != want {
+		`{"data":[{"id":"f1","parent_id":null,"name":"A","follow_redirects":"off","auth":{"type":"inherit","bearer_token":"","basic_username":"","basic_password":"","api_key_name":"","api_key_value":"","api_key_in":"header"},"pre_script":"","post_script":"","sort_order":0,"created_at":"x"}]}`; got != want {
 		t.Errorf("ListFolders = %s\nwant %s", got, want)
 	}
 

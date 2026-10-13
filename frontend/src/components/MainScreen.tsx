@@ -18,6 +18,7 @@ import { redirectDefault } from "../redirectDefault";
 import { resolveFollow } from "../requestSettings";
 import { effectiveAuthOf } from "../auth";
 import { currentTree } from "../treeStore";
+import { scriptChain } from "../scriptChain";
 import SidebarResizer from "./SidebarResizer";
 import TeamSettingsView from "./TeamSettingsView";
 import ProjectSettingsView from "./ProjectSettingsView";
@@ -72,6 +73,7 @@ export default function MainScreen(props: Props) {
       onTreeStale: () => setTreeTick((n) => n + 1),
       // Cascading follow_redirects, resolved from the tree store + the global value.
       followRedirects: (requestId) => resolveFollow(currentTree(), requestId, redirectDefault()).value,
+      scriptFolders: (requestId) => scriptChain(currentTree(), requestId),
       // Cascading auth: the tab's own draft config, then its folders (tree store).
       auth: (requestId, own) => effectiveAuthOf(currentTree(), requestId, own),
     });

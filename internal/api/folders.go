@@ -13,8 +13,12 @@ type Folder struct {
 	Name            string  `json:"name"`
 	FollowRedirects string  `json:"follow_redirects"` // cascading setting: inherit|global|on|off
 	Auth            Auth    `json:"auth"`             // cascading auth setting (auth.go)
-	SortOrder       int32   `json:"sort_order"`
-	CreatedAt       string  `json:"created_at"`
+	// PreScript / PostScript run around every send inside this folder (outer
+	// folders first; they accumulate, they do not inherit/override).
+	PreScript  string `json:"pre_script"`
+	PostScript string `json:"post_script"`
+	SortOrder  int32  `json:"sort_order"`
+	CreatedAt  string `json:"created_at"`
 }
 
 // FolderDetail is a single folder as returned by create/rename/move.
@@ -25,6 +29,8 @@ type FolderDetail struct {
 	Name            string  `json:"name"`
 	FollowRedirects string  `json:"follow_redirects"`
 	Auth            Auth    `json:"auth"`
+	PreScript       string  `json:"pre_script"`
+	PostScript      string  `json:"post_script"`
 	SortOrder       int32   `json:"sort_order"`
 	CreatedAt       string  `json:"created_at"`
 }
@@ -33,6 +39,8 @@ type FolderDetail struct {
 type FolderSettingsPatch struct {
 	FollowRedirects *string    `json:"follow_redirects,omitempty"`
 	Auth            *AuthPatch `json:"auth,omitempty"`
+	PreScript       *string    `json:"pre_script,omitempty"`
+	PostScript      *string    `json:"post_script,omitempty"`
 }
 
 func folderPath(id string) string { return "/api/v1/folders/" + url.PathEscape(id) }

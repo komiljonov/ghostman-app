@@ -2,7 +2,8 @@ import { createStore, produce, unwrap } from "solid-js/store";
 import {
   CancelRequest, EvalResponseFilter, GetLayout, GetRequest, ReleaseResponse, SaveRequest, SendRequest, SetLayout,
 } from "../wailsjs/go/main/App";
-import { api, engine, main } from "../wailsjs/go/models";
+import { api, engine, main, scripting } from "../wailsjs/go/models";
+import type { ScriptFolder } from "./scriptChain";
 import { handleProblem } from "./authStore";
 import { historyChanged } from "./historyStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
@@ -39,6 +40,8 @@ export interface Draft {
   body: Body;
   auth: AuthConfig; // the request's own auth setting (cascades: settingsResolver.resolveAuth)
   response_filter: string; // jq query for the response view (synced; "" = none)
+  pre_script: string; // run around every send (Go: internal/scripting; synced)
+  post_script: string;
 }
 
 export interface TabState {
@@ -57,8 +60,10 @@ export interface TabState {
   // {{keys}} the last send could not resolve (sent literally).
   unresolved: string[];
   // View state (not saved anywhere).
-  section: "params" | "headers" | "body" | "auth" | "settings" | "history";
-  responseSection: "body" | "headers";
+  section: "params" | "headers" | "body" | "auth" | "scripts" | "settings" | "history";
+  responseSection: "body" | "headers" | "console";
+  // The last send's script output (per send, never persisted); cleared by every send.
+  console?: scripting.Console;
   // Pretty | Raw | Preview; reset to the response's default on every new response.
   responseView: BodyView;
   // Collapsed JSON nodes of the Pretty view; cleared by every new response.
@@ -78,9 +83,11 @@ const emptyDraft = (): Draft => ({
   method: "GET", url: "", headers: [], query_params: [], body: { type: "none", content_type: "application/json", content: "", fields: [] },
   auth: normalizeAuth(),
   response_filter: "",
+  pre_script: "",
+  post_script: "",
 });
 
-function draftFromRequest(r: api.Request): Draft {
+export function draftFromRequest(r: api.Request): Draft {
   return {
     method: r.method,
     url: r.url,
@@ -94,6 +101,8 @@ function draftFromRequest(r: api.Request): Draft {
     },
     auth: normalizeAuth(r.auth),
     response_filter: r.response_filter ?? "",
+    pre_script: r.pre_script ?? "",
+    post_script: r.post_script ?? "",
   };
 }
 
@@ -112,6 +121,8 @@ export interface TabsHooks {
   followRedirects: (requestId: string) => boolean;
   // The effective auth of a request from its draft's own config + its folders.
   auth: (requestId: string, own: AuthConfig) => ResolvedAuth;
+  // The request's folder chain with their scripts, OUTERMOST first (scriptChain.ts).
+  scriptFolders: (requestId: string) => ScriptFolder[];
 }
 
 export type TabsController = ReturnType<typeof createTabsController>;
@@ -406,6 +417,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
         t.sending = true;
         t.responseError = undefined;
         t.hops = [];
+        t.console = undefined; // per send
       });
       await savers.get(id)?.flush(); // send what is saved
       const snapshot = clone(unwrap(tab(id)!.draft));
@@ -416,7 +428,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
         api.RequestDraft.createFrom(snapshot),
         main.SendOptions.createFrom({
           follow_redirects: hooks.followRedirects(id), request_name: tab(id)!.name,
-          auth: auth.config, auth_source: sourceLabel(auth.source),
+          auth: auth.config, auth_source: sourceLabel(auth.source), folders: hooks.scriptFolders(id),
         }),
       );
       handleProblem(result.error);
@@ -430,6 +442,9 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
         t.unresolved = result.unresolved ?? [];
         t.hops = result.hops ?? [];
         t.filter = NO_FILTER;
+        t.console = result.console ?? undefined;
+        // The Console tab is disabled without output: never leave it selected then.
+        if (t.responseSection === "console" && !(result.console?.entries?.length)) t.responseSection = "body";
       });
       // A saved filter applies to the new response at once (✕ shows the full body).
       const saved = snapshot.response_filter;

@@ -1,4 +1,4 @@
-import { createSignal, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 import { main } from "../../wailsjs/go/models";
 import { formatBytes, formatDuration, formRows, RequestForm, rowLabel, timeOfDay } from "../historyModel";
 import { BodyView, hasStructure, prettyFallback } from "../responseView";
@@ -8,6 +8,8 @@ import MethodBadge from "./MethodBadge";
 import ResponseBody from "./ResponseBody";
 import StatusBadge from "./StatusBadge";
 import TimingPanel from "./TimingPanel";
+import ConsoleView from "./ConsoleView";
+import { consoleBadge } from "../consoleView";
 import HistoryKVTable from "./HistoryKVTable";
 import MediaPreview from "./MediaPreview";
 import { MEDIA_VIEW_TITLE } from "../historyModel";
@@ -30,7 +32,7 @@ interface Props {
   onCopyFiltered: (query: string) => void; // copy the whole filtered result
 }
 
-type Section = "request" | "response" | "timing";
+type Section = "request" | "response" | "timing" | "console";
 
 // One history entry in full: the request in template or resolved form (resolved
 // includes secret values — this machine only), the stored response (reusing the
@@ -39,6 +41,11 @@ type Section = "request" | "response" | "timing";
 export default function HistoryDetail(props: Props) {
   const [form, setForm] = createSignal<RequestForm>("template");
   const [section, setSection] = createSignal<Section>("response");
+  const consoleInfo = () => consoleBadge(props.entry.console);
+  // An entry without script output cannot show its (disabled) Console tab.
+  createEffect(() => {
+    if (section() === "console" && consoleInfo().count === 0) setSection("response");
+  });
   const [respPart, setRespPart] = createSignal<"body" | "headers">("body");
   const [view, setView] = createSignal<BodyView>("pretty");
   const [confirmDelete, setConfirmDelete] = createSignal(false);
@@ -136,6 +143,12 @@ export default function HistoryDetail(props: Props) {
             onClick={() => setSection("response")}>Response</button>
           <button type="button" role="tab" aria-selected={section() === "timing"} classList={{ active: section() === "timing" }}
             onClick={() => setSection("timing")}>Timing</button>
+          <button type="button" role="tab" aria-selected={section() === "console"} classList={{ active: section() === "console" }}
+            disabled={consoleInfo().count === 0} title={consoleInfo().count === 0 ? "This send ran no scripts with output" : "Script output of this send"}
+            onClick={() => setSection("console")}>
+            Console
+            <span classList={{ "console-badge": true, error: consoleInfo().error, empty: consoleInfo().count === 0 }}>{consoleInfo().count}</span>
+          </button>
         </div>
         <span class="row-spacer" />
         <Show when={section() === "request"}>
@@ -242,6 +255,9 @@ export default function HistoryDetail(props: Props) {
           <Show when={props.entry.hops.length > 0} fallback={<p class="placeholder small">No timing recorded for this entry</p>}>
             <TimingPanel hops={props.entry.hops} />
           </Show>
+        </Show>
+        <Show when={section() === "console" && consoleInfo().count > 0}>
+          <ConsoleView console={props.entry.console} />
         </Show>
       </div>
       <Show when={saveMenu()}>

@@ -4,7 +4,7 @@
 // tooltip saying why, so nothing shifts when switching modes or responses.
 
 export type BodyView = "pretty" | "raw" | "preview";
-export type ResponseSection = "body" | "headers";
+export type ResponseSection = "body" | "headers" | "console";
 
 export interface ResponseLike {
   contentType: string;
@@ -166,7 +166,7 @@ export const copyAllText = bodyText;
 // the headers menu in Headers mode; none in Preview (the sandboxed page) or
 // before a response.
 export function responseMenuKind(s: { hasResponse: boolean; section: ResponseSection; view: BodyView }): "body" | "headers" | null {
-  if (!s.hasResponse) return null;
+  if (!s.hasResponse || s.section === "console") return null;
   if (s.section === "headers") return "headers";
   return s.view === "preview" ? null : "body";
 }

@@ -140,6 +140,8 @@ export namespace api {
 	    name: string;
 	    follow_redirects: string;
 	    auth: Auth;
+	    pre_script: string;
+	    post_script: string;
 	    sort_order: number;
 	    created_at: string;
 	
@@ -154,6 +156,8 @@ export namespace api {
 	        this.name = source["name"];
 	        this.follow_redirects = source["follow_redirects"];
 	        this.auth = this.convertValues(source["auth"], Auth);
+	        this.pre_script = source["pre_script"];
+	        this.post_script = source["post_script"];
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	    }
@@ -183,6 +187,8 @@ export namespace api {
 	    name: string;
 	    follow_redirects: string;
 	    auth: Auth;
+	    pre_script: string;
+	    post_script: string;
 	    sort_order: number;
 	    created_at: string;
 	
@@ -198,6 +204,8 @@ export namespace api {
 	        this.name = source["name"];
 	        this.follow_redirects = source["follow_redirects"];
 	        this.auth = this.convertValues(source["auth"], Auth);
+	        this.pre_script = source["pre_script"];
+	        this.post_script = source["post_script"];
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	    }
@@ -495,6 +503,8 @@ export namespace api {
 	    headers: KeyValue[];
 	    query_params: KeyValue[];
 	    body: RequestBody;
+	    pre_script: string;
+	    post_script: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Request(source);
@@ -517,6 +527,8 @@ export namespace api {
 	        this.headers = this.convertValues(source["headers"], KeyValue);
 	        this.query_params = this.convertValues(source["query_params"], KeyValue);
 	        this.body = this.convertValues(source["body"], RequestBody);
+	        this.pre_script = source["pre_script"];
+	        this.post_script = source["post_script"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -546,6 +558,8 @@ export namespace api {
 	    body: RequestBody;
 	    auth: Auth;
 	    response_filter: string;
+	    pre_script: string;
+	    post_script: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new RequestDraft(source);
@@ -560,6 +574,8 @@ export namespace api {
 	        this.body = this.convertValues(source["body"], RequestBody);
 	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.response_filter = source["response_filter"];
+	        this.pre_script = source["pre_script"];
+	        this.post_script = source["post_script"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -590,6 +606,8 @@ export namespace api {
 	    follow_redirects?: string;
 	    auth?: AuthPatch;
 	    response_filter?: string;
+	    pre_script?: string;
+	    post_script?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new RequestPatch(source);
@@ -606,6 +624,8 @@ export namespace api {
 	        this.follow_redirects = source["follow_redirects"];
 	        this.auth = this.convertValues(source["auth"], AuthPatch);
 	        this.response_filter = source["response_filter"];
+	        this.pre_script = source["pre_script"];
+	        this.post_script = source["post_script"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1357,6 +1377,42 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class FolderSettingsInput {
+	    follow_redirects: string;
+	    auth: api.Auth;
+	    pre_script: string;
+	    post_script: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FolderSettingsInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.follow_redirects = source["follow_redirects"];
+	        this.auth = this.convertValues(source["auth"], api.Auth);
+	        this.pre_script = source["pre_script"];
+	        this.post_script = source["post_script"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class FormattedBody {
 	    formatted: string;
 	
@@ -1542,6 +1598,7 @@ export namespace main {
 	    hops: engine.Hop[];
 	    auth?: api.Auth;
 	    auth_source: string;
+	    console?: scripting.Console;
 	
 	    static createFrom(source: any = {}) {
 	        return new HistoryEntry(source);
@@ -1557,6 +1614,7 @@ export namespace main {
 	        this.hops = this.convertValues(source["hops"], engine.Hop);
 	        this.auth = this.convertValues(source["auth"], api.Auth);
 	        this.auth_source = source["auth_source"];
+	        this.console = this.convertValues(source["console"], scripting.Console);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -2302,11 +2360,28 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class ScriptFolder {
+	    name: string;
+	    pre_script: string;
+	    post_script: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ScriptFolder(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.pre_script = source["pre_script"];
+	        this.post_script = source["post_script"];
+	    }
+	}
 	export class SendOptions {
 	    follow_redirects: boolean;
 	    request_name: string;
 	    auth?: api.Auth;
 	    auth_source: string;
+	    folders: ScriptFolder[];
 	
 	    static createFrom(source: any = {}) {
 	        return new SendOptions(source);
@@ -2318,6 +2393,7 @@ export namespace main {
 	        this.request_name = source["request_name"];
 	        this.auth = this.convertValues(source["auth"], api.Auth);
 	        this.auth_source = source["auth_source"];
+	        this.folders = this.convertValues(source["folders"], ScriptFolder);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -2344,6 +2420,7 @@ export namespace main {
 	    unresolved: string[];
 	    environment: string;
 	    hops: engine.Hop[];
+	    console?: scripting.Console;
 	
 	    static createFrom(source: any = {}) {
 	        return new SendResult(source);
@@ -2356,6 +2433,7 @@ export namespace main {
 	        this.unresolved = source["unresolved"];
 	        this.environment = source["environment"];
 	        this.hops = this.convertValues(source["hops"], engine.Hop);
+	        this.console = this.convertValues(source["console"], scripting.Console);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -2677,6 +2755,83 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace scripting {
+	
+	export class Entry {
+	    owner: string;
+	    phase: string;
+	    level: string;
+	    text: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Entry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.owner = source["owner"];
+	        this.phase = source["phase"];
+	        this.level = source["level"];
+	        this.text = source["text"];
+	    }
+	}
+	export class Console {
+	    entries: Entry[];
+	    truncated: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Console(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.entries = this.convertValues(source["entries"], Entry);
+	        this.truncated = source["truncated"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Doc {
+	    group: string;
+	    name: string;
+	    usage: string;
+	    summary: string;
+	    example: string;
+	    where: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Doc(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.group = source["group"];
+	        this.name = source["name"];
+	        this.usage = source["usage"];
+	        this.summary = source["summary"];
+	        this.example = source["example"];
+	        this.where = source["where"];
+	    }
 	}
 
 }

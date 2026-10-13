@@ -22,6 +22,7 @@ import { LOCK_PATH } from "./iconPaths";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { json } from "@codemirror/lang-json";
+import { javascript } from "@codemirror/lang-javascript";
 import { classify, createFromTooltip, EnvDisplay, maskRanges, saveFromTooltip, tooltipActions, tooltipModel } from "./vars";
 import { runShortcut } from "./shortcuts";
 import type { ShortcutAction } from "./tabModel";
@@ -370,6 +371,60 @@ export function createCodeEditor(
       return spec !== null || view.state.doc.toString() === formatted;
     },
     focus: () => view.focus(),
+    destroy: () => view.destroy(),
+  };
+}
+
+// ---- Script editors (pre-request / post-response; Scripts sub-tab, folder Settings…) ----
+// JavaScript, the shared theme and app shortcuts — and deliberately NO {{var}}
+// highlighting or completion: scripts read variables with gm.environment.get.
+// Unlike the raw body, Ctrl+/ toggles JS comments here (basicSetup's): they are code.
+
+export interface ScriptEditorHandle {
+  // Replaces the text programmatically: not reported to onChange, not in undo history.
+  setDoc: (text: string) => void;
+  getDoc: () => string;
+  destroy: () => void;
+}
+
+export function createScriptEditor(
+  parent: HTMLElement,
+  doc: string,
+  onChange: (text: string) => void,
+  opts: { ariaLabel: string; placeholder: string },
+): ScriptEditorHandle {
+  const view = new EditorView({
+    parent,
+    state: EditorState.create({
+      doc,
+      extensions: [
+        appShortcuts,
+        basicSetup,
+        theme,
+        javascript(),
+        placeholderExt(opts.placeholder),
+        EditorView.contentAttributes.of({ "aria-label": opts.ariaLabel, spellcheck: "false" }),
+        EditorView.updateListener.of((u) => {
+          const external = u.transactions.some((tr) => tr.annotation(externalChange));
+          if (u.docChanged && !external) onChange(u.state.doc.toString());
+        }),
+        EditorView.theme({
+          "&": { height: "100%", fontSize: "13px" },
+          ".cm-scroller": { fontFamily: "var(--mono)" },
+          "&.cm-focused": { outline: "none" },
+        }),
+      ],
+    }),
+  });
+  return {
+    setDoc: (text) => {
+      if (view.state.doc.toString() === text) return;
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: text },
+        annotations: [externalChange.of(true), Transaction.addToHistory.of(false)],
+      });
+    },
+    getDoc: () => view.state.doc.toString(),
     destroy: () => view.destroy(),
   };
 }
