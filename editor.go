@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"maps"
 	"net/url"
 	"sort"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 	"ghostman/internal/api"
 	"ghostman/internal/engine"
+	"ghostman/internal/scripting"
 	"ghostman/internal/session"
 )
 
@@ -41,6 +43,9 @@ type SendResult struct {
 	// Hops is the timing of every exchange (initial request + followed redirects),
 	// also when the send failed (the failed hop last, with its phase).
 	Hops []engine.Hop `json:"hops"`
+	// Console is the send's script output (empty without scripts); a failed
+	// pre-script is its last entry AND the Error.
+	Console *scripting.Console `json:"console"`
 }
 
 // Tab kinds.
@@ -130,6 +135,9 @@ type SendOptions struct {
 	// AuthSource names where it came from ("this request", "folder ‘api’", ...).
 	Auth       *api.Auth `json:"auth"`
 	AuthSource string    `json:"auth_source"`
+	// Folders is the request's folder chain, OUTERMOST first, with their scripts
+	// (scripts.go): they run around the request's own, outer first.
+	Folders []ScriptFolder `json:"folders"`
 }
 
 // engineAuth converts the effective config for the engine (nil = nothing to add).
@@ -147,8 +155,9 @@ func engineAuth(a *api.Auth) *engine.Auth {
 // running for the same request is cancelled first. Every send is recorded in local
 // history (history.go); logs keep the unresolved template URL only.
 func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, opts SendOptions) SendResult {
+	console := &scripting.Console{Entries: []scripting.Entry{}}
 	if !a.session.IsLoggedIn() {
-		return SendResult{Error: problemNotLoggedIn, Unresolved: []string{}}
+		return SendResult{Error: problemNotLoggedIn, Unresolved: []string{}, Console: console}
 	}
 	// Variables are read fresh from the server for every send (online-only), with
 	// this machine's secret values overlaid.
@@ -170,7 +179,7 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 	})
 	if p != nil {
 		p.Message = "could not load environment variables: " + p.Message
-		return SendResult{Error: p, Unresolved: []string{}}
+		return SendResult{Error: p, Unresolved: []string{}, Console: console}
 	}
 
 	ctx, cancel := context.WithCancel(a.ctx)
@@ -192,27 +201,85 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 	}()
 
 	if opts.Auth != nil && !api.ValidAuth(*opts.Auth) {
-		return SendResult{Error: invalidAuth(), Unresolved: []string{}}
+		return SendResult{Error: invalidAuth(), Unresolved: []string{}, Console: console}
 	}
 	template := specFromDraft(draft)
 	template.Auth = engineAuth(opts.Auth)
+	start := time.Now()
+
+	// Scripts (internal/scripting). ORDER MATTERS: pre-scripts run on a COPY of the
+	// template BEFORE {{var}} resolution, so gm.request mutations reach this send
+	// only (the stored request is never modified) and gm.environment.set changes
+	// THIS send's resolution — the token / signature use case. Env writes are
+	// applied after each script (outside its time budget).
+	preScripts, postScripts := gatherScripts(opts.Folders, draft, opts.RequestName)
+	sent := cloneSpec(template)
+	scriptEnv := &scripting.EnvState{Vars: maps.Clone(rv.vars)}
+	if rv.envID != "" {
+		scriptEnv.Name = rv.env
+	}
+	if scriptEnv.Vars == nil {
+		scriptEnv.Vars = map[string]string{}
+	}
+	client := a.currentClient()
+	runScript := func(s scripting.Script, resp *scripting.Response) error {
+		if err := scripting.Run(ctx, s, &sent, resp, scriptEnv, console); err != nil {
+			return err
+		}
+		written, err := a.flushEnv(ctx, client, rv.envID, scriptEnv)
+		rv.secrets = append(rv.secrets, written...)
+		if err != nil {
+			if api.IsUnauthorized(err) {
+				a.session.Check(a.ctx)
+			}
+			return &scripting.ScriptError{Owner: s.Owner, Phase: s.Phase, Message: "gm.environment: " + err.Error()}
+		}
+		return nil
+	}
+	for _, s := range preScripts {
+		if err := runScript(s, nil); err != nil {
+			console.Error(s.Owner, s.Phase, err.Error())
+			a.recordHistory(historyRecord{
+				projectID: projectID, requestID: requestID, requestName: opts.RequestName,
+				envID: rv.envID, envName: rv.env, draft: draft, template: template, resolved: sent,
+				auth: opts.Auth, authSource: opts.AuthSource, err: err, start: start, console: console,
+			})
+			return SendResult{Error: &session.Problem{Kind: KindRequest, Message: err.Error()}, Unresolved: []string{},
+				Environment: rv.env, Hops: []engine.Hop{}, Console: console}
+		}
+	}
+
 	// {{vars}} resolve inside the auth values too; the derived header / query param
 	// is added at send (engine.ApplyAuth): user-written rows win.
-	spec, unresolved := engine.ResolveSpec(template, rv.vars)
+	spec, unresolved := engine.ResolveSpec(sent, scriptEnv.Vars)
 	if unresolved == nil {
 		unresolved = []string{}
 	}
-	start := time.Now()
 	bodyCap := int64(0)
 	if a.store != nil {
 		bodyCap = historyBodyCap(a.store.HistoryLimits(a.ctx))
 	}
 	resp, err := a.engine.Send(ctx, spec, engine.SendOptions{FollowRedirects: opts.FollowRedirects, FullBodyCap: bodyCap})
+
+	// Post-scripts see the response; a failing one is reported in the console and
+	// never hides the response. Without a response (the send failed) they are skipped.
+	if len(postScripts) > 0 {
+		if err != nil {
+			console.Error(postScripts[0].Owner, scripting.Post, "post-response scripts skipped: the send failed")
+		} else {
+			view := scriptResponse(resp)
+			for _, s := range postScripts {
+				if serr := runScript(s, view); serr != nil {
+					console.Error(s.Owner, s.Phase, serr.Error())
+				}
+			}
+		}
+	}
 	a.recordHistory(historyRecord{
 		projectID: projectID, requestID: requestID, requestName: opts.RequestName,
 		envID: rv.envID, envName: rv.env, draft: draft, template: template, resolved: spec,
 		auth: opts.Auth, authSource: opts.AuthSource,
-		resp: resp, err: err, start: start,
+		resp: resp, err: err, start: start, console: console,
 	})
 	// The tab's active response (full body, Go-side) — unless a newer send of the
 	// same request has taken over meanwhile.
@@ -231,11 +298,11 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 	if err != nil {
 		return SendResult{
 			Error: &session.Problem{Kind: KindRequest, Message: err.Error()}, Unresolved: unresolved, Environment: rv.env,
-			Hops: maskSecrets(nonNilHops(engine.HopsOf(err)), rv.secrets),
+			Hops: maskSecrets(nonNilHops(engine.HopsOf(err)), rv.secrets), Console: console,
 		}
 	}
 	resp.Hops = maskSecrets(nonNilHops(resp.Hops), rv.secrets)
-	return SendResult{Data: resp, Unresolved: unresolved, Environment: rv.env, Hops: resp.Hops}
+	return SendResult{Data: resp, Unresolved: unresolved, Environment: rv.env, Hops: resp.Hops, Console: console}
 }
 
 // CancelRequest cancels the in-flight send of a request, if any.

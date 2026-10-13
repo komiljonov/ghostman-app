@@ -33,6 +33,7 @@ type History struct {
 	RespTruncated          int64          `json:"respTruncated"`
 	TimingsJson            sql.NullString `json:"timingsJson"`
 	ReqAuthJson            sql.NullString `json:"reqAuthJson"`
+	ConsoleJson            sql.NullString `json:"consoleJson"`
 }
 
 type RequestSetting struct {

@@ -2,7 +2,7 @@ import { createSignal } from "solid-js";
 import { session } from "../wailsjs/go/models";
 import { handleProblem } from "./authStore";
 
-type Outcome = { error?: session.Problem };
+export type Outcome = { error?: session.Problem };
 
 // createAction wraps one bound-method call for one control: `pending` disables the
 // control while in flight, `error` holds the server's message to show next to it.

@@ -108,20 +108,30 @@ func TestSaveFolderSettingsOnePatch(t *testing.T) {
 		},
 	})
 	base := api.Auth{Type: api.AuthInherit, BearerToken: "old", APIKeyIn: api.APIKeyInHeader}
-	if r := a.SaveFolderSettings("f1", "inherit", "inherit", base, base); r.Error != nil || r.Data != nil || len(bodies) != 0 {
+	saved := FolderSettingsInput{FollowRedirects: "inherit", Auth: base, PreScript: "old()"}
+	if r := a.SaveFolderSettings("f1", saved, saved); r.Error != nil || r.Data != nil || len(bodies) != 0 {
 		t.Fatalf("nothing changed must send nothing: %+v %v", r, bodies)
 	}
-	edited := base
-	edited.Type, edited.BearerToken = api.AuthBearer, "{{API_TOKEN}}"
-	if r := a.SaveFolderSettings("f1", "inherit", "off", base, edited); r.Error != nil || r.Data == nil {
+	edited := saved
+	edited.FollowRedirects = "off"
+	edited.Auth.Type, edited.Auth.BearerToken = api.AuthBearer, "{{API_TOKEN}}"
+	edited.PostScript = `gm.environment.set("t", "x")`
+	if r := a.SaveFolderSettings("f1", saved, edited); r.Error != nil || r.Data == nil {
 		t.Fatalf("save: %+v", r.Error)
 	}
 	var got map[string]any
 	_ = json.Unmarshal([]byte(bodies[0]), &got)
-	if len(bodies) != 1 || toJSON(t, got) != `{"auth":{"bearer_token":"{{API_TOKEN}}","type":"bearer"},"follow_redirects":"off"}` {
-		t.Fatalf("bodies = %v", bodies)
+	if len(bodies) != 1 || toJSON(t, got) != `{"auth":{"bearer_token":"{{API_TOKEN}}","type":"bearer"},"follow_redirects":"off","post_script":"gm.environment.set(\"t\", \"x\")"}` {
+		t.Fatalf("bodies = %v (ONE patch with only what changed)", bodies)
 	}
-	if r := a.SaveFolderSettings("f1", "inherit", "inherit", base, api.Auth{Type: "x"}); r.Error == nil {
+	cleared := saved
+	cleared.PreScript = ""
+	if r := a.SaveFolderSettings("f1", saved, cleared); r.Error != nil || bodies[1] != `{"pre_script":""}` {
+		t.Fatalf("clearing a script sends \"\": %v", bodies)
+	}
+	bad := saved
+	bad.Auth = api.Auth{Type: "x"}
+	if r := a.SaveFolderSettings("f1", saved, bad); r.Error == nil {
 		t.Fatal("invalid auth must be refused")
 	}
 }

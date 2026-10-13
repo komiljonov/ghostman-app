@@ -61,19 +61,34 @@ func invalidAuth() *session.Problem {
 // in one PATCH: follow_redirects when it differs from the stored value, auth as
 // type + the fields that changed between base (stored) and auth (edited).
 // Nothing changed = no request.
-func (a *App) SaveFolderSettings(id, storedFollow, follow string, base, auth api.Auth) FolderResult {
-	if !api.ValidToggle(follow) {
+// FolderSettingsInput is what the folder Settings… modal edits (the saved values
+// and the edited ones are both sent, so the PATCH holds only what changed).
+type FolderSettingsInput struct {
+	FollowRedirects string   `json:"follow_redirects"`
+	Auth            api.Auth `json:"auth"`
+	PreScript       string   `json:"pre_script"`
+	PostScript      string   `json:"post_script"`
+}
+
+func (a *App) SaveFolderSettings(id string, saved, next FolderSettingsInput) FolderResult {
+	if !api.ValidToggle(next.FollowRedirects) {
 		return FolderResult{Error: invalidToggle()}
 	}
-	if !api.ValidAuth(auth) {
+	if !api.ValidAuth(next.Auth) {
 		return FolderResult{Error: invalidAuth()}
 	}
 	var patch api.FolderSettingsPatch
-	if follow != storedFollow {
-		patch.FollowRedirects = &follow
+	if next.FollowRedirects != saved.FollowRedirects {
+		patch.FollowRedirects = &next.FollowRedirects
 	}
-	patch.Auth, _ = api.BuildAuthPatch(base, auth)
-	if patch.FollowRedirects == nil && patch.Auth == nil {
+	patch.Auth, _ = api.BuildAuthPatch(saved.Auth, next.Auth)
+	if next.PreScript != saved.PreScript {
+		patch.PreScript = &next.PreScript
+	}
+	if next.PostScript != saved.PostScript {
+		patch.PostScript = &next.PostScript
+	}
+	if patch.FollowRedirects == nil && patch.Auth == nil && patch.PreScript == nil && patch.PostScript == nil {
 		return FolderResult{}
 	}
 	v, p := call(a, func(ctx context.Context, c *api.APIClient) (api.FolderDetail, error) {

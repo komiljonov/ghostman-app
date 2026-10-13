@@ -33,6 +33,10 @@ type Request struct {
 	Headers     []KeyValue  `json:"headers"`
 	QueryParams []KeyValue  `json:"query_params"`
 	Body        RequestBody `json:"body"`
+	// PreScript / PostScript run around every send (internal/scripting); only the
+	// single-request payloads carry them (the list does not).
+	PreScript  string `json:"pre_script"`
+	PostScript string `json:"post_script"`
 }
 
 // NewRequest is the input of CreateRequest. Empty Method/URL let the server
@@ -59,6 +63,9 @@ type RequestPatch struct {
 	Auth *AuthPatch `json:"auth,omitempty"`
 	// ResponseFilter rides the autosave too; a pointer to "" clears it.
 	ResponseFilter *string `json:"response_filter,omitempty"`
+	// PreScript / PostScript ride the autosave; a pointer to "" clears one.
+	PreScript  *string `json:"pre_script,omitempty"`
+	PostScript *string `json:"post_script,omitempty"`
 }
 
 func requestPath(id string) string { return "/api/v1/requests/" + url.PathEscape(id) }
@@ -108,7 +115,8 @@ func (r Request) withDefaults() Request {
 
 // Draft returns the editable part of the request.
 func (r Request) Draft() RequestDraft {
-	return RequestDraft{Method: r.Method, URL: r.URL, Headers: r.Headers, QueryParams: r.QueryParams, Body: r.Body, Auth: r.Auth, ResponseFilter: r.ResponseFilter}
+	return RequestDraft{Method: r.Method, URL: r.URL, Headers: r.Headers, QueryParams: r.QueryParams, Body: r.Body, Auth: r.Auth,
+		ResponseFilter: r.ResponseFilter, PreScript: r.PreScript, PostScript: r.PostScript}
 }
 
 // UpdateRequest applies a partial update (name / method / url).

@@ -13,6 +13,8 @@ import { currentTree } from "../treeStore";
 import ResponseView from "./ResponseView";
 import SaveIndicator from "./SaveIndicator";
 import UrlEditor from "./UrlEditor";
+import ScriptsPanel from "./ScriptsPanel";
+import { hasScripts } from "../scriptChain";
 
 interface Props {
   tab: TabState;
@@ -54,6 +56,7 @@ export default function RequestEditor(props: Props) {
     { id: "headers" as const, label: "Headers", count: () => countRows(props.tab.draft.headers) },
     { id: "body" as const, label: "Body", count: () => 0 },
     { id: "auth" as const, label: "Auth", count: () => 0 },
+    { id: "scripts" as const, label: "Scripts", count: () => 0 },
     { id: "settings" as const, label: "Settings", count: () => 0 },
     { id: "history" as const, label: "History", count: () => 0 },
   ];
@@ -112,6 +115,9 @@ export default function RequestEditor(props: Props) {
                       <Show when={(s.id === "settings" && overrides().settings) || (s.id === "auth" && overrides().auth)}>
                         <span class="section-dot" title={s.id === "auth" ? "This request sets its own auth" : "This request overrides a default"} />
                       </Show>
+                      <Show when={s.id === "scripts" && hasScripts(props.tab.draft)}>
+                        <span class="section-dot" title="This request has its own script" />
+                      </Show>
                     </button>
                   )}
                 </For>
@@ -137,6 +143,11 @@ export default function RequestEditor(props: Props) {
                       options={modeOptions(currentTree(), props.tab.id)}
                       effective={effectiveAuthOf(currentTree(), props.tab.id, props.tab.draft.auth)}
                       onChange={(next) => edit((d) => (d.auth = next))} />
+                  </Match>
+                  <Match when={props.tab.section === "scripts"}>
+                    <ScriptsPanel noun="request" pre={props.tab.draft.pre_script} post={props.tab.draft.post_script}
+                      onPre={(text) => edit((d) => (d.pre_script = text))}
+                      onPost={(text) => edit((d) => (d.post_script = text))} />
                   </Match>
                   <Match when={props.tab.section === "settings"}>
                     <RequestSettingsPanel requestId={props.tab.id} />

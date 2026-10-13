@@ -22,6 +22,8 @@ import StatusBadge from "./StatusBadge";
 import TimingPanel from "./TimingPanel";
 import MediaPreview from "./MediaPreview";
 import { triggerLabel } from "../timingModel";
+import { CONSOLE_EMPTY, consoleBadge } from "../consoleView";
+import ConsoleView from "./ConsoleView";
 
 interface Props {
   tab: TabState;
@@ -45,6 +47,7 @@ function formatBytes(n: number): string {
 export default function ResponseView(props: Props) {
   // The response the toolbar describes: none while sending or after a failure.
   const shown = () => (props.tab.sending || props.tab.responseError ? undefined : props.tab.response);
+  const consoleInfo = () => consoleBadge(props.tab.console);
   const view = () => {
     const r = shown();
     return r ? effectiveView(r, props.tab.responseView) : props.tab.responseView;
@@ -155,6 +158,18 @@ export default function ResponseView(props: Props) {
             onClick={() => props.onView((t) => (t.responseSection = "headers"))}>
             Headers <span class="muted resp-count">{shown()?.headers.length ?? ""}</span>
           </button>
+          {/* Enabled whenever a send produced script output — also when a pre-script aborted it. */}
+          <button type="button" role="tab" disabled={consoleInfo().count === 0}
+            title={consoleInfo().count === 0 ? CONSOLE_EMPTY : "Script output of the last send"}
+            aria-selected={props.tab.responseSection === "console"}
+            classList={{ active: props.tab.responseSection === "console" }}
+            onClick={() => props.onView((t) => (t.responseSection = "console"))}>
+            Console
+            <span classList={{ "console-badge": true, error: consoleInfo().error, empty: consoleInfo().count === 0 }}
+              aria-label={`${consoleInfo().count} console entries${consoleInfo().error ? ", with errors" : ""}`}>
+              {consoleInfo().count}
+            </span>
+          </button>
         </div>
         <span class="row-spacer" />
         <span class="toolbar-slot" title={controls().views.title}>
@@ -229,6 +244,9 @@ export default function ResponseView(props: Props) {
         <Switch fallback={<p class="placeholder response-empty">Send the request to see the response.</p>}>
           <Match when={props.tab.sending}>
             <p class="placeholder response-empty">Sending…</p>
+          </Match>
+          <Match when={props.tab.responseSection === "console" && consoleInfo().count > 0}>
+            <ConsoleView console={props.tab.console} />
           </Match>
           <Match when={props.tab.responseError}>
             <div class="error response-error" role="alert">

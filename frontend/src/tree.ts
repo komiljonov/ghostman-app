@@ -15,6 +15,8 @@ export interface FolderInput {
   sort_order: number;
   follow_redirects?: string;
   auth?: AuthInput;
+  pre_script?: string; // scripts accumulate outer → inner (scriptChain.ts)
+  post_script?: string;
 }
 
 export interface RequestInput {
@@ -36,6 +38,8 @@ export interface FolderNode {
   sortOrder: number;
   settings: NodeSettings;
   auth: AuthConfig; // the cascading auth setting as stored (auth.ts, settingsResolver.resolveAuth)
+  preScript: string; // run around every send inside this folder (scriptChain.ts)
+  postScript: string;
   children: TreeNode[]; // folders first, then requests, each by sort_order
 }
 
@@ -79,7 +83,8 @@ export function buildTree(
   for (const f of folderList) {
     folders.set(f.id, {
       kind: "folder", id: f.id, parentId: f.parent_id ?? null, name: f.name, sortOrder: f.sort_order,
-      settings: nodeSettings(f), auth: normalizeAuth(f.auth), children: [],
+      settings: nodeSettings(f), auth: normalizeAuth(f.auth), preScript: f.pre_script ?? "", postScript: f.post_script ?? "",
+      children: [],
     });
   }
 

@@ -1,6 +1,6 @@
 import { createSignal, For, Show } from "solid-js";
 import { MoveFolder, MoveRequest } from "../../wailsjs/go/main/App";
-import { createAction } from "../action";
+import { createAction, Outcome } from "../action";
 import { flattenFolders, folderAndDescendantIds, TreeNode } from "../tree";
 import { useTree } from "../treeContext";
 import FormError from "./FormError";
@@ -17,7 +17,7 @@ export default function MoveToModal(props: Props) {
   const tree = useTree();
   const currentParent = () => (props.node.kind === "folder" ? props.node.parentId : props.node.folderId) ?? "";
   const [target, setTarget] = createSignal(currentParent());
-  const move = createAction((to: string) =>
+  const move = createAction((to: string): Promise<Outcome> =>
     props.node.kind === "folder" ? MoveFolder(props.node.id, to) : MoveRequest(props.node.id, to),
   );
 
