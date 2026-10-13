@@ -499,7 +499,10 @@ Postman-style shell, logged in:
   `api.BuildRequestPatch` diffs them), folder Settings… → collapsible "Scripts" section (the modal scrolls; ONE
   PATCH with everything changed, `SaveFolderSettings(id, saved, next FolderSettingsInput)`). The editors are
   `createScriptEditor`: JS (@codemirror/lang-javascript), the shared theme + app shortcuts, NO `{{var}}`
-  highlighting / completion; Ctrl+/ toggles JS comments there (code, unlike the raw body). Response pane
+  highlighting / completion; Ctrl+/ toggles JS comments there (code, unlike the raw body). They DO complete the
+  sandbox globals: `gm.…` / `console.…` members (signature as detail; summary, example and pre/post-only in the
+  info) from the SAME gm API docs (`src/scriptComplete.ts`, tested; glue `scriptCompletion` + JS `completionPath`,
+  so strings and comments stay quiet); a bare identifier gets gm / console once something is typed. Response pane
   **Console** tab (Body | Headers | Console): enabled whenever the send produced output (also after an abort),
   count badge, red with an error; per send, never persisted, cleared by every send. **History**: `console_json`
   (migration 00010) stores the output; the detail has a Console tab; the summary method / resolved copy are AS
