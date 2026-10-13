@@ -105,6 +105,12 @@ func (c *APIClient) Health(ctx context.Context) error {
 
 // do sends a JSON request and decodes a JSON response into out (nil to discard).
 func (c *APIClient) do(ctx context.Context, method, path string, in, out any) error {
+	return c.doLimited(ctx, method, path, in, out, maxResponseBody)
+}
+
+// doLimited is do with its own cap on the response read (a capture carries a
+// base64 body of up to 1 MB).
+func (c *APIClient) doLimited(ctx context.Context, method, path string, in, out any, limit int64) error {
 	var body io.Reader
 	if in != nil {
 		buf, err := json.Marshal(in)
@@ -132,7 +138,7 @@ func (c *APIClient) do(ctx context.Context, method, path string, in, out any) er
 	}
 	defer resp.Body.Close()
 
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBody))
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, limit))
 	if err != nil {
 		return &ServerUnreachableError{URL: c.baseURL, Err: err}
 	}

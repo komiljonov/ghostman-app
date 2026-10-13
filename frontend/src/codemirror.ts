@@ -461,6 +461,58 @@ export function createScriptEditor(
   };
 }
 
+// ---- Plain text editor (a webhook's configured response body) ----
+// No {{var}} highlighting or completion: the text is sent back to webhook senders
+// verbatim. JSON syntax colors when the configured Content-Type is JSON.
+
+export interface PlainEditorHandle extends ScriptEditorHandle {
+  setJSON: (on: boolean) => void;
+}
+
+export function createPlainEditor(
+  parent: HTMLElement,
+  doc: string,
+  onChange: (text: string) => void,
+  opts: { ariaLabel: string; placeholder: string; json: boolean },
+): PlainEditorHandle {
+  const language = new Compartment();
+  const view = new EditorView({
+    parent,
+    state: EditorState.create({
+      doc,
+      extensions: [
+        appShortcuts,
+        basicSetup,
+        theme,
+        language.of(opts.json ? json() : []),
+        placeholderExt(opts.placeholder),
+        EditorView.contentAttributes.of({ "aria-label": opts.ariaLabel, spellcheck: "false" }),
+        EditorView.updateListener.of((u) => {
+          const external = u.transactions.some((tr) => tr.annotation(externalChange));
+          if (u.docChanged && !external) onChange(u.state.doc.toString());
+        }),
+        EditorView.theme({
+          "&": { height: "100%", fontSize: "13px" },
+          ".cm-scroller": { fontFamily: "var(--mono)" },
+          "&.cm-focused": { outline: "none" },
+        }),
+      ],
+    }),
+  });
+  return {
+    setDoc: (text) => {
+      if (view.state.doc.toString() === text) return;
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: text },
+        annotations: [externalChange.of(true), Transaction.addToHistory.of(false)],
+      });
+    },
+    getDoc: () => view.state.doc.toString(),
+    setJSON: (on) => view.dispatch({ effects: language.reconfigure(on ? json() : []) }),
+    destroy: () => view.destroy(),
+  };
+}
+
 // ---- Single-line editor (URL bar, table cells) ----
 
 // ---- {{var}} autocompletion (rules: varComplete.ts) ----

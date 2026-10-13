@@ -96,6 +96,48 @@ export namespace api {
 	        this.api_key_in = source["api_key_in"];
 	    }
 	}
+	export class CaptureSummary {
+	    id: number;
+	    method: string;
+	    path: string;
+	    query: string;
+	    content_type: string;
+	    body_size: number;
+	    body_truncated: boolean;
+	    source_ip: string;
+	    received_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CaptureSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.method = source["method"];
+	        this.path = source["path"];
+	        this.query = source["query"];
+	        this.content_type = source["content_type"];
+	        this.body_size = source["body_size"];
+	        this.body_truncated = source["body_truncated"];
+	        this.source_ip = source["source_ip"];
+	        this.received_at = source["received_at"];
+	    }
+	}
+	export class CapturedHeader {
+	    key: string;
+	    value: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CapturedHeader(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.value = source["value"];
+	    }
+	}
 	export class Environment {
 	    id: string;
 	    name: string;
@@ -345,6 +387,18 @@ export namespace api {
 		}
 	}
 	
+	export class Meta {
+	    hooks_domains: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Meta(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hooks_domains = source["hooks_domains"];
+	    }
+	}
 	export class MyInvitation {
 	    id: string;
 	    team: TeamRef;
@@ -826,6 +880,76 @@ export namespace api {
 	        this.sort_order = source["sort_order"];
 	    }
 	}
+	export class Webhook {
+	    id: string;
+	    name: string;
+	    slug: string;
+	    domain: string;
+	    resp_status: number;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Webhook(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.slug = source["slug"];
+	        this.domain = source["domain"];
+	        this.resp_status = source["resp_status"];
+	        this.created_at = source["created_at"];
+	    }
+	}
+	export class WebhookDetail {
+	    id: string;
+	    project_id: string;
+	    name: string;
+	    slug: string;
+	    domain: string;
+	    resp_status: number;
+	    resp_headers: KeyValue[];
+	    resp_body: string;
+	    created_by: string;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WebhookDetail(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.project_id = source["project_id"];
+	        this.name = source["name"];
+	        this.slug = source["slug"];
+	        this.domain = source["domain"];
+	        this.resp_status = source["resp_status"];
+	        this.resp_headers = this.convertValues(source["resp_headers"], KeyValue);
+	        this.resp_body = source["resp_body"];
+	        this.created_by = source["created_by"];
+	        this.created_at = source["created_at"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 
 }
 
@@ -1144,6 +1268,114 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = this.convertValues(source["data"], api.AcceptedInvitation);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CaptureDetail {
+	    summary: api.CaptureSummary;
+	    headers: api.CapturedHeader[];
+	    body: string;
+	    raw_body: string;
+	    formatted: boolean;
+	    preview_cut: boolean;
+	    stored_bytes: number;
+	    media: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CaptureDetail(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.summary = this.convertValues(source["summary"], api.CaptureSummary);
+	        this.headers = this.convertValues(source["headers"], api.CapturedHeader);
+	        this.body = source["body"];
+	        this.raw_body = source["raw_body"];
+	        this.formatted = source["formatted"];
+	        this.preview_cut = source["preview_cut"];
+	        this.stored_bytes = source["stored_bytes"];
+	        this.media = source["media"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CaptureDetailResult {
+	    data?: CaptureDetail;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new CaptureDetailResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], CaptureDetail);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CaptureListResult {
+	    data: api.CaptureSummary[];
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new CaptureListResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.CaptureSummary);
 	        this.error = this.convertValues(source["error"], session.Problem);
 	    }
 	
@@ -2056,6 +2288,38 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class MetaResult {
+	    data?: api.Meta;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new MetaResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.Meta);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class MyInvitationListResult {
 	    data: api.MyInvitation[];
 	    error?: session.Problem;
@@ -2703,6 +2967,122 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = this.convertValues(source["data"], envs.VariableView);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class WebhookListResult {
+	    data: api.Webhook[];
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new WebhookListResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.Webhook);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class WebhookPanelPrefs {
+	    expanded: boolean;
+	    fraction: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new WebhookPanelPrefs(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.expanded = source["expanded"];
+	        this.fraction = source["fraction"];
+	    }
+	}
+	export class WebhookPatchInput {
+	    name?: string;
+	    domain?: string;
+	    resp_status?: number;
+	    resp_headers?: api.KeyValue[];
+	    resp_body?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new WebhookPatchInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.domain = source["domain"];
+	        this.resp_status = source["resp_status"];
+	        this.resp_headers = this.convertValues(source["resp_headers"], api.KeyValue);
+	        this.resp_body = source["resp_body"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class WebhookResult {
+	    data?: api.WebhookDetail;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new WebhookResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.WebhookDetail);
 	        this.error = this.convertValues(source["error"], session.Problem);
 	    }
 	

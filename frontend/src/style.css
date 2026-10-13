@@ -4388,3 +4388,503 @@ body.tab-dragging * {
   color: var(--danger);
   border-left-color: var(--danger);
 }
+
+/* ---- Sidebar stack: the tree (scrolls) above the docked Webhooks panel ---- */
+
+.sidebar.sidebar-stack {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.sidebar-stack > .tree-sidebar {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.hooks-panel {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.hooks-resizer {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 6px;
+  cursor: row-resize;
+}
+
+.hooks-resizer:hover,
+.resizing-hooks .hooks-resizer {
+  background: var(--accent-soft);
+}
+
+.resizing-hooks,
+.resizing-hooks * {
+  cursor: row-resize !important;
+  user-select: none !important;
+}
+
+.hooks-bar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  height: 30px;
+  padding: 0 8px 0 4px;
+}
+
+.hooks-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 26px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.hooks-toggle:hover {
+  background: var(--hover);
+}
+
+.hooks-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  transform: rotate(-90deg); /* collapsed: points up (the panel opens upward) */
+  transition: transform 0.12s;
+}
+
+.hooks-chevron.open {
+  transform: rotate(90deg);
+}
+
+.hooks-count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--hover-strong);
+  color: var(--muted);
+  font: 600 11px/16px var(--mono);
+  text-align: center;
+}
+
+.hooks-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+  padding: 0 4px 6px;
+  overflow-y: auto;
+}
+
+.hooks-create {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px;
+}
+
+.hooks-note {
+  margin: 4px 6px;
+}
+
+.hooks-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hooks-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 2px 0 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.hooks-row:hover {
+  background: var(--hover);
+}
+
+.hooks-row:hover .row-menu-trigger {
+  opacity: 1;
+}
+
+.hooks-row-icon {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.hooks-row.open .hooks-row-icon {
+  color: var(--accent);
+}
+
+.hooks-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hooks-copied {
+  color: var(--ok);
+}
+
+/* Listening state: green while polling, amber after a failed poll, muted when paused / not open. */
+.listen-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.listen-dot.listening {
+  background: var(--ok);
+  box-shadow: none;
+}
+
+.listen-dot.error {
+  background: var(--warn);
+  box-shadow: none;
+}
+
+.listen-dot.paused {
+  background: var(--muted);
+  box-shadow: none;
+}
+
+.listen-dot.pulse {
+  animation: listen-pulse 2s ease-in-out infinite;
+}
+
+@keyframes listen-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listen-dot.pulse {
+    animation: none;
+  }
+}
+
+.unseen-badge {
+  flex-shrink: 0;
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 600 10px/16px var(--mono);
+  text-align: center;
+}
+
+.banner-info {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+/* ---- Webhook tab ---- */
+
+.webhook-view {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  container-type: inline-size;
+}
+
+.webhook-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.webhook-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.webhook-name {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webhook-domain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.webhook-domain-hint {
+  margin: 0;
+}
+
+.webhook-urls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.webhook-url {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.webhook-url-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: text;
+}
+
+.webhook-url.primary .webhook-url-text {
+  padding: 4px 8px;
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+  background: var(--field-bg);
+  font-size: 14px;
+}
+
+.webhook-url.secondary .webhook-url-text {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.webhook-section-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px 0 8px;
+}
+
+.webhook-section-head > .hooks-toggle {
+  flex: 0 0 auto;
+}
+
+/* A section that opens downward: ▸ collapsed, ▾ open. */
+.webhook-section-head .hooks-chevron {
+  transform: none;
+}
+
+.webhook-section-head .hooks-chevron.open {
+  transform: rotate(90deg);
+}
+
+.webhook-view button.small {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.webhook-domain select {
+  max-width: 200px;
+}
+
+.webhook-section-title {
+  font-weight: 600;
+}
+
+.webhook-response {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border);
+}
+
+.webhook-response.open {
+  display: flex;
+  flex-direction: column;
+  max-height: 55%;
+}
+
+.webhook-response-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  padding: 0 12px 10px;
+  overflow-y: auto; /* the section head stays put */
+}
+
+.webhook-response-body > * {
+  flex-shrink: 0; /* the section scrolls; its parts keep their height */
+}
+
+.webhook-response-body .bulk-editor {
+  flex: 0 0 auto;
+  min-height: 96px;
+}
+
+.webhook-response-body h4 {
+  margin: 6px 0 0;
+}
+
+.webhook-response-body > p {
+  margin: 0;
+}
+
+.webhook-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.webhook-status input {
+  width: 64px;
+  font-family: var(--mono);
+}
+
+.webhook-status input[aria-invalid="true"] {
+  border-color: var(--server);
+}
+
+.webhook-body-editor {
+  height: 140px;
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.webhook-body-editor .script-editor {
+  height: 100%;
+}
+
+.webhook-captures {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.capture-list-pane {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  width: 360px;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+}
+
+.capture-list-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.capture-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-anchor: auto; /* rows prepended above keep the reader's place */
+  border-top: 1px solid var(--border);
+}
+
+.new-chip {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  z-index: 2;
+  padding: 2px 10px;
+  border: none;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 12px;
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+
+.capture-row .history-row-sub {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.capture-ct {
+  min-width: 0;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.capture-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.capture-cut {
+  display: inline-flex;
+  color: var(--warn);
+}
+
+.capture-row .history-row-time {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.history-notice.error {
+  color: var(--server);
+}
+
+.capture-detail-pane > .form-error {
+  margin: 8px 12px 0;
+}
+
+/* A narrow group stacks the list above the detail. */
+@container (max-width: 680px) {
+  .webhook-captures {
+    flex-direction: column;
+  }
+
+  .capture-list-pane {
+    width: auto;
+    max-height: 45%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}

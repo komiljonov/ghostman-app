@@ -93,6 +93,16 @@ const SHAPES = {
     </>
   ),
   download: () => <path d="M8 2.5v7.5M4.75 6.75L8 10l3.25-3.25M3 12.75h10" />,
+  // Webhook endpoint: an incoming arrow into a tray.
+  webhook: () => <path d="M8 2.25v6.5M5.25 6L8 8.75 10.75 6M2.25 9.5h3l1 1.75h3.5l1-1.75h3V13c0 .41-.34.75-.75.75H3c-.41 0-.75-.34-.75-.75z" />,
+  // A body that was cut (stored shorter than received).
+  scissors: () => (
+    <>
+      <circle cx="4.5" cy="11.5" r="1.75" />
+      <circle cx="11.5" cy="11.5" r="1.75" />
+      <path d="M5.75 10.25L12 2.5M10.25 10.25L4 2.5" />
+    </>
+  ),
   // The 24-unit gear outline, scaled onto the 16 grid (stroke 2 → 1.33 px).
   settings: () => (
     <g transform="scale(0.6667)" stroke-width="2">

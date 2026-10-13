@@ -225,7 +225,7 @@ export default function ProjectTree(props: Props) {
 
   return (
     <TreeContext.Provider value={ctx}>
-      <nav class="sidebar tree-sidebar" aria-label="Project tree" ref={navEl}>
+      <nav class="tree-sidebar" aria-label="Project tree" ref={navEl}>
         <div class="tree-header">
           <span class="menu-heading">Requests</span>
           <Dropdown triggerLabel="New folder or request" triggerClass="row-menu-trigger add" trigger={<Icon name="plus" />}>
