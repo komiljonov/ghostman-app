@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { canSendShortcut, dropSlot, ENV_LIST, HISTORY, isSendShortcut, normalizeSaved, reorder, syncEnvTabs, tabKey } from "./tabModel";
+import {
+  canSendShortcut, dropSlot, ENV_LIST, HISTORY, isSendShortcut, isTabKey, normalizeSaved, refFromKey, reorder, syncEnvTabs, syncNamedTabs, tabKey,
+} from "./tabModel";
 
 describe("tab persistence format", () => {
   it("migrates the old bare-id format to request tabs", () => {
@@ -81,6 +83,26 @@ describe("environment tabs follow the environment list", () => {
     expect(syncEnvTabs(tabs, [{ id: "e1", name: "development" }])).toEqual({
       rename: [{ ref: { kind: "env", id: "e1" }, name: "development" }],
       close: [{ kind: "env", id: "e2" }],
+    });
+  });
+});
+
+describe("webhook tabs", () => {
+  it("are persisted like env tabs (kind + id)", () => {
+    expect(refFromKey("webhook:w1")).toEqual({ kind: "webhook", id: "w1" });
+    expect(isTabKey("webhook:w1")).toBe(true);
+    expect(refFromKey("webhook:")).toBeUndefined();
+    expect(normalizeSaved({ open: [{ kind: "webhook", id: "w1" }, { kind: "webhook", id: "w1" }] }).open).toEqual([{ kind: "webhook", id: "w1" }]);
+  });
+  it("follow the endpoint list: renamed relabel, deleted close; env tabs untouched", () => {
+    const tabs = [
+      { ref: { kind: "webhook" as const, id: "w1" }, name: "Payme" },
+      { ref: { kind: "webhook" as const, id: "w2" }, name: "Click" },
+      { ref: { kind: "env" as const, id: "w2" }, name: "an env" },
+    ];
+    expect(syncNamedTabs("webhook", tabs, [{ id: "w1", name: "Payme callbacks" }])).toEqual({
+      rename: [{ ref: { kind: "webhook", id: "w1" }, name: "Payme callbacks" }],
+      close: [{ kind: "webhook", id: "w2" }],
     });
   });
 });

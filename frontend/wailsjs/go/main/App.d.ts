@@ -11,9 +11,17 @@ export function CancelRequest(arg1:string):Promise<void>;
 
 export function ChooseImportFile():Promise<main.ImportFileResult>;
 
+export function ClearCaptures(arg1:string):Promise<main.EmptyResult>;
+
 export function ClearHistory(arg1:string,arg2:string):Promise<main.DeletedResult>;
 
 export function ConfirmQuit():Promise<void>;
+
+export function CopyCaptureAsRequest(arg1:string,arg2:number):Promise<main.RequestSummaryResult>;
+
+export function CopyCaptureBody(arg1:string,arg2:number):Promise<main.EmptyResult>;
+
+export function CopyCaptureFilteredResult(arg1:string,arg2:number,arg3:string):Promise<main.EmptyResult>;
 
 export function CopyFilteredResult(arg1:string,arg2:string):Promise<main.EmptyResult>;
 
@@ -33,6 +41,8 @@ export function CreateTeam(arg1:string):Promise<main.TeamRefResult>;
 
 export function CreateVariable(arg1:string,arg2:string,arg3:string):Promise<main.VariableResult>;
 
+export function CreateWebhook(arg1:string,arg2:string):Promise<main.WebhookResult>;
+
 export function DeleteEnvironment(arg1:string,arg2:string):Promise<main.EmptyResult>;
 
 export function DeleteFolder(arg1:string):Promise<main.EmptyResult>;
@@ -49,7 +59,11 @@ export function DeleteTeam(arg1:string):Promise<main.EmptyResult>;
 
 export function DeleteVariable(arg1:string):Promise<main.EmptyResult>;
 
+export function DeleteWebhook(arg1:string):Promise<main.EmptyResult>;
+
 export function DuplicateRequest(arg1:string):Promise<main.RequestSummaryResult>;
+
+export function EvalCaptureFilter(arg1:string,arg2:number,arg3:string):Promise<main.FilterResult>;
 
 export function EvalHistoryFilter(arg1:number,arg2:string):Promise<main.FilterResult>;
 
@@ -58,6 +72,8 @@ export function EvalResponseFilter(arg1:string,arg2:string):Promise<main.FilterR
 export function FormatJSONBody(arg1:string):Promise<main.FormattedBodyResult>;
 
 export function GetAuthState():Promise<session.AuthState>;
+
+export function GetCaptureDetail(arg1:string,arg2:number):Promise<main.CaptureDetailResult>;
 
 export function GetEnvContext(arg1:string):Promise<main.EnvContextResult>;
 
@@ -97,6 +113,12 @@ export function GetTreeState(arg1:string):Promise<Array<string>>;
 
 export function GetUIPrefs():Promise<main.UIPrefs>;
 
+export function GetWebhook(arg1:string):Promise<main.WebhookResult>;
+
+export function GetWebhookMeta():Promise<main.MetaResult>;
+
+export function GetWebhookPanel(arg1:string):Promise<main.WebhookPanelPrefs>;
+
 export function ImportOpenAPI(arg1:string,arg2:string):Promise<main.ImportReportResult>;
 
 export function ImportPostmanCollection(arg1:string,arg2:string):Promise<main.ImportReportResult>;
@@ -119,6 +141,8 @@ export function ListTeams():Promise<main.TeamListResult>;
 
 export function ListVariables(arg1:string):Promise<main.VariableViewListResult>;
 
+export function ListWebhooks(arg1:string):Promise<main.WebhookListResult>;
+
 export function LoadWorkspace():Promise<main.WorkspaceResult>;
 
 export function Login(arg1:string,arg2:string):Promise<session.Result>;
@@ -138,6 +162,8 @@ export function MoveRequest(arg1:string,arg2:string):Promise<main.RequestSummary
 export function MoveVariable(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
 
 export function PlaceNode(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:Array<string>):Promise<main.EmptyResult>;
+
+export function PollCaptures(arg1:string,arg2:number):Promise<main.CaptureListResult>;
 
 export function Register(arg1:string,arg2:string,arg3:string):Promise<session.Result>;
 
@@ -160,6 +186,10 @@ export function ReorderRequests(arg1:string,arg2:string,arg3:Array<string>):Prom
 export function RestoreHistoryEntry(arg1:number,arg2:string):Promise<main.RequestSummaryResult>;
 
 export function RevokeInvitation(arg1:string):Promise<main.EmptyResult>;
+
+export function SaveCaptureBodyToFile(arg1:string,arg2:number):Promise<main.SavedFileResult>;
+
+export function SaveCaptureFilteredToFile(arg1:string,arg2:number,arg3:string):Promise<main.SavedFileResult>;
 
 export function SaveFilteredResponseToFile(arg1:string,arg2:string):Promise<main.SavedFileResult>;
 
@@ -219,11 +249,17 @@ export function SetVariableType(arg1:string,arg2:string,arg3:string):Promise<mai
 
 export function SetVariableValue(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
 
+export function SetWebhookPanel(arg1:string,arg2:main.WebhookPanelPrefs):Promise<main.EmptyResult>;
+
 export function UpdateProjectName(arg1:string,arg2:string):Promise<main.ProjectResult>;
 
 export function UpdateRequest(arg1:string,arg2:api.RequestPatch):Promise<main.RequestResult>;
 
 export function UpdateTeamName(arg1:string,arg2:string):Promise<main.TeamResult>;
+
+export function UpdateWebhook(arg1:string,arg2:main.WebhookPatchInput):Promise<main.WebhookResult>;
+
+export function WarmCaptureFilter(arg1:string,arg2:number):Promise<void>;
 
 export function WarmHistoryFilter(arg1:number):Promise<void>;
 

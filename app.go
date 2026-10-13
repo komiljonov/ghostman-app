@@ -43,6 +43,7 @@ type App struct {
 	importMu   sync.Mutex     // one Postman import at a time
 	clipboard  clipboardFunc  // system clipboard (tests replace it)
 	historyDoc historyDocCache
+	captures   captureCache // the capture the webhook detail view shows
 
 	quitMu   sync.Mutex
 	quitting bool

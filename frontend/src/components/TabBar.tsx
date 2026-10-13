@@ -4,6 +4,7 @@ import { TabsController } from "../tabsController";
 import MethodBadge from "./MethodBadge";
 import ContextMenu, { MenuEntry } from "./ContextMenu";
 import Icon from "./Icon";
+import { feedOf } from "../webhookStore";
 
 interface Props {
   controller: TabsController;
@@ -15,7 +16,7 @@ interface Props {
   consumeClick: () => boolean; // true right after a drag ended: that click is not an activation
 }
 
-// One editor group's tabs (requests, environments, the environment list, History).
+// One editor group's tabs (requests, environments, the environment list, History, webhooks).
 // Click activates, middle-click or × closes; dragging (reorder, move to another
 // group, split) is handled by EditorGroups. Right-click: Close / Close Others /
 // Close All (this group), Split Right / Split Down, Move to Group N.
@@ -89,8 +90,14 @@ export default function TabBar(props: Props) {
                     <Match when={t().kind === "history"}>
                       <span class="env-chip"><Icon name="history" size={12} /></span>
                     </Match>
+                    <Match when={t().kind === "webhook"}>
+                      <span class="env-chip"><Icon name="webhook" size={12} /></span>
+                    </Match>
                   </Switch>
                   <span class="tab-name">{t().name || "Loading…"}</span>
+                  <Show when={t().kind === "webhook" && (feedOf(t().id)?.unseen ?? 0) > 0}>
+                    <span class="unseen-badge" title="New captured requests">{feedOf(t().id)!.unseen}</span>
+                  </Show>
                   <Show when={t().save === "error"}><span class="tab-unsaved" title="Not saved">●</span></Show>
                   <button type="button" class="tab-close" aria-label={`Close ${t().name}`}
                     onClick={(e) => {

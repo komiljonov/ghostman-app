@@ -32,6 +32,9 @@ import { publishProjectId } from "../workspaceStore";
 import RequestEditor from "./RequestEditor";
 import ImportModal from "./ImportModal";
 import ImportReport from "./ImportReport";
+import WebhooksPanel from "./WebhooksPanel";
+import WebhookView from "./WebhookView";
+import { flushWebhookEdits, markSeen, reloadWebhooks, resetWebhooks, syncFeeds, webhooks, webhooksLoaded } from "../webhookStore";
 
 interface Props {
   onOpenSettings: () => void;
@@ -113,6 +116,39 @@ export default function MainScreen(props: Props) {
     tabs()?.open(id);
     setPane("editor");
   };
+  const openWebhook = (id: string, name: string) => {
+    tabs()?.openWebhook(id, name);
+    setPane("editor");
+  };
+
+  // Webhook tabs: every open one is polled (webhookStore), they follow the
+  // endpoint list (renames relabel, deletes close), and a visible one has nothing
+  // unseen. An endpoint deleted elsewhere answers 404: its tab closes with a notice.
+  const [hookNotice, setHookNotice] = createSignal<string>();
+  createEffect(() => {
+    const t = tabs();
+    const ids = t ? t.webhookIds() : [];
+    syncFeeds(ids, {
+      visible: (id) => pane() === "editor" && !!t?.isVisible({ kind: "webhook", id }),
+      onGone: (id) => {
+        const tab = t?.tabByKey(`webhook:${id}`);
+        if (tab) void t!.close(tab.key);
+        setHookNotice(`Webhook endpoint “${tab?.name || "?"}” no longer exists — its tab was closed.`);
+        void reloadWebhooks();
+      },
+    });
+  });
+  createEffect(() => {
+    const t = tabs();
+    if (!t || pane() !== "editor") return;
+    for (const id of t.webhookIds()) if (t.isVisible({ kind: "webhook", id })) markSeen(id);
+  });
+  createEffect(() => {
+    const t = tabs();
+    const list = webhooks();
+    if (t && t.state.restored && webhooksLoaded()) t.syncWithWebhooks(list);
+  });
+  onCleanup(() => resetWebhooks());
 
   // Keyboard shortcuts, active regardless of focus: Ctrl/Cmd+Enter sends the active
   // request tab; Ctrl+Tab / Ctrl+Shift+Tab cycle tabs in bar order; Ctrl/Cmd+W closes
@@ -171,6 +207,7 @@ export default function MainScreen(props: Props) {
   onMount(() => {
     const off = EventsOn("app:before-close", async () => {
       await tabs()?.flushAll().catch(() => undefined);
+      await flushWebhookEdits().catch(() => undefined);
       void ConfirmQuit();
     });
     onCleanup(off);
@@ -295,6 +332,14 @@ export default function MainScreen(props: Props) {
       <Show when={wsError()}>
         <p class="form-error banner">{wsError()}</p>
       </Show>
+      <Show when={hookNotice()}>
+        <p class="banner banner-dismissible banner-info" role="status">
+          <span>{hookNotice()}</span>
+          <button type="button" class="icon-button" aria-label="Dismiss" onClick={() => setHookNotice(undefined)}>
+            <Icon name="close" size={14} />
+          </button>
+        </p>
+      </Show>
       <Show when={migrationError()}>
         <p class="form-error banner banner-dismissible" role="alert">
           <span>{migrationError()}</span>
@@ -306,15 +351,19 @@ export default function MainScreen(props: Props) {
       <div class="shell">
         <Show when={currentProject()} fallback={<ProjectSidebar />}>
           {(project) => (
-            <ProjectTree
-              projectId={project().id}
-              refreshTick={refreshTick() + treeTick()}
-              selectedRequestId={pane() === "editor" ? tabs()?.activeRequestId() : undefined}
-              onOpenRequest={openRequest}
-              onLoaded={(pid, requests) => {
-                if (pid === projectId()) tabs()?.syncWithTree(requests);
-              }}
-            />
+            <aside class="sidebar sidebar-stack">
+              <ProjectTree
+                projectId={project().id}
+                refreshTick={refreshTick() + treeTick()}
+                selectedRequestId={pane() === "editor" ? tabs()?.activeRequestId() : undefined}
+                onOpenRequest={openRequest}
+                onLoaded={(pid, requests) => {
+                  if (pid === projectId()) tabs()?.syncWithTree(requests);
+                }}
+              />
+              <WebhooksPanel projectId={project().id} refreshTick={refreshTick()} onOpen={openWebhook}
+                isOpen={(id) => !!tabs()?.tabByKey(`webhook:${id}`)} />
+            </aside>
           )}
         </Show>
         <SidebarResizer />
@@ -375,6 +424,9 @@ export default function MainScreen(props: Props) {
                         </Match>
                         <Match when={tab.kind === "history"}>
                           <HistoryView projectId={projectId()} requestIds={requestIds()} onOpenRequest={openRequest} />
+                        </Match>
+                        <Match when={tab.kind === "webhook"}>
+                          <WebhookView webhookId={tab.id} onOpenRequest={openRequest} />
                         </Match>
                       </Switch>
                   )} />

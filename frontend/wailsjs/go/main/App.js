@@ -14,12 +14,28 @@ export function ChooseImportFile() {
   return window['go']['main']['App']['ChooseImportFile']();
 }
 
+export function ClearCaptures(arg1) {
+  return window['go']['main']['App']['ClearCaptures'](arg1);
+}
+
 export function ClearHistory(arg1, arg2) {
   return window['go']['main']['App']['ClearHistory'](arg1, arg2);
 }
 
 export function ConfirmQuit() {
   return window['go']['main']['App']['ConfirmQuit']();
+}
+
+export function CopyCaptureAsRequest(arg1, arg2) {
+  return window['go']['main']['App']['CopyCaptureAsRequest'](arg1, arg2);
+}
+
+export function CopyCaptureBody(arg1, arg2) {
+  return window['go']['main']['App']['CopyCaptureBody'](arg1, arg2);
+}
+
+export function CopyCaptureFilteredResult(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CopyCaptureFilteredResult'](arg1, arg2, arg3);
 }
 
 export function CopyFilteredResult(arg1, arg2) {
@@ -58,6 +74,10 @@ export function CreateVariable(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateVariable'](arg1, arg2, arg3);
 }
 
+export function CreateWebhook(arg1, arg2) {
+  return window['go']['main']['App']['CreateWebhook'](arg1, arg2);
+}
+
 export function DeleteEnvironment(arg1, arg2) {
   return window['go']['main']['App']['DeleteEnvironment'](arg1, arg2);
 }
@@ -90,8 +110,16 @@ export function DeleteVariable(arg1) {
   return window['go']['main']['App']['DeleteVariable'](arg1);
 }
 
+export function DeleteWebhook(arg1) {
+  return window['go']['main']['App']['DeleteWebhook'](arg1);
+}
+
 export function DuplicateRequest(arg1) {
   return window['go']['main']['App']['DuplicateRequest'](arg1);
+}
+
+export function EvalCaptureFilter(arg1, arg2, arg3) {
+  return window['go']['main']['App']['EvalCaptureFilter'](arg1, arg2, arg3);
 }
 
 export function EvalHistoryFilter(arg1, arg2) {
@@ -108,6 +136,10 @@ export function FormatJSONBody(arg1) {
 
 export function GetAuthState() {
   return window['go']['main']['App']['GetAuthState']();
+}
+
+export function GetCaptureDetail(arg1, arg2) {
+  return window['go']['main']['App']['GetCaptureDetail'](arg1, arg2);
 }
 
 export function GetEnvContext(arg1) {
@@ -186,6 +218,18 @@ export function GetUIPrefs() {
   return window['go']['main']['App']['GetUIPrefs']();
 }
 
+export function GetWebhook(arg1) {
+  return window['go']['main']['App']['GetWebhook'](arg1);
+}
+
+export function GetWebhookMeta() {
+  return window['go']['main']['App']['GetWebhookMeta']();
+}
+
+export function GetWebhookPanel(arg1) {
+  return window['go']['main']['App']['GetWebhookPanel'](arg1);
+}
+
 export function ImportOpenAPI(arg1, arg2) {
   return window['go']['main']['App']['ImportOpenAPI'](arg1, arg2);
 }
@@ -230,6 +274,10 @@ export function ListVariables(arg1) {
   return window['go']['main']['App']['ListVariables'](arg1);
 }
 
+export function ListWebhooks(arg1) {
+  return window['go']['main']['App']['ListWebhooks'](arg1);
+}
+
 export function LoadWorkspace() {
   return window['go']['main']['App']['LoadWorkspace']();
 }
@@ -268,6 +316,10 @@ export function MoveVariable(arg1, arg2, arg3) {
 
 export function PlaceNode(arg1, arg2, arg3, arg4, arg5, arg6) {
   return window['go']['main']['App']['PlaceNode'](arg1, arg2, arg3, arg4, arg5, arg6);
+}
+
+export function PollCaptures(arg1, arg2) {
+  return window['go']['main']['App']['PollCaptures'](arg1, arg2);
 }
 
 export function Register(arg1, arg2, arg3) {
@@ -312,6 +364,14 @@ export function RestoreHistoryEntry(arg1, arg2) {
 
 export function RevokeInvitation(arg1) {
   return window['go']['main']['App']['RevokeInvitation'](arg1);
+}
+
+export function SaveCaptureBodyToFile(arg1, arg2) {
+  return window['go']['main']['App']['SaveCaptureBodyToFile'](arg1, arg2);
+}
+
+export function SaveCaptureFilteredToFile(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SaveCaptureFilteredToFile'](arg1, arg2, arg3);
 }
 
 export function SaveFilteredResponseToFile(arg1, arg2) {
@@ -430,6 +490,10 @@ export function SetVariableValue(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetVariableValue'](arg1, arg2, arg3);
 }
 
+export function SetWebhookPanel(arg1, arg2) {
+  return window['go']['main']['App']['SetWebhookPanel'](arg1, arg2);
+}
+
 export function UpdateProjectName(arg1, arg2) {
   return window['go']['main']['App']['UpdateProjectName'](arg1, arg2);
 }
@@ -440,6 +504,14 @@ export function UpdateRequest(arg1, arg2) {
 
 export function UpdateTeamName(arg1, arg2) {
   return window['go']['main']['App']['UpdateTeamName'](arg1, arg2);
+}
+
+export function UpdateWebhook(arg1, arg2) {
+  return window['go']['main']['App']['UpdateWebhook'](arg1, arg2);
+}
+
+export function WarmCaptureFilter(arg1, arg2) {
+  return window['go']['main']['App']['WarmCaptureFilter'](arg1, arg2);
 }
 
 export function WarmHistoryFilter(arg1) {

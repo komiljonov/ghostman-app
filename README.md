@@ -42,6 +42,12 @@ put credentials in a **secret** variable (`{{API_TOKEN}}`): auth settings themse
 the server for the whole team, secret values never are. A header or query parameter you write
 yourself with the same name (e.g. your own `Authorization` header) wins over the one built from
 the Auth settings.
+**Webhooks** (the panel at the bottom of the sidebar): create a capture endpoint, give its URL
+(`https://<domain>/h/<slug>`) to the service that calls you, and watch the incoming requests arrive in
+its tab every 2 seconds — headers and body (pretty JSON, search, jq), newest first. You set the
+response the sender gets (status, headers, body). **Copy as request** turns a captured call into a
+request you can replay. Endpoints are shared with the team; polling pauses while the window is in the
+background.
 **History** (profile menu → History) lists every request sent from this computer, newest first,
 grouped by day, with search and method / status / project filters; an entry shows the request
 as authored and as sent, the response and its timing, and can be restored as a new request. Media responses

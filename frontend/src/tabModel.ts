@@ -1,11 +1,11 @@
 // Pure tab logic (typed tabs, persistence format, reordering, shortcut rules).
 // No Solid, no bindings — unit-tested in tabModel.test.ts.
 
-export type TabKind = "request" | "env" | "env_list" | "history";
+export type TabKind = "request" | "env" | "env_list" | "history" | "webhook";
 
 export interface TabRef {
   kind: TabKind;
-  id: string; // request id / environment id; "" for env_list and history
+  id: string; // request / environment / webhook id; "" for env_list and history
 }
 
 export const ENV_LIST: TabRef = { kind: "env_list", id: "" };
@@ -37,7 +37,7 @@ function toRef(v: unknown): TabRef | undefined {
   if (!v || typeof v !== "object") return undefined;
   const { kind, id } = v as { kind?: unknown; id?: unknown };
   const sid = typeof id === "string" ? id : "";
-  if (kind === "request" || kind === "env") return sid ? { kind, id: sid } : undefined;
+  if (kind === "request" || kind === "env" || kind === "webhook") return sid ? { kind, id: sid } : undefined;
   if (kind === "env_list") return ENV_LIST;
   if (kind === "history") return HISTORY;
   return undefined;
@@ -91,15 +91,20 @@ export const isSendShortcut = (e: { key: string; ctrlKey: boolean; metaKey: bool
 
 // What to do with environment tabs after the project's environment list changes:
 // relabel renamed ones, close deleted ones.
-export function syncEnvTabs(
+export const syncEnvTabs = (tabs: { ref: TabRef; name: string }[], envs: { id: string; name: string }[]) =>
+  syncNamedTabs("env", tabs, envs);
+
+// The same for any tab kind backed by a server list (environments, webhooks).
+export function syncNamedTabs(
+  kind: TabKind,
   tabs: { ref: TabRef; name: string }[],
-  envs: { id: string; name: string }[],
+  items: { id: string; name: string }[],
 ): { rename: { ref: TabRef; name: string }[]; close: TabRef[] } {
-  const byId = new Map(envs.map((e) => [e.id, e.name]));
+  const byId = new Map(items.map((e) => [e.id, e.name]));
   const rename: { ref: TabRef; name: string }[] = [];
   const close: TabRef[] = [];
   for (const t of tabs) {
-    if (t.ref.kind !== "env") continue;
+    if (t.ref.kind !== kind) continue;
     const name = byId.get(t.ref.id);
     if (name === undefined) close.push(t.ref);
     else if (name !== t.name) rename.push({ ref: t.ref, name });

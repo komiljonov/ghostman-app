@@ -66,8 +66,8 @@ Postman-style shell, logged in:
   the current team in sort order, "+ New project", "Project settings") · refresh (↻) · on the
   right the **env switcher** and then the **profile badge** (initials) whose menu holds user
   name/email, Invitations (count badge), History, Import… (OpenAPI / Swagger / Postman), Settings (server URL modal), Log out.
-- **Left sidebar**: only the current project's folders/requests tree (`ProjectTree`). Never
-  teams, invitations or other navigation. The tree is built client-side (`src/tree.ts`, unit
+- **Left sidebar**: the current project's folders/requests tree (`ProjectTree`) and, docked
+  below it, the **Webhooks panel** (see Webhooks). Never teams, invitations or other navigation. The tree is built client-side (`src/tree.ts`, unit
   tested) from ONE ListFolders + ONE ListRequests call and rebuilt after every mutation;
   rows are keyed by id and expansion is per-node state (persisted locally under
   `ui_tree_state_<project_id>`), so expand/collapse never rebuilds the tree. Row actions live
@@ -117,7 +117,8 @@ Postman-style shell, logged in:
   `request` (method | URL (stretches) | Send / Cancel in one fixed slot at the far right;
   Params | Headers | Body | Auth | Scripts | Settings | History with the save status at the row's right end; response below a
   draggable divider), `env` (that environment's variables table), `env_list`
-  (create / rename / reorder / delete environments) and `history` (see History). There is no separate environments page.
+  (create / rename / reorder / delete environments), `history` (see History) and `webhook` (see
+  Webhooks). There is no separate environments page.
 - **Editor groups** (VS Code style; pure rules in `src/layoutTree.ts` and `src/dropZone.ts`,
   both unit tested): the main pane is a split tree — `SplitNode{direction, children, sizes}` /
   `GroupNode{tabs, activeTabId}`. Every tab is in exactly one group; exactly one group is
@@ -507,6 +508,51 @@ Postman-style shell, logged in:
   count badge, red with an error; per send, never persisted, cleared by every send. **History**: `console_json`
   (migration 00010) stores the output; the detail has a Console tab; the summary method / resolved copy are AS
   SENT (post-mutation), the template copy is the stored request.
+- **Webhooks** (capture endpoints; Go: `api` webhooks client + `CaptureDraft` in `internal/api/webhooks.go`,
+  bound methods in `webhooks.go`; UI: `WebhooksPanel`, `WebhookView`, `CaptureDetailView`, `PlainEditor`;
+  rules in `src/webhookModel.ts` + `src/webhookPoll.ts`, both unit tested; shared state `src/webhookStore.ts`).
+  The server owns endpoints (slug, preferred domain, configured static response) and captures; `GET
+  /api/v1/meta` lists the capture domains (first = default; empty = feature off). **Panel**: a one-row bar at
+  the bottom of the sidebar (chevron · "Webhooks" · count · "+"), collapsed by default, expanding UPWARD — the
+  sidebar is a column (`.sidebar-stack`): the tree (`nav.tree-sidebar`, its own scroll — the tree DnD
+  scroller, so auto-scroll follows the reduced height; a tree drag released over the panel drops nothing)
+  above the panel. Height = a fraction of the sidebar (default 30 %), clamped in px (panel ≥ 120, tree ≥ 160,
+  `clampPanel`); the top-edge handle rewrites only the element's height while dragging, saves on release,
+  double-click → 30 %. Expanded + fraction per project (`ui_webhooks_panel_<project_id>`,
+  `GetWebhookPanel`/`SetWebhookPanel`). "+" → inline name form; the server's errors are shown verbatim
+  (quota 409, invalid-domain 400), except the not-configured 409, which Go marks `code
+  hooks_not_configured` and the UI explains ("not set up on this server … HOOKS_DOMAINS"; also when meta
+  is empty: "+" disabled with that reason). Rows: icon · name · unseen badge · listening dot (green =
+  polled, amber = last poll failed, muted = paused / no tab) · ⋯ (Open, Rename inline, Copy URL = path form,
+  Delete with confirm "captured requests are deleted too"). Click opens / focuses the tab. **Tab**
+  (`webhook`, persisted like env tabs, synced with `ListWebhooks`: renames relabel, deletes close): name +
+  pulsing listening dot; domain `<select>` (meta order, default marked; a change PATCHes and re-fetches; a
+  stored domain the server no longer offers shows the default + a muted hint); URLs, always https:
+  PRIMARY `https://{domain}/h/{slug}`, secondary `https://{slug}.{domain}/` ("requires wildcard DNS"), each
+  with Copy. "Response to senders" (collapsible, state kept per tab in memory): status (100–599, validated
+  in TS and Go; an invalid one is left out of the save), headers = the shared `KeyValueEditor` (kind
+  headers: toggles + bulk), body = `PlainEditor` (`createPlainEditor`: no `{{var}}` machinery; JSON colors
+  when the configured Content-Type is JSON). Autosave like requests (600 ms, `createAutosaver`, changed
+  fields only, SaveIndicator; flushed on unmount and on quit via `flushWebhookEdits`). **Captures**:
+  newest first (method · path+query · content type · size + scissors when the server kept less · source IP
+  · relative time); empty → "Waiting for requests…". The detail (history-like) shows headers and the body
+  through the shared viewer (`GetCaptureDetail`: Go-side 256 KB preview, pretty JSON, media kind; the full
+  capture is cached Go-side for jq / copy / save — `EvalCaptureFilter`, `CopyCaptureBody`,
+  `SaveCaptureBodyToFile`, …); a media / binary body is never text: `MediaPreview` file card with Save.
+  Clear all (inline confirm) empties the list; the cursor stays. **Copy as request** = ONE bound call
+  (`CopyCaptureAsRequest` → `api.CopyCaptureAsRequest`: GET webhook + capture → `CreateRequestFrom` at
+  the project root, "<endpoint> capture"; URL = the captured path, query → enabled param rows, method (non-
+  editor methods → GET), headers minus Host / Content-Length / Connection / Accept-Encoding, body raw with
+  the captured Content-Type; auth inherit), then tree re-fetch + open. `GetCapture` reads up to 4 MB (the
+  server keeps ≤ 1 MB of body = ~1.37 MB base64; the client's default cap is 1 MB). **Polling**
+  (`createPoller`): every 2 s per OPEN webhook tab, also in a background group or behind another tab (feeds
+  live in `webhookStore`, not the component — groups mount only their active tab); `PollCaptures(id,
+  after)` pages ascending (≤ 10 pages per poll); one in flight per endpoint; paused on window blur
+  (minimize included), an immediate catch-up poll on focus; errors → amber dot + tooltip, silent retry; a
+  404 closes the tab with a one-line notice and re-fetches the panel. The first answer is the backlog (not
+  "new"); later rows prepend (≤ 500 kept): at the list's top they just appear, scrolled away the reader's
+  row stays put (`overflow-anchor`) and an "N new ↑" chip scrolls to the top; while the tab is not its
+  group's active tab the count is "unseen" (tab badge + panel row badge), cleared when it is shown.
 - **Current team/project** live in Go (`internal/workspace`), persisted in settings
   (`current_team_id`, `current_project_id`) and validated against fresh server lists on every
   load: a vanished team falls back to the first team with no project, a vanished project to no
@@ -533,6 +579,8 @@ environments.go          bound environment/variable methods + local secret acces
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
 responses.go             full response bodies per tab (Go-side), SaveResponseToFile, ReleaseResponse
+webhooks.go              bound webhook capture: endpoints, PollCaptures, capture detail / jq / save / copy,
+                         CopyCaptureAsRequest, sidebar panel prefs (GetWebhookPanel/SetWebhookPanel)
 import_files.go          bound import: ChooseImportFile, ImportPostmanCollection/Environment, ImportOpenAPI (internal/importer)
 scripts.go               send scripts: gatherScripts (run order), cloneSpec, flushEnv (env writes via envs), GetScriptAPIDocs
 body_format.go           bound FormatJSONBody (raw body Format; rules in internal/jsonfmt)
@@ -571,6 +619,9 @@ frontend/                Vite + Solid + TS
 
 ## Backlog (deliberately deferred)
 
+- Webhooks: media preview of capture bodies (placeholder + Save for now); websocket push (polling by
+  design); webhooks outside the current project; custom slugs; capture counts on panel rows without an
+  open tab.
 - Variable usage search; env duplication;
   dynamic/generated variables.
 - More cascading settings through the same resolver (proxy, timeout, TLS / insecure);

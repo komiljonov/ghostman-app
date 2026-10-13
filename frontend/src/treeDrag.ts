@@ -75,8 +75,11 @@ export function createTreeDrag(opts: TreeDragOptions) {
     const recompute = () => {
       const rows = readRows(list);
       const lr = list.getBoundingClientRect();
-      // Only over the sidebar: dragging out over the editor drops nowhere.
-      const drop = x < lr.left || x > lr.right ? null : computeDrop(rows, opts.tree(), dragged, y);
+      // Only over the tree: dragging out over the editor, or down onto the
+      // webhooks panel docked below the tree, drops nowhere.
+      const sr = opts.scroller()?.getBoundingClientRect();
+      const outside = x < lr.left || x > lr.right || (!!sr && y > sr.bottom);
+      const drop = outside ? null : computeDrop(rows, opts.tree(), dragged, y);
       // Hovering a collapsed folder (as a drop INTO it) opens it after a moment.
       const into = drop?.type === "into" && !rows.find((r) => r.id === drop.folderId)?.expanded ? drop.folderId : undefined;
       if (into !== expandFor) {

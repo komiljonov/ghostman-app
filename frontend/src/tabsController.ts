@@ -20,7 +20,7 @@ import {
   moveTab, openTab, resetSizes, resize, Side, singleGroup, splitGroup,
 } from "./layoutTree";
 import { applyDrop, DropTarget } from "./dropZone";
-import { closeEach, CloseMode, cycleKey, ENV_LIST, HISTORY, syncEnvTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
+import { closeEach, CloseMode, cycleKey, ENV_LIST, HISTORY, syncEnvTabs, syncNamedTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
 
 export const AUTOSAVE_DELAY_MS = 600;
 
@@ -275,7 +275,8 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     async restore() {
       const restored = await restoreLayout(layoutStorage, projectId, async (ref) => {
         if (ref.kind !== "request") {
-          // Env tabs are checked against the environment list by syncWithEnvs.
+          // Env / webhook tabs are checked against their server lists by
+          // syncWithEnvs / syncWithWebhooks (which also name them).
           addTab(ref, fixedName(ref), "ready");
           return true;
         }
@@ -310,6 +311,19 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
 
     openHistory() {
       openRef(HISTORY, HISTORY_NAME, "ready");
+    },
+
+    openWebhook(id: string, name: string) {
+      openRef({ kind: "webhook", id }, name, "ready");
+    },
+
+    // The webhook tabs' ids (each one is polled while it exists).
+    webhookIds: () => state.tabs.filter((t) => t.kind === "webhook").map((t) => t.id),
+
+    // Whether a tab is shown: the active tab of its group (focused or not).
+    isVisible(ref: TabRef) {
+      const key = tabKey(ref);
+      return groupOf(state.layout.root, key)?.activeTabId === key;
     },
 
     // Activates a tab in its group and focuses that group.
@@ -480,6 +494,14 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     syncWithEnvs(envs: { id: string; name: string }[]) {
       if (!state.restored) return;
       const { rename, close } = syncEnvTabs(state.tabs.map((t) => ({ ref: refOf(t), name: t.name })), envs);
+      for (const r of rename) updateKey(tabKey(r.ref), (t) => (t.name = r.name));
+      for (const ref of close) removeTab(tabKey(ref));
+    },
+
+    // Webhook tabs follow the project's endpoint list: renames relabel, deletes close.
+    syncWithWebhooks(hooks: { id: string; name: string }[]) {
+      if (!state.restored) return;
+      const { rename, close } = syncNamedTabs("webhook", state.tabs.map((t) => ({ ref: refOf(t), name: t.name })), hooks);
       for (const r of rename) updateKey(tabKey(r.ref), (t) => (t.name = r.name));
       for (const ref of close) removeTab(tabKey(ref));
     },
