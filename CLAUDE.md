@@ -175,6 +175,36 @@ Postman-style shell, logged in:
   One Mod-/ binding in the shared factory (above basicSetup's): gated by the `bulkEditor` facet
   and a closed completion popup; everywhere else (raw body, URL bar, cells, auth) it is
   swallowed as a no-op. Disabled lines are dimmed (`.cm-bulk-disabled`).
+- **Form-data (multipart) bodies** (body type `multipart`, label "Form-data"; Go: `api.MultipartField` /
+  `NormalizeParts` in `internal/api/request_model.go`, `internal/engine/multipart.go`, bound `request_files.go`;
+  UI: `MultipartEditor`, `MultipartTable`, `FileCell`, rules in `src/multipart.ts` (unit tested), local state
+  `src/requestFiles.ts`). The draft keeps the urlencoded rows (`fields`) and the form-data rows (`parts`)
+  APART, so switching type loses neither; the wire format is the server's (`fields` with `kind` text | file;
+  `RequestBody.UnmarshalJSON` reads both shapes). Rows: enabled · key · Type (Text | File select) · value ·
+  ×; a row keeps its value AND file name while its kind toggles (only the current kind is stored). Text values
+  are VarCells ({{vars}}). **Files follow the secrets pattern**: the synced row carries `file_name` (display
+  only); the PATH lives in local SQLite `request_files` (request id + field key, migration 00011) and the bytes
+  are read from disk at send — neither ever reaches the server or the log. Choose (`ChooseRequestFile`: native
+  open dialog behind `openDialog`) stores the path and the UI sets `file_name` (the autosave PATCHes it);
+  clear (×) removes both; removing a file row forgets its path; a key edit moves the path only when safe
+  (`movesFile`: the row alone owns the old key and no other file row holds the new one — Go's
+  `RenameRequestFileKey` also never overwrites a stored path); duplicate FILE keys block choosing (hint);
+  duplicate text keys are fine. Duplicate request copies the local paths. Cell states (`fileState`): chosen
+  (name · size · Change… · ×, full path as tooltip) · missing (chosen here, gone from disk) / elsewhere (named,
+  but no path on this machine — a teammate's or a copy) both AMBER with Choose… · empty ("Choose file…").
+  Local state is re-read on mount, after every multipart send and on window focus. **Bulk view** (the `form`
+  preference): text rows edit as usual; file rows are READ-ONLY — listed `key: [file] name` above the editor,
+  never parsed from text (`mergeTextRows` replaces text rows in their slots, file rows stay put). **Send**
+  (`engine.bodyPayload`): before anything goes out every enabled file is checked (stat, type sniffed from the
+  first 512 bytes — `http.DetectContentType`, else octet-stream) and a problem aborts with a message naming the
+  field: "file for field 'avatar' not found: avatar.png" / "… is not on this machine: … — choose it again" /
+  "no file chosen for field …". The body is SEGMENTS (multipart.Writer framing bytes + files by path), so its
+  exact Content-Length is known and files are STREAMED (never buffered; 50 MB test asserts allocations) and
+  re-opened by `GetBody` for 307/308. Content-Type `multipart/form-data; boundary=…` unless the user set one
+  (user wins). Disabled / keyless rows skipped. History: template "key: value" / "key: [file name]", resolved
+  "key: [file name, N bytes]" — never the bytes or the path. Scripts read it as those lines.
+  **Verification hook**: `dialog_dev.go` (build tag `devdialog`, never shipped) answers the open dialog with the
+  path written in the file named by `GHOSTMAN_DEV_PICK`, so a headless driver can run the real choose flow.
 - **Format JSON** in the raw body (Go: `internal/jsonfmt`, bound `FormatJSONBody`; editor side:
   `src/bodyFormat.ts` + `formatTransaction` / `bodyFormatter` in `src/codemirror.ts`, both tested).
   Alt+Shift+F (Option+Shift+F on macOS, as in VS Code) in the raw body editor, or the **Format** button at the right end of the body
@@ -579,6 +609,8 @@ environments.go          bound environment/variable methods + local secret acces
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
 responses.go             full response bodies per tab (Go-side), SaveResponseToFile, ReleaseResponse
+request_files.go         multipart file fields: local paths (Choose/Clear/Rename/ListRequestFiles), attachFiles at send
+dialog_dev.go            devdialog build tag only: scripted open dialog for UI verification
 webhooks.go              bound webhook capture: endpoints, PollCaptures, capture detail / jq / save / copy,
                          CopyCaptureAsRequest, sidebar panel prefs (GetWebhookPanel/SetWebhookPanel)
 import_files.go          bound import: ChooseImportFile, ImportPostmanCollection/Environment, ImportOpenAPI (internal/importer)
@@ -629,7 +661,8 @@ frontend/                Vite + Solid + TS
 - Response search: regex mode.
 - Comments in the raw (JSON) body via Ctrl+/: deliberately NOT supported — comments would be
   sent verbatim and break APIs. Revisit only with an opt-in strip-on-send.
-- Cookies; multipart/file bodies; history export / sync.
+- Cookies; history export / sync. Form-data: duplicate file keys (path storage is per key), files in
+  Postman import (still dropped), drag-and-drop of files onto the table.
 - Scripts: gm.sendRequest, async / timers, require, collection / global variable scopes, script import
   translation (Postman pm.* → gm.*).
 - Import: curl paste (next); external $refs, callbacks / webhooks / links, XML body builders, multipart; export.

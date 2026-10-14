@@ -205,6 +205,7 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 	}
 	template := specFromDraft(draft)
 	template.Auth = engineAuth(opts.Auth)
+	a.attachFiles(requestID, &template) // multipart file fields: local paths (never synced)
 	start := time.Now()
 
 	// Scripts (internal/scripting). ORDER MATTERS: pre-scripts run on a COPY of the
@@ -317,6 +318,13 @@ func (a *App) CancelRequest(requestID string) {
 
 // specFromDraft converts the editor's draft into what the engine sends.
 func specFromDraft(d api.RequestDraft) engine.RequestSpec {
+	parts := func(in []api.MultipartField) []engine.Part {
+		out := make([]engine.Part, 0, len(in))
+		for _, p := range in {
+			out = append(out, engine.Part{Key: p.Key, Kind: p.Kind, Value: p.Value, FileName: p.FileName, Enabled: p.Enabled})
+		}
+		return out
+	}
 	rows := func(in []api.KeyValue) []engine.Header {
 		out := make([]engine.Header, 0, len(in))
 		for _, r := range in {
@@ -334,6 +342,7 @@ func specFromDraft(d api.RequestDraft) engine.RequestSpec {
 			ContentType: d.Body.ContentType,
 			Content:     d.Body.Content,
 			Fields:      rows(d.Body.Fields),
+			Parts:       parts(d.Body.Parts),
 		},
 	}
 }

@@ -6,8 +6,11 @@ import type { CodeEditorHandle } from "../codemirror";
 import { FormatJSONBody } from "../../wailsjs/go/main/App";
 import CodeEditor from "./CodeEditor";
 import KeyValueEditor from "./KeyValueEditor";
+import MultipartEditor from "./MultipartEditor";
+import type { Part } from "../multipart";
 
 interface Props {
+  requestId: string;
   body: Body;
   onChange: (fn: (b: Body) => void) => void;
 }
@@ -16,6 +19,7 @@ const TYPES = [
   { id: "none", label: "None" },
   { id: "raw", label: "Raw" },
   { id: "form", label: "Form (urlencoded)" },
+  { id: "multipart", label: "Form-data" },
 ];
 
 const PRESETS = [
@@ -109,6 +113,10 @@ export default function BodyEditor(props: Props) {
         <Match when={props.body.type === "form"}>
           <KeyValueEditor kind="form" rows={props.body.fields} keyPlaceholder="Field"
             onChange={(rows: Row[]) => change((b) => (b.fields = rows))} />
+        </Match>
+        <Match when={props.body.type === "multipart"}>
+          <MultipartEditor requestId={props.requestId} parts={props.body.parts}
+            onChange={(parts: Part[]) => change((b) => (b.parts = parts))} />
         </Match>
       </Switch>
     </div>

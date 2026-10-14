@@ -131,6 +131,9 @@ func (a *App) DuplicateRequest(id string) RequestSummaryResult {
 	v, p := call(a, func(ctx context.Context, c *api.APIClient) (api.RequestSummary, error) {
 		return c.DuplicateRequest(ctx, id)
 	})
+	if p == nil {
+		a.copyRequestFiles(id, v.ID) // the copy sends the same local files on this machine
+	}
 	return RequestSummaryResult{Data: ptr(v, p), Error: p}
 }
 

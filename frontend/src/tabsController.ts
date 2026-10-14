@@ -14,6 +14,8 @@ import { adoptUrlQuery } from "./urlParams";
 import { AuthConfig, normalizeAuth } from "./auth";
 import { sourceLabel, type ResolvedAuth } from "./settingsResolver";
 import { Row } from "./rows";
+import { Part, partsFrom } from "./multipart";
+import { loadLocalFiles } from "./requestFiles";
 import { createLayoutSaver, LayoutStorage, restoreLayout, saveLayout } from "./layoutPersistence";
 import {
   activateTab, activeTab, allGroups, allTabs, closeTab, enforceMinimums, findGroup, focusedGroup, focusGroup, groupOf, Layout,
@@ -25,10 +27,11 @@ import { closeEach, CloseMode, cycleKey, ENV_LIST, HISTORY, syncEnvTabs, syncNam
 export const AUTOSAVE_DELAY_MS = 600;
 
 export interface Body {
-  type: string; // none | raw | form
+  type: string; // none | raw | form | multipart
   content_type: string;
   content: string;
-  fields: Row[];
+  fields: Row[]; // the urlencoded form's rows
+  parts: Part[]; // the form-data (multipart) rows — kept apart, so switching type loses nothing
 }
 
 // The editable part of a request (mirrors api.RequestDraft).
@@ -80,7 +83,7 @@ export interface TabState {
 }
 
 const emptyDraft = (): Draft => ({
-  method: "GET", url: "", headers: [], query_params: [], body: { type: "none", content_type: "application/json", content: "", fields: [] },
+  method: "GET", url: "", headers: [], query_params: [], body: { type: "none", content_type: "application/json", content: "", fields: [], parts: [] },
   auth: normalizeAuth(),
   response_filter: "",
   pre_script: "",
@@ -97,7 +100,9 @@ export function draftFromRequest(r: api.Request): Draft {
       type: r.body?.type || "none",
       content_type: r.body?.content_type || "application/json",
       content: r.body?.content ?? "",
-      fields: (r.body?.fields ?? []).map((f) => ({ ...f })),
+      // The server sends a multipart body's rows as `fields` (with a kind each).
+      fields: r.body?.type === "multipart" ? [] : (r.body?.fields ?? []).map((f) => ({ ...f })),
+      parts: r.body?.type === "multipart" ? partsFrom(r.body.fields) : partsFrom(r.body?.parts),
     },
     auth: normalizeAuth(r.auth),
     response_filter: r.response_filter ?? "",
@@ -447,6 +452,8 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       );
       handleProblem(result.error);
       historyChanged(); // every send is a new history entry (Go writes it)
+      // A file field's file may have moved since: the cells show what is on disk now.
+      if (snapshot.body.type === "multipart") void loadLocalFiles(id);
       update(id, (t) => {
         t.sending = false;
         t.response = result.data ?? undefined;

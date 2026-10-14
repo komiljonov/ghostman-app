@@ -36,6 +36,12 @@ type History struct {
 	ConsoleJson            sql.NullString `json:"consoleJson"`
 }
 
+type RequestFile struct {
+	RequestID string `json:"requestId"`
+	FieldKey  string `json:"fieldKey"`
+	Path      string `json:"path"`
+}
+
 type RequestSetting struct {
 	RequestID       string `json:"requestId"`
 	FollowRedirects int64  `json:"followRedirects"`

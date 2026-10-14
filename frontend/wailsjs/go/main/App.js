@@ -14,12 +14,20 @@ export function ChooseImportFile() {
   return window['go']['main']['App']['ChooseImportFile']();
 }
 
+export function ChooseRequestFile(arg1, arg2) {
+  return window['go']['main']['App']['ChooseRequestFile'](arg1, arg2);
+}
+
 export function ClearCaptures(arg1) {
   return window['go']['main']['App']['ClearCaptures'](arg1);
 }
 
 export function ClearHistory(arg1, arg2) {
   return window['go']['main']['App']['ClearHistory'](arg1, arg2);
+}
+
+export function ClearRequestFile(arg1, arg2) {
+  return window['go']['main']['App']['ClearRequestFile'](arg1, arg2);
 }
 
 export function ConfirmQuit() {
@@ -258,6 +266,10 @@ export function ListProjects(arg1) {
   return window['go']['main']['App']['ListProjects'](arg1);
 }
 
+export function ListRequestFiles(arg1) {
+  return window['go']['main']['App']['ListRequestFiles'](arg1);
+}
+
 export function ListRequests(arg1) {
   return window['go']['main']['App']['ListRequests'](arg1);
 }
@@ -344,6 +356,10 @@ export function RenameEnvironment(arg1, arg2) {
 
 export function RenameFolder(arg1, arg2) {
   return window['go']['main']['App']['RenameFolder'](arg1, arg2);
+}
+
+export function RenameRequestFileKey(arg1, arg2, arg3) {
+  return window['go']['main']['App']['RenameRequestFileKey'](arg1, arg2, arg3);
 }
 
 export function ReorderFolders(arg1, arg2, arg3) {

@@ -55,6 +55,7 @@ func cloneSpec(s engine.RequestSpec) engine.RequestSpec {
 	s.Headers = slices.Clone(s.Headers)
 	s.QueryParams = slices.Clone(s.QueryParams)
 	s.Body.Fields = slices.Clone(s.Body.Fields)
+	s.Body.Parts = slices.Clone(s.Body.Parts)
 	if s.Auth != nil {
 		a := *s.Auth
 		s.Auth = &a

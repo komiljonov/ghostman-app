@@ -74,8 +74,14 @@ func (s *dupServer) routes() map[string]http.HandlerFunc {
 func TestDuplicateRequest_ComposesCopy(t *testing.T) {
 	srv := &dupServer{}
 	a := newTestApp(t, true, srv.routes())
+	if err := a.store.PutRequestFilePath(a.ctx, "r1", "avatar", "C:/me/avatar.png"); err != nil {
+		t.Fatal(err)
+	}
 
 	res := a.DuplicateRequest("r1")
+	if got := a.ListRequestFiles("r2").Data; len(got) != 1 || got[0].Key != "avatar" || got[0].Path != "C:/me/avatar.png" {
+		t.Errorf("the copy's local files = %+v", got)
+	}
 	if res.Error != nil || res.Data == nil || res.Data.ID != "r2" || res.Data.Name != "req1 copy" {
 		t.Fatalf("result = %+v / %+v", res.Data, res.Error)
 	}

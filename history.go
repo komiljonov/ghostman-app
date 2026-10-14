@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -322,6 +323,9 @@ func (a *App) GetHistoryEntry(id int64) HistoryEntryResult {
 	if body.Type == api.BodyForm {
 		bodyText, _ = engine.SentBody(engine.Body{Type: engine.BodyForm, Fields: kvToHeaders(body.Fields)})
 	}
+	if body.Type == api.BodyMultipart {
+		bodyText = templateParts(body.Parts)
+	}
 	resolvedHeaders := unmarshalOr(h.ReqHeadersResolvedJson, []api.KeyValue{})
 	e := &HistoryEntry{
 		Summary: HistorySummary{
@@ -540,4 +544,22 @@ func httpStatusText(status int64) string {
 		return ""
 	}
 	return http.StatusText(int(status))
+}
+
+// templateParts is a multipart body as authored: "key: value" per enabled row,
+// a file as "key: [file name]" (which file it is lives on the sending machine;
+// the resolved copy has its size, never its bytes).
+func templateParts(parts []api.MultipartField) string {
+	lines := []string{}
+	for _, p := range api.NormalizeParts(parts) {
+		if !p.Enabled {
+			continue
+		}
+		if p.Kind == api.PartFile {
+			lines = append(lines, fmt.Sprintf("%s: [file %s]", p.Key, p.FileName))
+		} else {
+			lines = append(lines, p.Key+": "+p.Value)
+		}
+	}
+	return strings.Join(lines, "\n")
 }

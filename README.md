@@ -48,6 +48,11 @@ its tab every 2 seconds — headers and body (pretty JSON, search, jq), newest f
 response the sender gets (status, headers, body). **Copy as request** turns a captured call into a
 request you can replay. Endpoints are shared with the team; polling pauses while the window is in the
 background.
+**Form-data bodies** (Body → Form-data): text fields (`{{variables}}` work) and file fields. Choose a
+file from your disk; teammates see only its name — the file and where it is on your computer stay on
+your machine (a teammate picks their own copy; such a field shows "no file on this machine"). Files are
+streamed when sending, so big uploads do not fill memory, and a missing file stops the send with a message
+naming the field. History records a file as `[file name, N bytes]`, never its contents.
 **History** (profile menu → History) lists every request sent from this computer, newest first,
 grouped by day, with search and method / status / project filters; an entry shows the request
 as authored and as sent, the response and its timing, and can be restored as a new request. Media responses
