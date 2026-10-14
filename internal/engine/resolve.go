@@ -114,6 +114,18 @@ func ResolveSpec(spec RequestSpec, vars map[string]string) (RequestSpec, []strin
 		out.Body.Content = res(spec.Body.Content)
 	case BodyForm:
 		out.Body.Fields = rows(spec.Body.Fields)
+	case BodyMultipart: // keys and text values; a file part keeps its local path
+		parts := make([]Part, len(spec.Body.Parts))
+		for i, p := range spec.Body.Parts {
+			if p.Enabled {
+				p.Key = res(p.Key)
+				if p.Kind != PartFile {
+					p.Value = res(p.Value)
+				}
+			}
+			parts[i] = p
+		}
+		out.Body.Parts = parts
 	}
 	if spec.Auth != nil { // {{vars}} inside auth values, same map (auth.go)
 		a := resolveAuth(*spec.Auth, res)

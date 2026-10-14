@@ -69,10 +69,21 @@ func NewApp(eng *engine.Engine, defaultServerURL string) *App {
 
 		responses:  newResponseStore(),
 		saveDialog: runtime.SaveFileDialog,
-		openDialog: runtime.OpenFileDialog,
+		openDialog: openFileDialog(),
 		emit:       runtime.EventsEmit,
 		clipboard:  runtime.ClipboardSetText,
 	}
+}
+
+// devOpenDialog replaces the native open dialog in builds with the devdialog
+// tag only (dialog_dev.go: UI verification without driving an OS dialog).
+var devOpenDialog openDialog
+
+func openFileDialog() openDialog {
+	if devOpenDialog != nil {
+		return devOpenDialog
+	}
+	return runtime.OpenFileDialog
 }
 
 func (a *App) startup(ctx context.Context) {

@@ -93,6 +93,8 @@ const SHAPES = {
     </>
   ),
   download: () => <path d="M8 2.5v7.5M4.75 6.75L8 10l3.25-3.25M3 12.75h10" />,
+  // A file (form-data file fields): a page with a folded corner.
+  file: () => <path d="M4 1.75h5l3.25 3.25v8.5c0 .41-.34.75-.75.75h-7.5c-.41 0-.75-.34-.75-.75V2.5c0-.41.34-.75.75-.75zM9 1.75V5h3.25" />,
   // Webhook endpoint: an incoming arrow into a tray.
   webhook: () => <path d="M8 2.25v6.5M5.25 6L8 8.75 10.75 6M2.25 9.5h3l1 1.75h3.5l1-1.75h3V13c0 .41-.34.75-.75.75H3c-.41 0-.75-.34-.75-.75z" />,
   // A body that was cut (stored shorter than received).

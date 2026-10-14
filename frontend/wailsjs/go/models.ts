@@ -399,6 +399,26 @@ export namespace api {
 	        this.hooks_domains = source["hooks_domains"];
 	    }
 	}
+	export class MultipartField {
+	    key: string;
+	    kind: string;
+	    value: string;
+	    file_name: string;
+	    enabled: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new MultipartField(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.kind = source["kind"];
+	        this.value = source["value"];
+	        this.file_name = source["file_name"];
+	        this.enabled = source["enabled"];
+	    }
+	}
 	export class MyInvitation {
 	    id: string;
 	    team: TeamRef;
@@ -510,6 +530,7 @@ export namespace api {
 	    content_type: string;
 	    content: string;
 	    fields: KeyValue[];
+	    parts: MultipartField[];
 	
 	    static createFrom(source: any = {}) {
 	        return new RequestBody(source);
@@ -521,6 +542,7 @@ export namespace api {
 	        this.content_type = source["content_type"];
 	        this.content = source["content"];
 	        this.fields = this.convertValues(source["fields"], KeyValue);
+	        this.parts = this.convertValues(source["parts"], MultipartField);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -2459,6 +2481,90 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = this.convertValues(source["data"], api.Project);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class RequestFile {
+	    key: string;
+	    path: string;
+	    file_name: string;
+	    size: number;
+	    exists: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.path = source["path"];
+	        this.file_name = source["file_name"];
+	        this.size = source["size"];
+	        this.exists = source["exists"];
+	    }
+	}
+	export class RequestFileListResult {
+	    data: RequestFile[];
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestFileListResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], RequestFile);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class RequestFileResult {
+	    data?: RequestFile;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestFileResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], RequestFile);
 	        this.error = this.convertValues(source["error"], session.Problem);
 	    }
 	

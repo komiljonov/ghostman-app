@@ -11,9 +11,13 @@ export function CancelRequest(arg1:string):Promise<void>;
 
 export function ChooseImportFile():Promise<main.ImportFileResult>;
 
+export function ChooseRequestFile(arg1:string,arg2:string):Promise<main.RequestFileResult>;
+
 export function ClearCaptures(arg1:string):Promise<main.EmptyResult>;
 
 export function ClearHistory(arg1:string,arg2:string):Promise<main.DeletedResult>;
+
+export function ClearRequestFile(arg1:string,arg2:string):Promise<main.EmptyResult>;
 
 export function ConfirmQuit():Promise<void>;
 
@@ -133,6 +137,8 @@ export function ListMyInvitations():Promise<main.MyInvitationListResult>;
 
 export function ListProjects(arg1:string):Promise<main.ProjectListResult>;
 
+export function ListRequestFiles(arg1:string):Promise<main.RequestFileListResult>;
+
 export function ListRequests(arg1:string):Promise<main.RequestListResult>;
 
 export function ListTeamInvitations(arg1:string):Promise<main.TeamInvitationListResult>;
@@ -176,6 +182,8 @@ export function RemoveMember(arg1:string,arg2:string):Promise<main.EmptyResult>;
 export function RenameEnvironment(arg1:string,arg2:string):Promise<main.EnvironmentResult>;
 
 export function RenameFolder(arg1:string,arg2:string):Promise<main.FolderResult>;
+
+export function RenameRequestFileKey(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
 
 export function ReorderFolders(arg1:string,arg2:string,arg3:Array<string>):Promise<main.EmptyResult>;
 

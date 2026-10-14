@@ -42,17 +42,19 @@ type Header struct {
 
 // Body types.
 const (
-	BodyNone = "none"
-	BodyRaw  = "raw"
-	BodyForm = "form"
+	BodyNone      = "none"
+	BodyRaw       = "raw"
+	BodyForm      = "form"
+	BodyMultipart = "multipart"
 )
 
 // Body is what to send as the request body.
 type Body struct {
-	Type        string   `json:"type"` // none | raw | form
+	Type        string   `json:"type"` // none | raw | form | multipart
 	ContentType string   `json:"contentType"`
 	Content     string   `json:"content"`
 	Fields      []Header `json:"fields"` // form fields; only enabled rows with a key are sent
+	Parts       []Part   `json:"parts"`  // multipart fields (multipart.go); same rule
 }
 
 // RequestSpec describes a request to send. Only enabled headers/params/fields with
@@ -321,6 +323,9 @@ func SentURL(spec RequestSpec) string {
 // SentBody is the body a spec sends, as text (form fields urlencoded), and its
 // implied Content-Type.
 func SentBody(b Body) (string, string) {
+	if b.Type == BodyMultipart { // file parts as placeholders, never their bytes
+		return MultipartSummary(b.Parts), "multipart/form-data"
+	}
 	r, ct := encodeBody(b)
 	if r == nil {
 		return "", ""
@@ -386,10 +391,29 @@ func buildRequest(ctx context.Context, spec RequestSpec) (*http.Request, error) 
 
 	appendQuery(u, spec.QueryParams)
 
-	body, bodyContentType := encodeBody(spec.Body)
+	// Files of a multipart body are checked here, before anything is sent.
+	pl, err := bodyPayload(spec.Body)
+	if err != nil {
+		return nil, err
+	}
+	var body io.ReadCloser
+	bodyContentType := ""
+	if pl != nil {
+		if body, err = pl.open(); err != nil {
+			return nil, err
+		}
+		bodyContentType = pl.contentType
+	}
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), body)
 	if err != nil {
 		return nil, fmt.Errorf("invalid request: %w", err)
+	}
+	if pl != nil {
+		// Exact length (no chunking); GetBody re-opens it for 307 / 308 (re-streams files).
+		req.ContentLength, req.GetBody = pl.length, pl.open
+		if pl.length == 0 {
+			req.Body, req.GetBody = http.NoBody, func() (io.ReadCloser, error) { return http.NoBody, nil }
+		}
 	}
 	for _, h := range enabled(spec.Headers) {
 		key := strings.TrimSpace(h.Key)

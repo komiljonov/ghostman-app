@@ -177,11 +177,14 @@ func (a *api) request() goja.Value {
 }
 
 // bodyText is the body as the script reads it: raw content, a form as
-// urlencoded text of its enabled fields, "" for none.
+// urlencoded text of its enabled fields, multipart as "key: value" lines (files
+// as placeholders), "" for none.
 func bodyText(b engine.Body) string {
 	switch b.Type {
 	case engine.BodyRaw:
 		return b.Content
+	case engine.BodyMultipart:
+		return engine.MultipartSummary(b.Parts)
 	case engine.BodyForm:
 		v := url.Values{}
 		var keys []string

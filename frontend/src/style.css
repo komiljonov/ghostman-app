@@ -4888,3 +4888,98 @@ body.tab-dragging * {
     border-bottom: 1px solid var(--border);
   }
 }
+
+/* ---- Form-data (multipart) body: kind column, file cells, read-only bulk file lines ---- */
+
+.multipart-table .kv-kind {
+  width: 76px;
+}
+
+.multipart-table .kv-kind select {
+  width: 100%;
+  padding: 3px 4px;
+  font-size: 12px;
+}
+
+.file-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 30px;
+  padding: 2px 4px 2px 8px;
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.file-cell-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.kv-table tr.ghost .file-cell {
+  background: transparent;
+}
+
+.file-cell-name {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.file-cell-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-cell button.small {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* A file this machine does not have (a teammate's pick, or moved since): amber. */
+.file-cell.file-elsewhere,
+.file-cell.file-missing {
+  box-shadow: inset 0 0 0 1px var(--warn);
+  background: var(--client-soft);
+}
+
+.file-cell.file-elsewhere .file-cell-name,
+.file-cell.file-missing .file-cell-name {
+  color: var(--warn);
+}
+
+.kv-table tr.disabled .file-cell-text {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.file-cell-hint {
+  padding: 2px 0;
+  color: var(--warn);
+}
+
+.bulk-file-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+}
+
+.bulk-file-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

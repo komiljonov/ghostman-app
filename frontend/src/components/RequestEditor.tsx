@@ -110,7 +110,7 @@ export default function RequestEditor(props: Props) {
                       {s.label}
                       <Show when={s.count() > 0}><span class="muted"> {s.count()}</span></Show>
                       <Show when={s.id === "body" && props.tab.draft.body.type !== "none"}>
-                        <span class="muted"> {props.tab.draft.body.type}</span>
+                        <span class="muted"> {props.tab.draft.body.type === "multipart" ? "form-data" : props.tab.draft.body.type}</span>
                       </Show>
                       <Show when={(s.id === "settings" && overrides().settings) || (s.id === "auth" && overrides().auth)}>
                         <span class="section-dot" title={s.id === "auth" ? "This request sets its own auth" : "This request overrides a default"} />
@@ -136,7 +136,7 @@ export default function RequestEditor(props: Props) {
                       onChange={(rows) => edit((d) => (d.headers = rows))} />
                   </Match>
                   <Match when={props.tab.section === "body"}>
-                    <BodyEditor body={props.tab.draft.body} onChange={(fn) => edit((d) => fn(d.body))} />
+                    <BodyEditor requestId={props.tab.id} body={props.tab.draft.body} onChange={(fn) => edit((d) => fn(d.body))} />
                   </Match>
                   <Match when={props.tab.section === "auth"}>
                     <AuthEditor auth={props.tab.draft.auth} idPrefix={`req-${props.tab.id}`} noun="request"

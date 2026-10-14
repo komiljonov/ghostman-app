@@ -33,9 +33,9 @@ var APIDocs = []Doc{
 	{"gm.request", "gm.request.query.add", "gm.request.query.add(name, value)", "Adds one more parameter.", `gm.request.query.add("tag", "a")`, "pre"},
 	{"gm.request", "gm.request.query.remove", "gm.request.query.remove(name)", "Removes every parameter with that name.", `gm.request.query.remove("debug")`, "pre"},
 	{"gm.request", "gm.request.query.all", "gm.request.query.all()", "Every enabled parameter as {key, value}.", `gm.request.query.all()`, ""},
-	{"gm.request", "gm.request.body.get", "gm.request.body.get()", "The body text (a form as urlencoded text; \"\" for none).", `const body = gm.request.body.get()`, ""},
+	{"gm.request", "gm.request.body.get", "gm.request.body.get()", "The body text (a form as urlencoded text, form-data as \"key: value\" lines with files as placeholders; \"\" for none).", `const body = gm.request.body.get()`, ""},
 	{"gm.request", "gm.request.body.set", "gm.request.body.set(text)", "Replaces the body with raw text.", `gm.request.body.set(JSON.stringify({ a: 1 }))`, "pre"},
-	{"gm.request", "gm.request.bodyType", "gm.request.bodyType", "\"none\", \"raw\" or \"form\".", `if (gm.request.bodyType === "raw") { … }`, ""},
+	{"gm.request", "gm.request.bodyType", "gm.request.bodyType", "\"none\", \"raw\", \"form\" or \"multipart\".", `if (gm.request.bodyType === "raw") { … }`, ""},
 
 	{"gm.response", "gm.response.status", "gm.response.status", "The status code.", `if (gm.response.status !== 200) throw new Error("login failed")`, "post"},
 	{"gm.response", "gm.response.durationMs", "gm.response.durationMs", "How long the send took, in ms.", `console.log(gm.response.durationMs)`, "post"},
