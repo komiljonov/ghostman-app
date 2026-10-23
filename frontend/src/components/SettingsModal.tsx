@@ -1,4 +1,4 @@
-import { createSignal, onMount, Show } from "solid-js";
+import { createSignal, For, onMount, Show } from "solid-js";
 import { GetSettings, SetServerURL } from "../../wailsjs/go/main/App";
 import { authState, setAuthState } from "../authStore";
 import FormError from "./FormError";
@@ -6,12 +6,15 @@ import HistorySettings from "./HistorySettings";
 import { setThemePref, themePref } from "../themeStore";
 import { asPref } from "../theme";
 import { redirectDefault, setRedirectDefault } from "../redirectDefault";
+import { chooseGlobalProxy, proxies, proxiesLoaded, proxyGlobal } from "../proxyStore";
+import { globalChoice } from "../proxySettings";
 
 interface Props {
   onClose: () => void;
 }
 
 export default function SettingsModal(props: Props) {
+  const [proxyError, setProxyError] = createSignal<string>();
   const [themeError, setThemeError] = createSignal<string>();
   const [redirectError, setRedirectError] = createSignal<string>();
   const [original, setOriginal] = createSignal("");
@@ -87,6 +90,21 @@ export default function SettingsModal(props: Props) {
           On this machine only; applies right away.
         </p>
         <FormError message={redirectError()} />
+        <label class="field">
+          <span>Proxy (global default for this project)</span>
+          <select aria-label="Global proxy" disabled={!proxiesLoaded()}
+            title={proxiesLoaded() ? undefined : "Open a project to choose its proxy"}
+            value={globalChoice(proxyGlobal(), proxies())}
+            onChange={(e) => void chooseGlobalProxy(e.currentTarget.value).then(setProxyError)}>
+            <option value="none">No proxy</option>
+            <For each={proxies()}>{(p) => <option value={p.id}>{p.name}</option>}</For>
+          </select>
+        </label>
+        <p class="settings-hint">
+          Used by requests and folders set to “Use global”, and wherever “Inherit” reaches the top. Per project,
+          on this machine only. Proxies are managed from the project menu (Manage proxies…).
+        </p>
+        <FormError message={proxyError()} />
         <HistorySettings />
         <label class="field">
           <span>Server URL</span>

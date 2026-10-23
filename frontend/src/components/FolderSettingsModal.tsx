@@ -2,6 +2,8 @@ import { createSignal, For, Show } from "solid-js";
 import { SaveFolderSettings } from "../../wailsjs/go/main/App";
 import { api, main } from "../../wailsjs/go/models";
 import { handleProblem } from "../authStore";
+import type { NodeProxy } from "../tree";
+import ProxySettingRow from "./ProxySettingRow";
 import { AuthConfig, modeOptions } from "../auth";
 import { redirectDefault } from "../redirectDefault";
 import { followOptions, FollowValue, ownFollow } from "../requestSettings";
@@ -33,6 +35,9 @@ export default function FolderSettingsModal(props: Props) {
   const [post, setPost] = createSignal(storedPost);
   const [choice, setChoice] = createSignal<FollowValue>(storedFollow);
   const [auth, setAuth] = createSignal<AuthConfig>({ ...storedAuth });
+  const storedProxy: NodeProxy = { ...(folder()?.proxy ?? { mode: "inherit", proxyId: null }) };
+  const [proxy, setProxy] = createSignal<NodeProxy>({ ...storedProxy });
+  const wireProxy = (p: NodeProxy) => api.NodeProxy.createFrom({ mode: p.mode, proxy_id: p.mode === "proxy" ? p.proxyId : null });
   const [pending, setPending] = createSignal(false);
   const [error, setError] = createSignal<string>();
   const options = () => followOptions(currentTree(), props.folderId, redirectDefault());
@@ -43,9 +48,9 @@ export default function FolderSettingsModal(props: Props) {
     setPending(true);
     const result = await SaveFolderSettings(props.folderId,
       main.FolderSettingsInput.createFrom({ follow_redirects: storedFollow, auth: api.Auth.createFrom(storedAuth),
-        pre_script: storedPre, post_script: storedPost }),
+        pre_script: storedPre, post_script: storedPost, proxy: wireProxy(storedProxy) }),
       main.FolderSettingsInput.createFrom({ follow_redirects: choice(), auth: api.Auth.createFrom(auth()),
-        pre_script: pre(), post_script: post() }));
+        pre_script: pre(), post_script: post(), proxy: wireProxy(proxy()) }));
     handleProblem(result.error);
     if (result.error) {
       setPending(false);
@@ -83,6 +88,7 @@ export default function FolderSettingsModal(props: Props) {
             Applies to everything in this folder that inherits. Saved on the server for everyone on the project.
           </p>
         </fieldset>
+        <ProxySettingRow nodeId={props.folderId} value={proxy()} onChange={setProxy} radioName={`folder-proxy-${props.folderId}`} />
         <details class="request-setting folder-scripts" open={!!(storedPre.trim() || storedPost.trim())}>
           <summary>
             Scripts

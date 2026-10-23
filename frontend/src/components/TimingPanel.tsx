@@ -42,6 +42,9 @@ export default function TimingPanel(props: Props) {
                     </For>
                   </tbody>
                 </table>
+                <Show when={s.via}>
+                  <p class="timing-via muted small" title="The connection (and its remote address) is the proxy's">{s.via}</p>
+                </Show>
                 <Show when={s.failure}>
                   <p class="timing-failure" role="alert">{s.failure}</p>
                 </Show>

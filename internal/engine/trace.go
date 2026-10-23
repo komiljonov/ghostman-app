@@ -27,10 +27,12 @@ type Hop struct {
 	TotalMs    float64  `json:"total_ms"`
 
 	ConnectionReused bool   `json:"connection_reused"`
-	RemoteAddr       string `json:"remote_addr"`
+	RemoteAddr       string `json:"remote_addr"` // the proxy's address when Proxy is set
+	// Proxy names the proxy this hop went through ("" = direct).
+	Proxy string `json:"proxy,omitempty"`
 
 	// Set when the hop failed: the phase that was in progress, and why.
-	FailedPhase string `json:"failed_phase,omitempty"` // dns | connect | wait | download
+	FailedPhase string `json:"failed_phase,omitempty"` // dns | connect | wait | download | proxy
 	Error       string `json:"error,omitempty"`
 }
 
@@ -123,6 +125,8 @@ func span(from, to time.Time) *float64 {
 func (t *hopTrace) failedPhase(err error) string {
 	var dnsErr *net.DNSError
 	switch {
+	case isProxyConnect(err):
+		return PhaseProxy // reaching or tunnelling through the proxy
 	case !t.firstByte.IsZero():
 		return PhaseDownload
 	case !t.gotConn.IsZero():
@@ -137,7 +141,7 @@ func (t *hopTrace) failedPhase(err error) string {
 }
 
 // hop turns the recorded events into a Hop. resp is nil when the hop failed.
-func (t *hopTrace) hop(req *http.Request, resp *http.Response, err error) Hop {
+func (t *hopTrace) hop(req *http.Request, resp *http.Response, err error, via string) Hop {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	end := time.Now()
@@ -147,6 +151,7 @@ func (t *hopTrace) hop(req *http.Request, resp *http.Response, err error) Hop {
 		DNSMs:            span(t.dnsStart, t.dnsDone),
 		ConnectionReused: t.reused,
 		RemoteAddr:       t.remote,
+		Proxy:            via,
 	}
 	if !t.reused {
 		connEnd := t.connDone

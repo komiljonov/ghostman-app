@@ -21,10 +21,12 @@ type RequestSummary struct {
 	// display ("" = none); synced like any field, literal (no {{vars}}).
 	ResponseFilter string `json:"response_filter"`
 	// Auth is the cascading auth setting (auth.go), stored values unresolved.
-	Auth      Auth   `json:"auth"`
-	SortOrder int32  `json:"sort_order"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	Auth Auth `json:"auth"`
+	// Proxy is the cascading proxy setting (proxies.go), set by its own call.
+	Proxy     NodeProxy `json:"proxy"`
+	SortOrder int32     `json:"sort_order"`
+	CreatedAt string    `json:"created_at"`
+	UpdatedAt string    `json:"updated_at"`
 }
 
 // Request is a full saved request.
@@ -90,6 +92,7 @@ func (c *APIClient) ListRequests(ctx context.Context, projectID string) ([]Reque
 	err := c.do(ctx, http.MethodGet, projectPath(projectID)+"/requests", nil, &out)
 	for i := range out {
 		out[i].Auth = NormalizeAuth(out[i].Auth)
+		out[i].Proxy = NormalizeNodeProxy(out[i].Proxy)
 	}
 	return out, err
 }
@@ -110,6 +113,7 @@ func (r Request) withDefaults() Request {
 		r.Body.Type = BodyNone
 	}
 	r.Auth = NormalizeAuth(r.Auth)
+	r.Proxy = NormalizeNodeProxy(r.Proxy)
 	return r
 }
 

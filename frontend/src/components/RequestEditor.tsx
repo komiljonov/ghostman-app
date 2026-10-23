@@ -8,6 +8,8 @@ import RequestSettingsPanel from "./RequestSettingsPanel";
 import RequestHistoryPanel from "./RequestHistoryPanel";
 import AuthEditor from "./AuthEditor";
 import { effectiveAuthOf, modeOptions, overridesSomething } from "../auth";
+import { ownProxy, proxyOverrides } from "../proxySettings";
+import { proxies } from "../proxyStore";
 import { ownFollow } from "../requestSettings";
 import { currentTree } from "../treeStore";
 import ResponseView from "./ResponseView";
@@ -49,7 +51,10 @@ export default function RequestEditor(props: Props) {
   };
 
   // One rule for the sub-tab dots: the request sets something itself.
-  const overrides = () => overridesSomething({ authType: props.tab.draft.auth.type, follow: ownFollow(currentTree(), props.tab.id) });
+  const overrides = () => {
+    const o = overridesSomething({ authType: props.tab.draft.auth.type, follow: ownFollow(currentTree(), props.tab.id) });
+    return { ...o, settings: o.settings || proxyOverrides(ownProxy(currentTree(), props.tab.id), proxies()) };
+  };
 
   const sections = [
     { id: "params" as const, label: "Params", count: () => countRows(props.tab.draft.query_params) },

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"maps"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
@@ -46,6 +47,9 @@ type SendResult struct {
 	// Console is the send's script output (empty without scripts); a failed
 	// pre-script is its last entry AND the Error.
 	Console *scripting.Console `json:"console"`
+	// ProxyWarning is set when the send's proxy needed a password this machine
+	// does not have (it went without credentials); shown with the unresolved banner.
+	ProxyWarning string `json:"proxy_warning,omitempty"`
 }
 
 // Tab kinds.
@@ -138,6 +142,9 @@ type SendOptions struct {
 	// Folders is the request's folder chain, OUTERMOST first, with their scripts
 	// (scripts.go): they run around the request's own, outer first.
 	Folders []ScriptFolder `json:"folders"`
+	// ProxyID is the proxy the cascade resolved to ("" = direct; the UI resolves
+	// it, settingsResolver.resolveProxy). Go loads it and adds the local password.
+	ProxyID string `json:"proxy_id"`
 }
 
 // engineAuth converts the effective config for the engine (nil = nothing to add).
@@ -203,6 +210,23 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 	if opts.Auth != nil && !api.ValidAuth(*opts.Auth) {
 		return SendResult{Error: invalidAuth(), Unresolved: []string{}, Console: console}
 	}
+	var sendProxy *engine.Proxy
+	proxyWarning := ""
+	if opts.ProxyID != "" {
+		px, p := call(a, func(ctx context.Context, c *api.APIClient) (proxyAndWarning, error) {
+			ep, w, err := a.sendProxy(ctx, c, opts.ProxyID)
+			return proxyAndWarning{ep, w}, err
+		})
+		if p != nil {
+			if p.Status == http.StatusNotFound {
+				p.Message = "the proxy this request uses no longer exists — refresh (↻) to pick up the change"
+			} else {
+				p.Message = "could not load the proxy: " + p.Message
+			}
+			return SendResult{Error: p, Unresolved: []string{}, Console: console}
+		}
+		sendProxy, proxyWarning = px.proxy, px.warning
+	}
 	template := specFromDraft(draft)
 	template.Auth = engineAuth(opts.Auth)
 	a.attachFiles(requestID, &template) // multipart file fields: local paths (never synced)
@@ -260,7 +284,7 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 	if a.store != nil {
 		bodyCap = historyBodyCap(a.store.HistoryLimits(a.ctx))
 	}
-	resp, err := a.engine.Send(ctx, spec, engine.SendOptions{FollowRedirects: opts.FollowRedirects, FullBodyCap: bodyCap})
+	resp, err := a.engine.Send(ctx, spec, engine.SendOptions{FollowRedirects: opts.FollowRedirects, FullBodyCap: bodyCap, Proxy: sendProxy})
 
 	// Post-scripts see the response; a failing one is reported in the console and
 	// never hides the response. Without a response (the send failed) they are skipped.
@@ -299,11 +323,11 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 	if err != nil {
 		return SendResult{
 			Error: &session.Problem{Kind: KindRequest, Message: err.Error()}, Unresolved: unresolved, Environment: rv.env,
-			Hops: maskSecrets(nonNilHops(engine.HopsOf(err)), rv.secrets), Console: console,
+			Hops: maskSecrets(nonNilHops(engine.HopsOf(err)), rv.secrets), Console: console, ProxyWarning: proxyWarning,
 		}
 	}
 	resp.Hops = maskSecrets(nonNilHops(resp.Hops), rv.secrets)
-	return SendResult{Data: resp, Unresolved: unresolved, Environment: rv.env, Hops: resp.Hops, Console: console}
+	return SendResult{Data: resp, Unresolved: unresolved, Environment: rv.env, Hops: resp.Hops, Console: console, ProxyWarning: proxyWarning}
 }
 
 // CancelRequest cancels the in-flight send of a request, if any.

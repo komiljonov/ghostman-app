@@ -46,10 +46,10 @@ describe("context menu position", () => {
 
 describe("tree keyboard model", () => {
   const req = (id: string, folderId: string | null = null): TreeNode =>
-    ({ kind: "request", id, folderId, name: id, method: "GET", url: "", sortOrder: 0, settings: { follow_redirects: "inherit" }, auth: normalizeAuth() });
+    ({ kind: "request", id, folderId, name: id, method: "GET", url: "", sortOrder: 0, settings: { follow_redirects: "inherit" }, auth: normalizeAuth(), proxy: { mode: "inherit", proxyId: null } });
   const root: TreeNode[] = [
-    { kind: "folder", id: "f1", parentId: null, name: "f1", sortOrder: 0, settings: { follow_redirects: "inherit" }, auth: normalizeAuth(), preScript: "", postScript: "", children: [req("r1", "f1"), req("r2", "f1")] },
-    { kind: "folder", id: "f2", parentId: null, name: "f2", sortOrder: 1, settings: { follow_redirects: "inherit" }, auth: normalizeAuth(), preScript: "", postScript: "", children: [] },
+    { kind: "folder", id: "f1", parentId: null, name: "f1", sortOrder: 0, settings: { follow_redirects: "inherit" }, auth: normalizeAuth(), proxy: { mode: "inherit", proxyId: null }, preScript: "", postScript: "", children: [req("r1", "f1"), req("r2", "f1")] },
+    { kind: "folder", id: "f2", parentId: null, name: "f2", sortOrder: 1, settings: { follow_redirects: "inherit" }, auth: normalizeAuth(), proxy: { mode: "inherit", proxyId: null }, preScript: "", postScript: "", children: [] },
     req("r3"),
   ];
   const open = new Set(["f1"]);

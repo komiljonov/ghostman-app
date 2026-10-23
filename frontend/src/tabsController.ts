@@ -22,7 +22,7 @@ import {
   moveTab, openTab, resetSizes, resize, Side, singleGroup, splitGroup,
 } from "./layoutTree";
 import { applyDrop, DropTarget } from "./dropZone";
-import { closeEach, CloseMode, cycleKey, ENV_LIST, HISTORY, syncEnvTabs, syncNamedTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
+import { closeEach, CloseMode, cycleKey, ENV_LIST, HISTORY, PROXY_LIST, syncEnvTabs, syncNamedTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
 
 export const AUTOSAVE_DELAY_MS = 600;
 
@@ -62,6 +62,8 @@ export interface TabState {
   responseError?: string;
   // {{keys}} the last send could not resolve (sent literally).
   unresolved: string[];
+  // The last send's proxy needed a password this machine does not have.
+  proxyWarning?: string;
   // View state (not saved anywhere).
   section: "params" | "headers" | "body" | "auth" | "scripts" | "settings" | "history";
   responseSection: "body" | "headers" | "console";
@@ -128,6 +130,8 @@ export interface TabsHooks {
   auth: (requestId: string, own: AuthConfig) => ResolvedAuth;
   // The request's folder chain with their scripts, OUTERMOST first (scriptChain.ts).
   scriptFolders: (requestId: string) => ScriptFolder[];
+  // The proxy the cascade resolves to for a request (null = direct; proxySettings.ts).
+  proxy: (requestId: string) => string | null;
 }
 
 export type TabsController = ReturnType<typeof createTabsController>;
@@ -233,7 +237,9 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
   const requestKey = (id: string) => tabKey({ kind: "request", id });
   const ENV_LIST_NAME = "Environments";
   const HISTORY_NAME = "History";
-  const fixedName = (ref: TabRef) => (ref.kind === "env_list" ? ENV_LIST_NAME : ref.kind === "history" ? HISTORY_NAME : "");
+  const PROXY_LIST_NAME = "Proxies";
+  const fixedName = (ref: TabRef) =>
+    ref.kind === "env_list" ? ENV_LIST_NAME : ref.kind === "history" ? HISTORY_NAME : ref.kind === "proxy_list" ? PROXY_LIST_NAME : "";
 
   // The active tab of the focused group (what Send / Ctrl+W / the tree follow).
   const activeKey = () => activeTab(state.layout) ?? undefined;
@@ -316,6 +322,22 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
 
     openHistory() {
       openRef(HISTORY, HISTORY_NAME, "ready");
+    },
+
+    openProxyList() {
+      openRef(PROXY_LIST, PROXY_LIST_NAME, "ready");
+    },
+
+    openProxy(id: string, name: string) {
+      openRef({ kind: "proxy", id }, name, "ready");
+    },
+
+    // Proxy tabs follow the project's proxy list: renames relabel, deletes close.
+    syncWithProxies(list: { id: string; name: string }[]) {
+      if (!state.restored) return;
+      const { rename, close } = syncNamedTabs("proxy", state.tabs.map((t) => ({ ref: refOf(t), name: t.name })), list);
+      for (const r of rename) updateKey(tabKey(r.ref), (t) => (t.name = r.name));
+      for (const ref of close) removeTab(tabKey(ref));
     },
 
     openWebhook(id: string, name: string) {
@@ -435,6 +457,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       update(id, (t) => {
         t.sending = true;
         t.responseError = undefined;
+        t.proxyWarning = undefined;
         t.hops = [];
         t.console = undefined; // per send
       });
@@ -448,6 +471,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
         main.SendOptions.createFrom({
           follow_redirects: hooks.followRedirects(id), request_name: tab(id)!.name,
           auth: auth.config, auth_source: sourceLabel(auth.source), folders: hooks.scriptFolders(id),
+          proxy_id: hooks.proxy(id) ?? "",
         }),
       );
       handleProblem(result.error);
@@ -461,6 +485,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
         if (result.data) t.responseView = defaultView(result.data);
         t.responseError = result.error?.message;
         t.unresolved = result.unresolved ?? [];
+        t.proxyWarning = result.proxy_warning || undefined;
         t.hops = result.hops ?? [];
         t.filter = NO_FILTER;
         t.console = result.console ?? undefined;

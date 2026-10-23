@@ -106,3 +106,20 @@ describe("webhook tabs", () => {
     });
   });
 });
+
+describe("proxy tabs", () => {
+  it("proxy and proxy_list refs persist; proxy tabs follow the proxy list", () => {
+    expect(refFromKey("proxy:x1")).toEqual({ kind: "proxy", id: "x1" });
+    expect(refFromKey("proxy_list:")).toEqual({ kind: "proxy_list", id: "" });
+    expect(isTabKey("proxy:")).toBe(false);
+    const tabs = [
+      { ref: { kind: "proxy" as const, id: "x1" }, name: "Corp" },
+      { ref: { kind: "proxy" as const, id: "x2" }, name: "Old" },
+      { ref: { kind: "env" as const, id: "x2" }, name: "an env" },
+    ];
+    expect(syncNamedTabs("proxy", tabs, [{ id: "x1", name: "Corp proxy" }])).toEqual({
+      rename: [{ ref: { kind: "proxy", id: "x1" }, name: "Corp proxy" }],
+      close: [{ kind: "proxy", id: "x2" }],
+    });
+  });
+});

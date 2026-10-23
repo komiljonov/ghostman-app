@@ -15,24 +15,26 @@ type Folder struct {
 	Auth            Auth    `json:"auth"`             // cascading auth setting (auth.go)
 	// PreScript / PostScript run around every send inside this folder (outer
 	// folders first; they accumulate, they do not inherit/override).
-	PreScript  string `json:"pre_script"`
-	PostScript string `json:"post_script"`
-	SortOrder  int32  `json:"sort_order"`
-	CreatedAt  string `json:"created_at"`
+	PreScript  string    `json:"pre_script"`
+	PostScript string    `json:"post_script"`
+	Proxy      NodeProxy `json:"proxy"` // cascading proxy setting (proxies.go)
+	SortOrder  int32     `json:"sort_order"`
+	CreatedAt  string    `json:"created_at"`
 }
 
 // FolderDetail is a single folder as returned by create/rename/move.
 type FolderDetail struct {
-	ID              string  `json:"id"`
-	ProjectID       string  `json:"project_id"`
-	ParentID        *string `json:"parent_id"`
-	Name            string  `json:"name"`
-	FollowRedirects string  `json:"follow_redirects"`
-	Auth            Auth    `json:"auth"`
-	PreScript       string  `json:"pre_script"`
-	PostScript      string  `json:"post_script"`
-	SortOrder       int32   `json:"sort_order"`
-	CreatedAt       string  `json:"created_at"`
+	ID              string    `json:"id"`
+	ProjectID       string    `json:"project_id"`
+	ParentID        *string   `json:"parent_id"`
+	Name            string    `json:"name"`
+	FollowRedirects string    `json:"follow_redirects"`
+	Auth            Auth      `json:"auth"`
+	PreScript       string    `json:"pre_script"`
+	PostScript      string    `json:"post_script"`
+	Proxy           NodeProxy `json:"proxy"`
+	SortOrder       int32     `json:"sort_order"`
+	CreatedAt       string    `json:"created_at"`
 }
 
 // FolderSettingsPatch updates a folder's cascading settings; nil = unchanged.
@@ -41,6 +43,13 @@ type FolderSettingsPatch struct {
 	Auth            *AuthPatch `json:"auth,omitempty"`
 	PreScript       *string    `json:"pre_script,omitempty"`
 	PostScript      *string    `json:"post_script,omitempty"`
+	Proxy           any        `json:"proxy,omitempty"` // nodeProxyWire(...) when set
+}
+
+// WithProxy sets the patch's proxy object (proxy_id only for mode "proxy").
+func (p FolderSettingsPatch) WithProxy(np NodeProxy) FolderSettingsPatch {
+	p.Proxy = nodeProxyWire(np)
+	return p
 }
 
 func folderPath(id string) string { return "/api/v1/folders/" + url.PathEscape(id) }
@@ -59,6 +68,7 @@ func (c *APIClient) ListFolders(ctx context.Context, projectID string) ([]Folder
 	err := c.do(ctx, http.MethodGet, projectPath(projectID)+"/folders", nil, &out)
 	for i := range out {
 		out[i].Auth = NormalizeAuth(out[i].Auth)
+		out[i].Proxy = NormalizeNodeProxy(out[i].Proxy)
 	}
 	return out, err
 }

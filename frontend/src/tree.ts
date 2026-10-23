@@ -8,6 +8,19 @@ export const NODE_SETTINGS = ["follow_redirects"] as const;
 export type NodeSettingKey = (typeof NODE_SETTINGS)[number];
 export type NodeSettings = Record<NodeSettingKey, string>;
 
+// The cascading proxy setting as stored (settingsResolver.resolveProxy).
+export interface NodeProxy {
+  mode: string; // inherit | global | none | proxy
+  proxyId: string | null; // with mode "proxy"; null once that proxy was deleted
+}
+
+export interface ProxyInput {
+  mode?: string;
+  proxy_id?: string | null;
+}
+
+export const nodeProxy = (p: ProxyInput | undefined): NodeProxy => ({ mode: p?.mode || "inherit", proxyId: p?.proxy_id ?? null });
+
 export interface FolderInput {
   id: string;
   parent_id?: string | null; // null/undefined = project root
@@ -17,6 +30,7 @@ export interface FolderInput {
   auth?: AuthInput;
   pre_script?: string; // scripts accumulate outer → inner (scriptChain.ts)
   post_script?: string;
+  proxy?: ProxyInput;
 }
 
 export interface RequestInput {
@@ -28,6 +42,7 @@ export interface RequestInput {
   sort_order: number;
   follow_redirects?: string;
   auth?: AuthInput;
+  proxy?: ProxyInput;
 }
 
 export interface FolderNode {
@@ -40,6 +55,7 @@ export interface FolderNode {
   auth: AuthConfig; // the cascading auth setting as stored (auth.ts, settingsResolver.resolveAuth)
   preScript: string; // run around every send inside this folder (scriptChain.ts)
   postScript: string;
+  proxy: NodeProxy;
   children: TreeNode[]; // folders first, then requests, each by sort_order
 }
 
@@ -53,6 +69,7 @@ export interface RequestNode {
   sortOrder: number;
   settings: NodeSettings;
   auth: AuthConfig;
+  proxy: NodeProxy;
 }
 
 export type TreeNode = FolderNode | RequestNode;
@@ -84,7 +101,7 @@ export function buildTree(
     folders.set(f.id, {
       kind: "folder", id: f.id, parentId: f.parent_id ?? null, name: f.name, sortOrder: f.sort_order,
       settings: nodeSettings(f), auth: normalizeAuth(f.auth), preScript: f.pre_script ?? "", postScript: f.post_script ?? "",
-      children: [],
+      proxy: nodeProxy(f.proxy), children: [],
     });
   }
 
@@ -133,7 +150,7 @@ export function buildTree(
   for (const r of requestList) {
     const node: RequestNode = {
       kind: "request", id: r.id, folderId: r.folder_id ?? null, name: r.name, method: r.method, url: r.url, sortOrder: r.sort_order,
-      settings: nodeSettings(r), auth: normalizeAuth(r.auth),
+      settings: nodeSettings(r), auth: normalizeAuth(r.auth), proxy: nodeProxy(r.proxy),
     };
     requests.set(r.id, node);
     place(node, node.folderId, "request");

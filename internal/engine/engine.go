@@ -108,6 +108,7 @@ type Response struct {
 type Engine struct {
 	client  *http.Client
 	timeout time.Duration // a whole send, redirects included
+	proxies proxyClients  // one client per proxy config (proxy.go)
 }
 
 // New returns an Engine whose sends (all hops together) are bounded by timeout.
@@ -134,6 +135,9 @@ type SendOptions struct {
 	// as it is the tab's active response — a 2 GB download takes 2 GB of RAM.
 	// The UI preview stays capped at MaxBodyPreview either way.
 	FullBodyCap int64
+	// Proxy is the resolved proxy (nil = direct). Each hop applies its bypass
+	// list to its own host (proxy.go).
+	Proxy *Proxy
 }
 
 func (o SendOptions) fullBodyCap() int64 {
@@ -181,6 +185,17 @@ func (e *Engine) Send(ctx context.Context, spec RequestSpec, opts SendOptions) (
 	if err != nil {
 		return nil, err // nothing was sent: no hops
 	}
+	client, err := e.clientFor(opts.Proxy)
+	if err != nil {
+		return nil, err
+	}
+	// via names the proxy a hop goes through ("" = direct).
+	via := func(r *http.Request) string {
+		if opts.Proxy == nil || Bypassed(opts.Proxy.Bypass, r.URL.Hostname()) {
+			return ""
+		}
+		return opts.Proxy.Label()
+	}
 	ctx, cancel := context.WithTimeout(ctx, e.timeout)
 	defer cancel()
 	req = req.WithContext(ctx)
@@ -193,26 +208,30 @@ func (e *Engine) Send(ctx context.Context, spec RequestSpec, opts SendOptions) (
 	}
 	for {
 		tr := newHopTrace()
-		resp, err := e.client.Do(req.WithContext(httptrace.WithClientTrace(req.Context(), tr.clientTrace())))
+		resp, err := client.Do(req.WithContext(httptrace.WithClientTrace(req.Context(), tr.clientTrace())))
 		if err != nil {
-			hops = append(hops, tr.hop(req, nil, err))
-			return nil, fail(describeError(err, time.Since(start)))
+			hops = append(hops, tr.hop(req, nil, err, via(req)))
+			msg := describeError(err, time.Since(start))
+			if isProxyConnect(err) {
+				msg = fmt.Errorf("could not connect through the proxy %s: %w", opts.Proxy.Label(), msg)
+			}
+			return nil, fail(msg)
 		}
 		var next *http.Request
 		if opts.FollowRedirects {
 			if next, err = chain.next(req, resp); err != nil {
 				drainRedirectBody(resp)
 				tr.markBodyDone()
-				hops = append(hops, tr.hop(req, resp, nil))
+				hops = append(hops, tr.hop(req, resp, nil, via(req)))
 				return nil, fail(err)
 			}
 		}
 		if next == nil {
-			return e.finish(req, resp, tr, hops, start, opts.fullBodyCap())
+			return e.finish(req, resp, tr, hops, start, opts.fullBodyCap(), via(req))
 		}
 		drainRedirectBody(resp)
 		tr.markBodyDone()
-		hops = append(hops, tr.hop(req, resp, nil))
+		hops = append(hops, tr.hop(req, resp, nil, via(req)))
 		if len(hops) >= MaxRequests {
 			return nil, fail(errTooManyRedirects)
 		}
@@ -231,7 +250,7 @@ func drainRedirectBody(resp *http.Response) {
 }
 
 // finish reads the final response's body and builds the Response.
-func (e *Engine) finish(req *http.Request, resp *http.Response, tr *hopTrace, hops []Hop, start time.Time, fullCap int64) (*Response, error) {
+func (e *Engine) finish(req *http.Request, resp *http.Response, tr *hopTrace, hops []Hop, start time.Time, fullCap int64, via string) (*Response, error) {
 	defer resp.Body.Close()
 
 	var full bytes.Buffer
@@ -248,10 +267,10 @@ func (e *Engine) finish(req *http.Request, resp *http.Response, tr *hopTrace, ho
 	}
 	tr.markBodyDone()
 	if err != nil {
-		hops = append(hops, tr.hop(req, resp, err))
+		hops = append(hops, tr.hop(req, resp, err, via))
 		return nil, &SendError{Err: describeError(err, time.Since(start)), Hops: hops, DurationMs: time.Since(start).Milliseconds()}
 	}
-	hops = append(hops, tr.hop(req, resp, nil))
+	hops = append(hops, tr.hop(req, resp, nil, via))
 	duration := time.Since(start)
 
 	kept := full.Bytes()
@@ -483,6 +502,9 @@ func encodeBody(b Body) (io.Reader, string) {
 func describeError(err error, elapsed time.Duration) error {
 	var dnsErr *net.DNSError
 	var opErr *net.OpError
+	if inner, ok := stripProxyConnect(err); ok {
+		return describeError(inner, elapsed) // the dial to the proxy itself, with its address
+	}
 	switch {
 	case errors.Is(err, context.Canceled):
 		return errors.New("request cancelled")

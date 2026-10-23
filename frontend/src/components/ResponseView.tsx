@@ -236,6 +236,11 @@ export default function ResponseView(props: Props) {
         availability={filterAvailability(shown())} onCopy={() => void copyFiltered()}
         onWarm={() => void WarmResponseFilter(props.tab.id)} />
       <div class="response-content">
+        <Show when={!props.tab.sending && props.tab.proxyWarning}>
+          <p class="notice unresolved-banner" role="status">
+            {props.tab.proxyWarning} <span class="muted">(set it in the proxy’s tab — it stays on this machine)</span>
+          </p>
+        </Show>
         <Show when={!props.tab.sending && props.tab.unresolved.length > 0}>
           <p class="notice unresolved-banner" role="status">
             Unresolved variables: {props.tab.unresolved.join(", ")} <span class="muted">(sent literally)</span>

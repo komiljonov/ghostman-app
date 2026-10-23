@@ -17,8 +17,9 @@ export interface HopLike {
   download_ms?: number | null;
   total_ms: number;
   connection_reused: boolean;
-  remote_addr?: string;
-  failed_phase?: string;
+  remote_addr?: string; // the proxy's address when `proxy` is set
+  proxy?: string; // the proxy this hop went through ("Corp (proxy.corp:3128)")
+  failed_phase?: string; // a phase id, or "proxy" (reaching / tunnelling through the proxy)
   error?: string;
 }
 
@@ -60,6 +61,7 @@ export interface HopSection {
   segments: Segment[];
   rows: PhaseRow[];
   remote?: string;
+  via?: string; // "via Corp (proxy.corp:3128)"
 }
 
 export interface TimingModel {
@@ -78,7 +80,9 @@ const phaseValue = (h: HopLike, p: Phase): number | null => {
 };
 
 function section(h: HopLike, index: number, single: boolean): HopSection {
-  const failedPhase = PHASES.find((p) => p.id === h.failed_phase)?.id;
+  // A proxy failure has no column of its own: it is the connect phase, labelled as the proxy's.
+  const viaProxyFailure = h.failed_phase === "proxy";
+  const failedPhase = viaProxyFailure ? "connect" : PHASES.find((p) => p.id === h.failed_phase)?.id;
   const measured = PHASES.map((p) => ({ phase: p.id, ms: phaseValue(h, p.id) }))
     .filter((s): s is { phase: Phase; ms: number } => s.ms !== null);
   const sum = measured.reduce((a, s) => a + s.ms, 0);
@@ -97,10 +101,13 @@ function section(h: HopLike, index: number, single: boolean): HopSection {
     url: h.url,
     total: formatMs(h.total_ms),
     failed: !!failedPhase,
-    failure: failedPhase ? `${FAILED_LABEL[failedPhase]}${h.error ? ` — ${h.error}` : ""}` : undefined,
+    failure: failedPhase
+      ? `${viaProxyFailure ? "failed during proxy connect" : FAILED_LABEL[failedPhase]}${h.error ? ` — ${h.error}` : ""}`
+      : undefined,
     segments,
     rows,
     remote: h.remote_addr || undefined,
+    via: h.proxy ? `via ${h.proxy}` : undefined,
   };
 }
 

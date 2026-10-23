@@ -1,5 +1,5 @@
 // Cascading settings resolution — the one mechanism for every per-node setting
-// (follow_redirects; auth below, without a global level; proxy later). The server only stores each node's
+// (follow_redirects; auth below, without a global level; proxy below, auth-shaped with a global level). The server only stores each node's
 // value; resolution happens here, purely over the tree store (the folder and
 // request lists already carry the fields) plus the global value: no bridge calls.
 //
@@ -8,7 +8,7 @@
 //   "global"                      → the global value; the walk STOPS (ancestors ignored)
 //   "inherit"                     → ask the next ancestor; past the root → global
 import type { AuthConfig } from "./auth";
-import type { NodeSettingKey, Tree, TreeNode } from "./tree";
+import type { NodeProxy, NodeSettingKey, Tree, TreeNode } from "./tree";
 
 export const INHERIT = "inherit";
 export const GLOBAL = "global";
@@ -131,4 +131,55 @@ export function resolveAuthParent(tree: Tree, id: string): ResolvedAuth | undefi
   if (!node) return undefined;
   const self = authLevelOf(node);
   return resolveAuth({ ...self, auth: { ...self.auth, type: INHERIT } }, ancestorFolders(tree, node).map(authLevelOf));
+}
+
+// ---- Proxy: auth-shaped, WITH a global level (per project, local) ----
+//
+// Values at each level (a request, then its folders bottom-up):
+//   "proxy" + a proxy of the project → that proxy; stop
+//   "proxy" + a deleted / unknown id  → treated as "inherit"
+//   "none"                            → direct; stop (source = that node)
+//   "global"                          → the global default; stop
+//   "inherit"                         → ask the next ancestor; past the root → the global default
+// The global default is "none" (direct) or a proxy id; an id no longer in the
+// project's list reads as none.
+
+export interface ProxyLevel {
+  id: string;
+  kind: "request" | "folder";
+  name: string;
+  proxy: NodeProxy;
+}
+
+export interface ResolvedProxy {
+  proxyId: string | null; // null = direct
+  source: Source; // global: from the global default
+}
+
+export function resolveProxy(node: ProxyLevel, ancestorsBottomUp: ProxyLevel[], globalDefault: string, known: (id: string) => boolean): ResolvedProxy {
+  const global: ResolvedProxy = { proxyId: globalDefault !== "none" && known(globalDefault) ? globalDefault : null, source: { kind: "global" } };
+  for (const level of [node, ...ancestorsBottomUp]) {
+    const { mode, proxyId } = level.proxy;
+    const source: Source = { kind: "node", id: level.id, nodeKind: level.kind, name: level.name };
+    if (mode === "none") return { proxyId: null, source };
+    if (mode === GLOBAL) return global;
+    if (mode === "proxy" && proxyId && known(proxyId)) return { proxyId, source };
+    // "inherit", a deleted proxy and unknown modes (newer server?) fall through
+  }
+  return global;
+}
+
+const proxyLevelOf = (n: TreeNode): ProxyLevel => ({ id: n.id, kind: n.kind, name: n.name, proxy: n.proxy });
+
+// A node's effective proxy from the tree store; `own` replaces its stored value.
+export function resolveProxyInTree(tree: Tree, id: string, globalDefault: string, known: (id: string) => boolean, own?: NodeProxy): ResolvedProxy | undefined {
+  const node = tree.requests.get(id) ?? tree.folders.get(id);
+  if (!node) return undefined;
+  const self = proxyLevelOf(node);
+  return resolveProxy(own ? { ...self, proxy: own } : self, ancestorFolders(tree, node).map(proxyLevelOf), globalDefault, known);
+}
+
+// What a node would get with "inherit": the chain above it.
+export function resolveProxyParent(tree: Tree, id: string, globalDefault: string, known: (id: string) => boolean): ResolvedProxy | undefined {
+  return resolveProxyInTree(tree, id, globalDefault, known, { mode: INHERIT, proxyId: null });
 }

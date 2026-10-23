@@ -39,6 +39,8 @@ export function CreateInvitation(arg1:string,arg2:string):Promise<main.Invitatio
 
 export function CreateProject(arg1:string,arg2:string):Promise<main.ProjectResult>;
 
+export function CreateProxy(arg1:string,arg2:main.ProxyInput):Promise<main.ProxyResult>;
+
 export function CreateRequest(arg1:string,arg2:string,arg3:string):Promise<main.RequestSummaryResult>;
 
 export function CreateTeam(arg1:string):Promise<main.TeamRefResult>;
@@ -54,6 +56,8 @@ export function DeleteFolder(arg1:string):Promise<main.EmptyResult>;
 export function DeleteHistoryEntry(arg1:number):Promise<main.EmptyResult>;
 
 export function DeleteProject(arg1:string):Promise<main.EmptyResult>;
+
+export function DeleteProxy(arg1:string):Promise<main.EmptyResult>;
 
 export function DeleteRequest(arg1:string):Promise<main.EmptyResult>;
 
@@ -97,6 +101,12 @@ export function GetProject(arg1:string):Promise<main.ProjectResult>;
 
 export function GetProjectAccess(arg1:string):Promise<main.ProjectAccessUserListResult>;
 
+export function GetProxy(arg1:string):Promise<main.ProxyResult>;
+
+export function GetProxyGlobal(arg1:string):Promise<string>;
+
+export function GetProxyPassword(arg1:string):Promise<main.ProxyPasswordResult>;
+
 export function GetRequest(arg1:string):Promise<main.RequestResult>;
 
 export function GetScriptAPIDocs():Promise<Array<scripting.Doc>>;
@@ -137,6 +147,8 @@ export function ListMyInvitations():Promise<main.MyInvitationListResult>;
 
 export function ListProjects(arg1:string):Promise<main.ProjectListResult>;
 
+export function ListProxies(arg1:string):Promise<main.ProxyListResult>;
+
 export function ListRequestFiles(arg1:string):Promise<main.RequestFileListResult>;
 
 export function ListRequests(arg1:string):Promise<main.RequestListResult>;
@@ -163,6 +175,8 @@ export function MoveFolder(arg1:string,arg2:string):Promise<main.FolderResult>;
 
 export function MoveProject(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
 
+export function MoveProxy(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
+
 export function MoveRequest(arg1:string,arg2:string):Promise<main.RequestSummaryResult>;
 
 export function MoveVariable(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
@@ -188,6 +202,8 @@ export function RenameRequestFileKey(arg1:string,arg2:string,arg3:string):Promis
 export function ReorderFolders(arg1:string,arg2:string,arg3:Array<string>):Promise<main.EmptyResult>;
 
 export function ReorderProjects(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
+
+export function ReorderProxies(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
 
 export function ReorderRequests(arg1:string,arg2:string,arg3:Array<string>):Promise<main.EmptyResult>;
 
@@ -235,7 +251,13 @@ export function SetMemberAccess(arg1:string,arg2:string,arg3:boolean,arg4:Array<
 
 export function SetProjectAccess(arg1:string,arg2:Array<string>):Promise<main.ProjectAccessResult>;
 
+export function SetProxyGlobal(arg1:string,arg2:string):Promise<main.EmptyResult>;
+
+export function SetProxyPassword(arg1:string,arg2:string):Promise<main.EmptyResult>;
+
 export function SetRequestFollowRedirects(arg1:string,arg2:string):Promise<main.RequestResult>;
+
+export function SetRequestProxy(arg1:string,arg2:string,arg3:string):Promise<main.RequestResult>;
 
 export function SetResponseWrap(arg1:boolean):Promise<main.EmptyResult>;
 
@@ -260,6 +282,8 @@ export function SetVariableValue(arg1:string,arg2:string,arg3:string):Promise<ma
 export function SetWebhookPanel(arg1:string,arg2:main.WebhookPanelPrefs):Promise<main.EmptyResult>;
 
 export function UpdateProjectName(arg1:string,arg2:string):Promise<main.ProjectResult>;
+
+export function UpdateProxy(arg1:string,arg2:main.ProxyInput,arg3:main.ProxyInput):Promise<main.ProxyResult>;
 
 export function UpdateRequest(arg1:string,arg2:api.RequestPatch):Promise<main.RequestResult>;
 

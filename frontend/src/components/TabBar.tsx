@@ -90,6 +90,9 @@ export default function TabBar(props: Props) {
                     <Match when={t().kind === "history"}>
                       <span class="env-chip"><Icon name="history" size={12} /></span>
                     </Match>
+                    <Match when={t().kind === "proxy" || t().kind === "proxy_list"}>
+                      <span class="env-chip">{t().kind === "proxy" ? "PROXY" : <Icon name="settings" size={12} />}</span>
+                    </Match>
                     <Match when={t().kind === "webhook"}>
                       <span class="env-chip"><Icon name="webhook" size={12} /></span>
                     </Match>
