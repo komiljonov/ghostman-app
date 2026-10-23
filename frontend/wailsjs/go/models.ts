@@ -176,6 +176,20 @@ export namespace api {
 	        this.created_at = source["created_at"];
 	    }
 	}
+	export class NodeProxy {
+	    mode: string;
+	    proxy_id?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new NodeProxy(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.proxy_id = source["proxy_id"];
+	    }
+	}
 	export class Folder {
 	    id: string;
 	    parent_id?: string;
@@ -184,6 +198,7 @@ export namespace api {
 	    auth: Auth;
 	    pre_script: string;
 	    post_script: string;
+	    proxy: NodeProxy;
 	    sort_order: number;
 	    created_at: string;
 	
@@ -200,6 +215,7 @@ export namespace api {
 	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.pre_script = source["pre_script"];
 	        this.post_script = source["post_script"];
+	        this.proxy = this.convertValues(source["proxy"], NodeProxy);
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	    }
@@ -231,6 +247,7 @@ export namespace api {
 	    auth: Auth;
 	    pre_script: string;
 	    post_script: string;
+	    proxy: NodeProxy;
 	    sort_order: number;
 	    created_at: string;
 	
@@ -248,6 +265,7 @@ export namespace api {
 	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.pre_script = source["pre_script"];
 	        this.post_script = source["post_script"];
+	        this.proxy = this.convertValues(source["proxy"], NodeProxy);
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	    }
@@ -455,6 +473,7 @@ export namespace api {
 		    return a;
 		}
 	}
+	
 	export class Project {
 	    id: string;
 	    team_id: string;
@@ -525,6 +544,36 @@ export namespace api {
 	        this.created_at = source["created_at"];
 	    }
 	}
+	export class Proxy {
+	    id: string;
+	    project_id: string;
+	    name: string;
+	    proxy_type: string;
+	    host: string;
+	    port: number;
+	    username: string;
+	    bypass: string;
+	    sort_order: number;
+	    created_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Proxy(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.project_id = source["project_id"];
+	        this.name = source["name"];
+	        this.proxy_type = source["proxy_type"];
+	        this.host = source["host"];
+	        this.port = source["port"];
+	        this.username = source["username"];
+	        this.bypass = source["bypass"];
+	        this.sort_order = source["sort_order"];
+	        this.created_at = source["created_at"];
+	    }
+	}
 	export class RequestBody {
 	    type: string;
 	    content_type: string;
@@ -573,6 +622,7 @@ export namespace api {
 	    follow_redirects: string;
 	    response_filter: string;
 	    auth: Auth;
+	    proxy: NodeProxy;
 	    sort_order: number;
 	    created_at: string;
 	    updated_at: string;
@@ -597,6 +647,7 @@ export namespace api {
 	        this.follow_redirects = source["follow_redirects"];
 	        this.response_filter = source["response_filter"];
 	        this.auth = this.convertValues(source["auth"], Auth);
+	        this.proxy = this.convertValues(source["proxy"], NodeProxy);
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	        this.updated_at = source["updated_at"];
@@ -732,6 +783,7 @@ export namespace api {
 	    follow_redirects: string;
 	    response_filter: string;
 	    auth: Auth;
+	    proxy: NodeProxy;
 	    sort_order: number;
 	    created_at: string;
 	    updated_at: string;
@@ -751,6 +803,7 @@ export namespace api {
 	        this.follow_redirects = source["follow_redirects"];
 	        this.response_filter = source["response_filter"];
 	        this.auth = this.convertValues(source["auth"], Auth);
+	        this.proxy = this.convertValues(source["proxy"], NodeProxy);
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	        this.updated_at = source["updated_at"];
@@ -1005,6 +1058,7 @@ export namespace engine {
 	    total_ms: number;
 	    connection_reused: boolean;
 	    remote_addr: string;
+	    proxy?: string;
 	    failed_phase?: string;
 	    error?: string;
 	
@@ -1025,6 +1079,7 @@ export namespace engine {
 	        this.total_ms = source["total_ms"];
 	        this.connection_reused = source["connection_reused"];
 	        this.remote_addr = source["remote_addr"];
+	        this.proxy = source["proxy"];
 	        this.failed_phase = source["failed_phase"];
 	        this.error = source["error"];
 	    }
@@ -1636,6 +1691,7 @@ export namespace main {
 	    auth: api.Auth;
 	    pre_script: string;
 	    post_script: string;
+	    proxy: api.NodeProxy;
 	
 	    static createFrom(source: any = {}) {
 	        return new FolderSettingsInput(source);
@@ -1647,6 +1703,7 @@ export namespace main {
 	        this.auth = this.convertValues(source["auth"], api.Auth);
 	        this.pre_script = source["pre_script"];
 	        this.post_script = source["post_script"];
+	        this.proxy = this.convertValues(source["proxy"], api.NodeProxy);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1853,6 +1910,7 @@ export namespace main {
 	    auth?: api.Auth;
 	    auth_source: string;
 	    console?: scripting.Console;
+	    proxy: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new HistoryEntry(source);
@@ -1869,6 +1927,7 @@ export namespace main {
 	        this.auth = this.convertValues(source["auth"], api.Auth);
 	        this.auth_source = source["auth_source"];
 	        this.console = this.convertValues(source["console"], scripting.Console);
+	        this.proxy = source["proxy"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -2502,6 +2561,138 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class ProxyInput {
+	    name: string;
+	    proxy_type: string;
+	    host: string;
+	    port: number;
+	    username: string;
+	    bypass: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProxyInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.proxy_type = source["proxy_type"];
+	        this.host = source["host"];
+	        this.port = source["port"];
+	        this.username = source["username"];
+	        this.bypass = source["bypass"];
+	    }
+	}
+	export class ProxyListResult {
+	    data: api.Proxy[];
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProxyListResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.Proxy);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ProxyPassword {
+	    set: boolean;
+	    password: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProxyPassword(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.set = source["set"];
+	        this.password = source["password"];
+	    }
+	}
+	export class ProxyPasswordResult {
+	    data?: ProxyPassword;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProxyPasswordResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], ProxyPassword);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ProxyResult {
+	    data?: api.Proxy;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProxyResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.Proxy);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class RequestFile {
 	    key: string;
 	    path: string;
@@ -2752,6 +2943,7 @@ export namespace main {
 	    auth?: api.Auth;
 	    auth_source: string;
 	    folders: ScriptFolder[];
+	    proxy_id: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SendOptions(source);
@@ -2764,6 +2956,7 @@ export namespace main {
 	        this.auth = this.convertValues(source["auth"], api.Auth);
 	        this.auth_source = source["auth_source"];
 	        this.folders = this.convertValues(source["folders"], ScriptFolder);
+	        this.proxy_id = source["proxy_id"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -2791,6 +2984,7 @@ export namespace main {
 	    environment: string;
 	    hops: engine.Hop[];
 	    console?: scripting.Console;
+	    proxy_warning?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SendResult(source);
@@ -2804,6 +2998,7 @@ export namespace main {
 	        this.environment = source["environment"];
 	        this.hops = this.convertValues(source["hops"], engine.Hop);
 	        this.console = this.convertValues(source["console"], scripting.Console);
+	        this.proxy_warning = source["proxy_warning"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

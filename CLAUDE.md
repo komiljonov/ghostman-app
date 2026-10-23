@@ -48,6 +48,8 @@ main.defaultServerURL=...`); `task build SERVER_URL=https://...` overrides it. A
   the affected list/view from the server. Server-shaped structs keep the server's
   snake_case JSON names end to end.
 - **Never log credentials**: no passwords, tokens or Authorization headers in slog output.
+- **Proxy passwords never reach the server** either: local SQLite `proxy_passwords` only (the server
+  knows a proxy's username at most); never logged, never in history.
 - **Secret variable values never reach the server** (the product's security promise). They
   live only in local SQLite (`secret_values`, keyed by environment id + variable KEY). All
   variable writes go through `internal/envs`, which re-reads the variable's type from the
@@ -63,7 +65,7 @@ Postman-style shell, logged in:
 
 - **Top bar**, left to right: "Ghostman" · **Team switcher** (my teams with owner badge and
   member count, "+ New team", "Team settings") · **Project switcher** (accessible projects of
-  the current team in sort order, "+ New project", "Project settings") · refresh (↻) · on the
+  the current team in sort order, "+ New project", "Project settings", "Manage proxies…") · refresh (↻) · on the
   right the **env switcher** and then the **profile badge** (initials) whose menu holds user
   name/email, Invitations (count badge), History, Import… (OpenAPI / Swagger / Postman), Settings (server URL modal), Log out.
 - **Left sidebar**: the current project's folders/requests tree (`ProjectTree`) and, docked
@@ -117,8 +119,8 @@ Postman-style shell, logged in:
   `request` (method | URL (stretches) | Send / Cancel in one fixed slot at the far right;
   Params | Headers | Body | Auth | Scripts | Settings | History with the save status at the row's right end; response below a
   draggable divider), `env` (that environment's variables table), `env_list`
-  (create / rename / reorder / delete environments), `history` (see History) and `webhook` (see
-  Webhooks). There is no separate environments page.
+  (create / rename / reorder / delete environments), `history` (see History), `webhook` (see
+  Webhooks), `proxy_list` and `proxy` (see Proxies). There is no separate environments page.
 - **Editor groups** (VS Code style; pure rules in `src/layoutTree.ts` and `src/dropZone.ts`,
   both unit tested): the main pane is a split tree — `SplitNode{direction, children, sizes}` /
   `GroupNode{tabs, activeTabId}`. Every tab is in exactly one group; exactly one group is
@@ -583,6 +585,42 @@ Postman-style shell, logged in:
   "new"); later rows prepend (≤ 500 kept): at the list's top they just appear, scrolled away the reader's
   row stays put (`overflow-anchor`) and an "N new ↑" chip scrolls to the top; while the tab is not its
   group's active tab the count is "unseen" (tab badge + panel row badge), cleared when it is shown.
+- **Proxies** (Go: `internal/api/proxies.go`, bound `proxies.go`, engine `internal/engine/proxy.go`, fixture
+  `internal/testproxy` + `tools/testproxy`; UI: `ProxyListView` / `ProxyItem` / `ProxyView` / `ProxySettingRow`,
+  rules in `src/proxySettings.ts` + `resolveProxy` in `src/settingsResolver.ts`, both unit tested; state
+  `src/proxyStore.ts`). Per-project objects on the server like environments: name, type http | https | socks5,
+  host, port, username, bypass (comma-separated). Env-style tabs: `proxy_list` ("Proxies", from the project
+  switcher → Manage proxies…: create — starts as http localhost:3128 —, rename inline, ↑/↓ `MoveProxy`, delete
+  with confirm "requests using it will fall back to inherit"; the global default carries a badge) and `proxy`
+  (the form; autosaved like a request — 600 ms, `UpdateProxy(id, saved, next)` PATCHes the changed fields — plus
+  the PASSWORD: password input with reveal, "stored only on this machine", saved locally as you type
+  (`SetProxyPassword`, 400 ms; "" removes), status line `passwordStatus`). Tabs follow the list (renames
+  relabel, deletes close); `DeleteProxy` also deletes the local password. **Cascade** (auth-shaped, WITH a
+  global level): requests and folders store `proxy` = {mode inherit | global | none | proxy, proxy_id} on the
+  server (lists carry it; tree nodes keep it); `resolveProxy`: proxy + a known id → that proxy, stop; proxy with
+  a deleted / null id → treated as inherit; none → direct, stop; global → the global default, stop; inherit →
+  next folder; past the root → the global default. Global default per project, local: settings
+  `proxy_global_<project_id>` = none | <proxy_id> (`GetProxyGlobal` / `SetProxyGlobal`; Settings modal →
+  Proxy dropdown; an id no longer in the list reads as none). UI row (`ProxySettingRow`, request Settings tab —
+  saved at once via `SetRequestProxy`, then the tree re-fetch — and the folder Settings… modal — in its ONE
+  PATCH via `SaveFolderSettings`, `FolderSettingsInput.proxy`): Inherit "— currently: Local squid (from folder
+  ‘api’)" / "direct (global default)" · Use global "— currently: …" · No proxy · Use proxy… + dropdown; a
+  setting pointing at a deleted proxy shows as Inherit with a note; the Settings sub-tab dot includes it
+  (`proxyOverrides`). Labels re-resolve live from the tree store + proxy store. **Send**: TS passes the resolved
+  id (`SendOptions.proxy_id`, "" = direct); Go loads the proxy fresh (404 → "the proxy … no longer exists"),
+  adds the local password and hands `engine.Proxy` over. Credentials only with a username AND a local password;
+  a username without one → sent WITHOUT credentials + `SendResult.proxy_warning` ("proxy password not set on
+  this machine (X) — sent without credentials"), shown as a banner like unresolved vars. Engine: one cached
+  client per proxy config; http/https → `Transport.Proxy` (Basic Proxy-Authorization, also on CONNECT);
+  socks5 → `golang.org/x/net/proxy` dialer (user/pass auth). **Bypass** (`engine.Bypassed`, table-tested):
+  entries trimmed, case-insensitive; `*.suffix` = any subdomain, NOT the bare domain; anything else exact
+  (hosts, `localhost`, IPs); matched per HOP against its URL host (after {{var}} resolution) → that hop goes
+  direct, redirect hops otherwise keep the proxy. Hops through a proxy carry `proxy` (its label) and
+  `remote_addr` = the PROXY's address; a failure reaching / tunnelling through it is failed phase `proxy` (the
+  transport's "proxyconnect" OpError or the SOCKS dial) — timing panel "failed during proxy connect — …", the
+  request error "could not connect through the proxy X (addr): …". History: `proxy_label` (migration 00012)
+  names the proxy of the first hop ("" = direct), shown in the detail's Resolved form; never the password. With
+  no proxy resolved the engine's default transport still honours HTTP(S)_PROXY from the environment, as before.
 - **Current team/project** live in Go (`internal/workspace`), persisted in settings
   (`current_team_id`, `current_project_id`) and validated against fresh server lists on every
   load: a vanished team falls back to the first team with no project, a vanished project to no
@@ -609,6 +647,8 @@ environments.go          bound environment/variable methods + local secret acces
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
 responses.go             full response bodies per tab (Go-side), SaveResponseToFile, ReleaseResponse
+proxies.go               bound proxies: CRUD / MoveProxy, local passwords, per-project global default,
+                         SetRequestProxy, sendProxy (load + local password at send time)
 request_files.go         multipart file fields: local paths (Choose/Clear/Rename/ListRequestFiles), attachFiles at send
 dialog_dev.go            devdialog build tag only: scripted open dialog for UI verification
 webhooks.go              bound webhook capture: endpoints, PollCaptures, capture detail / jq / save / copy,
@@ -626,6 +666,8 @@ internal/workspace/      current team/project selection: persist, validate, fall
 internal/envs/           environments: active env, variables with local-only secrets, var map
 internal/importer/       import: sniff, ordered tree, pure planners (Postman mapper/env, OpenAPI + Swagger conversion),
                          executor, report (+ testdata fixtures)
+internal/testproxy/      HTTP (forward + CONNECT) + SOCKS5 test proxy with auth and a request log
+                         (tests; `go run ./tools/testproxy -addr 127.0.0.1:3128 [-user u -pass p]`)
 internal/scripting/      pre/post scripts: sandboxed goja VM per script, watchdog budgets, gm API, console, API docs
 internal/jsonfmt/        Format JSON for template bodies: mask {{vars}} outside strings, indent, restore
 internal/filter/         jq (gojq) evaluation for the response filter bar: parse once, cap, note
@@ -656,7 +698,9 @@ frontend/                Vite + Solid + TS
   open tab.
 - Variable usage search; env duplication;
   dynamic/generated variables.
-- More cascading settings through the same resolver (proxy, timeout, TLS / insecure);
+- Proxies: PAC files, per-proxy TLS options, a "test connection" button, proxy for the Ghostman server
+  connection itself.
+- More cascading settings through the same resolver (timeout, TLS / insecure);
   the Settings sub-tab and the folder Settings… modal are their home. Auth: OAuth 2.0, digest.
 - Response search: regex mode.
 - Comments in the raw (JSON) body via Ctrl+/: deliberately NOT supported — comments would be

@@ -1,5 +1,8 @@
 import { createEffect, createSignal, For } from "solid-js";
-import { SetRequestFollowRedirects } from "../../wailsjs/go/main/App";
+import { SetRequestFollowRedirects, SetRequestProxy } from "../../wailsjs/go/main/App";
+import { ownProxy } from "../proxySettings";
+import type { NodeProxy } from "../tree";
+import ProxySettingRow from "./ProxySettingRow";
 import { handleProblem } from "../authStore";
 import { redirectDefault } from "../redirectDefault";
 import { followOptions, FollowValue, ownFollow, resolveFollow, saveFollow } from "../requestSettings";
@@ -35,6 +38,26 @@ export default function RequestSettingsPanel(props: Props) {
     if (pending() && ownFollow(currentTree(), props.requestId) === pending()) setPending(undefined);
   });
 
+  // Proxy: saved at once (its own PATCH), then the tree is re-fetched.
+  const [proxyPending, setProxyPending] = createSignal<NodeProxy>();
+  const [proxyError, setProxyError] = createSignal<string>();
+  const sameProxy = (a: NodeProxy, b: NodeProxy) => a.mode === b.mode && (a.proxyId ?? null) === (b.proxyId ?? null);
+  const proxyValue = () => proxyPending() ?? ownProxy(currentTree(), props.requestId);
+  const chooseProxy = async (next: NodeProxy) => {
+    if (sameProxy(next, ownProxy(currentTree(), props.requestId))) return;
+    setProxyPending(next);
+    setProxyError(undefined);
+    const r = await SetRequestProxy(props.requestId, next.mode, next.proxyId ?? "");
+    handleProblem(r.error);
+    setProxyError(r.error?.message);
+    if (r.error) setProxyPending(undefined);
+    else void requestTreeReload();
+  };
+  createEffect(() => {
+    const p = proxyPending();
+    if (p && sameProxy(ownProxy(currentTree(), props.requestId), p)) setProxyPending(undefined);
+  });
+
   return (
     <div class="request-settings">
       <fieldset class="request-setting">
@@ -58,6 +81,8 @@ export default function RequestSettingsPanel(props: Props) {
         </p>
         <FormError message={error()} />
       </fieldset>
+      <ProxySettingRow nodeId={props.requestId} value={proxyValue()} onChange={(p) => void chooseProxy(p)} radioName="request-proxy" />
+      <FormError message={proxyError()} />
     </div>
   );
 }

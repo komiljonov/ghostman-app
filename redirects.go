@@ -64,10 +64,11 @@ func invalidAuth() *session.Problem {
 // FolderSettingsInput is what the folder Settings… modal edits (the saved values
 // and the edited ones are both sent, so the PATCH holds only what changed).
 type FolderSettingsInput struct {
-	FollowRedirects string   `json:"follow_redirects"`
-	Auth            api.Auth `json:"auth"`
-	PreScript       string   `json:"pre_script"`
-	PostScript      string   `json:"post_script"`
+	FollowRedirects string        `json:"follow_redirects"`
+	Auth            api.Auth      `json:"auth"`
+	PreScript       string        `json:"pre_script"`
+	PostScript      string        `json:"post_script"`
+	Proxy           api.NodeProxy `json:"proxy"`
 }
 
 func (a *App) SaveFolderSettings(id string, saved, next FolderSettingsInput) FolderResult {
@@ -88,7 +89,14 @@ func (a *App) SaveFolderSettings(id string, saved, next FolderSettingsInput) Fol
 	if next.PostScript != saved.PostScript {
 		patch.PostScript = &next.PostScript
 	}
-	if patch.FollowRedirects == nil && patch.Auth == nil && patch.PreScript == nil && patch.PostScript == nil {
+	nextProxy := api.NormalizeNodeProxy(next.Proxy)
+	if nextProxy.Mode == api.ProxyModeProxy && (nextProxy.ProxyID == nil || *nextProxy.ProxyID == "") {
+		return FolderResult{Error: invalidProxy("choose a proxy")}
+	}
+	if !sameNodeProxy(api.NormalizeNodeProxy(saved.Proxy), nextProxy) {
+		patch = patch.WithProxy(nextProxy)
+	}
+	if patch.FollowRedirects == nil && patch.Auth == nil && patch.PreScript == nil && patch.PostScript == nil && patch.Proxy == nil {
 		return FolderResult{}
 	}
 	v, p := call(a, func(ctx context.Context, c *api.APIClient) (api.FolderDetail, error) {

@@ -48,6 +48,11 @@ its tab every 2 seconds — headers and body (pretty JSON, search, jq), newest f
 response the sender gets (status, headers, body). **Copy as request** turns a captured call into a
 request you can replay. Endpoints are shared with the team; polling pauses while the window is in the
 background.
+**Proxies** (project menu → Manage proxies…): HTTP, HTTPS or SOCKS5 proxies shared with the team, each
+with a bypass list (`localhost, *.internal.corp`). Requests and folders choose one in their Settings
+(inherit / use the project's global default from Settings / no proxy / a specific proxy); the timing panel
+shows which proxy a hop went through. A proxy's **password is stored only on your machine** — teammates
+enter their own; without it, sends go without credentials and say so.
 **Form-data bodies** (Body → Form-data): text fields (`{{variables}}` work) and file fields. Choose a
 file from your disk; teammates see only its name — the file and where it is on your computer stay on
 your machine (a teammate picks their own copy; such a field shows "no file on this machine"). Files are

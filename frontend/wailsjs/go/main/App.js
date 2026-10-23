@@ -70,6 +70,10 @@ export function CreateProject(arg1, arg2) {
   return window['go']['main']['App']['CreateProject'](arg1, arg2);
 }
 
+export function CreateProxy(arg1, arg2) {
+  return window['go']['main']['App']['CreateProxy'](arg1, arg2);
+}
+
 export function CreateRequest(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateRequest'](arg1, arg2, arg3);
 }
@@ -100,6 +104,10 @@ export function DeleteHistoryEntry(arg1) {
 
 export function DeleteProject(arg1) {
   return window['go']['main']['App']['DeleteProject'](arg1);
+}
+
+export function DeleteProxy(arg1) {
+  return window['go']['main']['App']['DeleteProxy'](arg1);
 }
 
 export function DeleteRequest(arg1) {
@@ -186,6 +194,18 @@ export function GetProjectAccess(arg1) {
   return window['go']['main']['App']['GetProjectAccess'](arg1);
 }
 
+export function GetProxy(arg1) {
+  return window['go']['main']['App']['GetProxy'](arg1);
+}
+
+export function GetProxyGlobal(arg1) {
+  return window['go']['main']['App']['GetProxyGlobal'](arg1);
+}
+
+export function GetProxyPassword(arg1) {
+  return window['go']['main']['App']['GetProxyPassword'](arg1);
+}
+
 export function GetRequest(arg1) {
   return window['go']['main']['App']['GetRequest'](arg1);
 }
@@ -266,6 +286,10 @@ export function ListProjects(arg1) {
   return window['go']['main']['App']['ListProjects'](arg1);
 }
 
+export function ListProxies(arg1) {
+  return window['go']['main']['App']['ListProxies'](arg1);
+}
+
 export function ListRequestFiles(arg1) {
   return window['go']['main']['App']['ListRequestFiles'](arg1);
 }
@@ -318,6 +342,10 @@ export function MoveProject(arg1, arg2, arg3) {
   return window['go']['main']['App']['MoveProject'](arg1, arg2, arg3);
 }
 
+export function MoveProxy(arg1, arg2, arg3) {
+  return window['go']['main']['App']['MoveProxy'](arg1, arg2, arg3);
+}
+
 export function MoveRequest(arg1, arg2) {
   return window['go']['main']['App']['MoveRequest'](arg1, arg2);
 }
@@ -368,6 +396,10 @@ export function ReorderFolders(arg1, arg2, arg3) {
 
 export function ReorderProjects(arg1, arg2) {
   return window['go']['main']['App']['ReorderProjects'](arg1, arg2);
+}
+
+export function ReorderProxies(arg1, arg2) {
+  return window['go']['main']['App']['ReorderProxies'](arg1, arg2);
 }
 
 export function ReorderRequests(arg1, arg2, arg3) {
@@ -462,8 +494,20 @@ export function SetProjectAccess(arg1, arg2) {
   return window['go']['main']['App']['SetProjectAccess'](arg1, arg2);
 }
 
+export function SetProxyGlobal(arg1, arg2) {
+  return window['go']['main']['App']['SetProxyGlobal'](arg1, arg2);
+}
+
+export function SetProxyPassword(arg1, arg2) {
+  return window['go']['main']['App']['SetProxyPassword'](arg1, arg2);
+}
+
 export function SetRequestFollowRedirects(arg1, arg2) {
   return window['go']['main']['App']['SetRequestFollowRedirects'](arg1, arg2);
+}
+
+export function SetRequestProxy(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetRequestProxy'](arg1, arg2, arg3);
 }
 
 export function SetResponseWrap(arg1) {
@@ -512,6 +556,10 @@ export function SetWebhookPanel(arg1, arg2) {
 
 export function UpdateProjectName(arg1, arg2) {
   return window['go']['main']['App']['UpdateProjectName'](arg1, arg2);
+}
+
+export function UpdateProxy(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UpdateProxy'](arg1, arg2, arg3);
 }
 
 export function UpdateRequest(arg1, arg2) {

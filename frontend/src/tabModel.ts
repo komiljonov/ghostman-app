@@ -1,15 +1,16 @@
 // Pure tab logic (typed tabs, persistence format, reordering, shortcut rules).
 // No Solid, no bindings — unit-tested in tabModel.test.ts.
 
-export type TabKind = "request" | "env" | "env_list" | "history" | "webhook";
+export type TabKind = "request" | "env" | "env_list" | "history" | "webhook" | "proxy" | "proxy_list";
 
 export interface TabRef {
   kind: TabKind;
-  id: string; // request / environment / webhook id; "" for env_list and history
+  id: string; // request / environment / webhook / proxy id; "" for env_list, proxy_list and history
 }
 
 export const ENV_LIST: TabRef = { kind: "env_list", id: "" };
 export const HISTORY: TabRef = { kind: "history", id: "" };
+export const PROXY_LIST: TabRef = { kind: "proxy_list", id: "" };
 
 export const tabKey = (ref: TabRef) => `${ref.kind}:${ref.id}`;
 
@@ -37,9 +38,10 @@ function toRef(v: unknown): TabRef | undefined {
   if (!v || typeof v !== "object") return undefined;
   const { kind, id } = v as { kind?: unknown; id?: unknown };
   const sid = typeof id === "string" ? id : "";
-  if (kind === "request" || kind === "env" || kind === "webhook") return sid ? { kind, id: sid } : undefined;
+  if (kind === "request" || kind === "env" || kind === "webhook" || kind === "proxy") return sid ? { kind, id: sid } : undefined;
   if (kind === "env_list") return ENV_LIST;
   if (kind === "history") return HISTORY;
+  if (kind === "proxy_list") return PROXY_LIST;
   return undefined;
 }
 

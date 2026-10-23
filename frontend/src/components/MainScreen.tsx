@@ -19,6 +19,10 @@ import { resolveFollow } from "../requestSettings";
 import { effectiveAuthOf } from "../auth";
 import { currentTree } from "../treeStore";
 import { scriptChain } from "../scriptChain";
+import { effectiveProxy } from "../proxySettings";
+import { loadProxies, proxies, proxiesLoaded, proxyGlobal, reloadProxies } from "../proxyStore";
+import ProxyListView from "./ProxyListView";
+import ProxyView from "./ProxyView";
 import SidebarResizer from "./SidebarResizer";
 import TeamSettingsView from "./TeamSettingsView";
 import ProjectSettingsView from "./ProjectSettingsView";
@@ -77,6 +81,8 @@ export default function MainScreen(props: Props) {
       // Cascading follow_redirects, resolved from the tree store + the global value.
       followRedirects: (requestId) => resolveFollow(currentTree(), requestId, redirectDefault()).value,
       scriptFolders: (requestId) => scriptChain(currentTree(), requestId),
+      // Cascading proxy: the tree store + the project's proxies + the global default.
+      proxy: (requestId) => effectiveProxy(currentTree(), requestId, proxyGlobal(), proxies()).proxyId,
       // Cascading auth: the tab's own draft config, then its folders (tree store).
       auth: (requestId, own) => effectiveAuthOf(currentTree(), requestId, own),
     });
@@ -89,7 +95,14 @@ export default function MainScreen(props: Props) {
   createEffect(on(projectId, (id) => {
     publishProjectId(id);
     void loadEnvContext(id);
+    void loadProxies(id);
   }));
+  // Proxy tabs follow the proxy list: renames relabel, deletes close.
+  createEffect(() => {
+    const t = tabs();
+    const list = proxies();
+    if (t && t.state.restored && proxiesLoaded()) t.syncWithProxies(list);
+  });
   // "Open original request" needs the current tree's request ids.
   const requestIds = createMemo(() => new Set(currentTree().requests.keys()));
 
@@ -114,6 +127,14 @@ export default function MainScreen(props: Props) {
   };
   const openRequest = (id: string) => {
     tabs()?.open(id);
+    setPane("editor");
+  };
+  const openProxyList = () => {
+    tabs()?.openProxyList();
+    setPane("editor");
+  };
+  const openProxy = (id: string, name: string) => {
+    tabs()?.openProxy(id, name);
     setPane("editor");
   };
   const openWebhook = (id: string, name: string) => {
@@ -237,7 +258,7 @@ export default function MainScreen(props: Props) {
 
   const refresh = async () => {
     setRefreshTick((n) => n + 1);
-    await Promise.all([reloadWorkspace(), refreshInvitations(), refreshEnvContext()]);
+    await Promise.all([reloadWorkspace(), refreshInvitations(), refreshEnvContext(), reloadProxies()]);
   };
 
   const selectTeam = async (id: string) => {
@@ -291,6 +312,7 @@ export default function MainScreen(props: Props) {
             onSelect={selectProject}
             onCreated={selectProject}
             onOpenSettings={() => setPane("project-settings")}
+            onManageProxies={openProxyList}
           />
 
           <button type="button" class="icon-button" title="Refresh from server" aria-label="Refresh"
@@ -424,6 +446,12 @@ export default function MainScreen(props: Props) {
                         </Match>
                         <Match when={tab.kind === "history"}>
                           <HistoryView projectId={projectId()} requestIds={requestIds()} onOpenRequest={openRequest} />
+                        </Match>
+                        <Match when={tab.kind === "proxy_list"}>
+                          <ProxyListView projectId={projectId()} onOpenProxy={openProxy} />
+                        </Match>
+                        <Match when={tab.kind === "proxy"}>
+                          <ProxyView proxyId={tab.id} />
                         </Match>
                         <Match when={tab.kind === "webhook"}>
                           <WebhookView webhookId={tab.id} onOpenRequest={openRequest} />

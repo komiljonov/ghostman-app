@@ -34,6 +34,12 @@ type History struct {
 	TimingsJson            sql.NullString `json:"timingsJson"`
 	ReqAuthJson            sql.NullString `json:"reqAuthJson"`
 	ConsoleJson            sql.NullString `json:"consoleJson"`
+	ProxyLabel             sql.NullString `json:"proxyLabel"`
+}
+
+type ProxyPassword struct {
+	ProxyID  string `json:"proxyId"`
+	Password string `json:"password"`
 }
 
 type RequestFile struct {

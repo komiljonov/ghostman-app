@@ -59,3 +59,19 @@ describe("timing panel model", () => {
     expect(formatMs(3.14)).toBe("3.1 ms");
   });
 });
+
+describe("proxy hops", () => {
+  it("a proxy connect failure is its own failure label on the connect row", () => {
+    const m = timingModel([{ url: "http://example.com/", method: "GET", status: 0, total_ms: 3, connection_reused: false,
+      proxy: "Local squid (127.0.0.1:3128)", failed_phase: "proxy", error: "connection refused at 127.0.0.1:3128" }])!;
+    const s = m.sections[0];
+    expect(s.failed).toBe(true);
+    expect(s.failure).toBe("failed during proxy connect — connection refused at 127.0.0.1:3128");
+    expect(s.rows.find((r) => r.phase === "connect")?.kind).toBe("failed");
+    expect(s.via).toBe("via Local squid (127.0.0.1:3128)");
+  });
+  it("a direct hop has no via line", () => {
+    const m = timingModel([{ url: "http://x/", method: "GET", status: 200, total_ms: 1, connection_reused: true }])!;
+    expect(m.sections[0].via).toBeUndefined();
+  });
+});

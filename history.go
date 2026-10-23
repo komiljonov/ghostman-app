@@ -51,6 +51,15 @@ func jsonText(v any) sql.NullString {
 
 func nullText(s string) sql.NullString { return sql.NullString{String: s, Valid: s != ""} }
 
+// hopProxy is the proxy the send's first hop went through (name + address,
+// never a password); NULL when it went direct.
+func hopProxy(hops []engine.Hop) sql.NullString {
+	if len(hops) == 0 {
+		return sql.NullString{}
+	}
+	return nullText(hops[0].Proxy)
+}
+
 // historyBodyCap is the engine's Go-side body cap for a send: at least 20 MB (Save
 // to file), more when history keeps more, none when history keeps whole bodies.
 func historyBodyCap(limits store.HistoryLimits) int64 {
@@ -97,6 +106,7 @@ func (a *App) recordHistory(r historyRecord) {
 		entry.DurationMs = time.Since(r.start).Milliseconds()
 		entry.Error = nullText(r.err.Error())
 		entry.TimingsJson = jsonText(nonNilHops(engine.HopsOf(r.err)))
+		entry.ProxyLabel = hopProxy(engine.HopsOf(r.err))
 		var se *scripting.ScriptError
 		if errors.As(r.err, &se) {
 			// A script's message is teammate-written text (it may hold a secret): never logged.
@@ -110,6 +120,7 @@ func (a *App) recordHistory(r historyRecord) {
 		entry.RespHeadersJson = jsonText(r.resp.Headers)
 		entry.RespBodySize = r.resp.BodySize
 		entry.TimingsJson = jsonText(nonNilHops(r.resp.Hops))
+		entry.ProxyLabel = hopProxy(r.resp.Hops)
 		slog.Info("request sent", "method", entry.Method, "url", entry.UrlTemplate, "status", r.resp.Status, "duration_ms", r.resp.DurationMs)
 	}
 	if entry.UrlTemplate == "" || a.store == nil {
@@ -284,6 +295,8 @@ type HistoryEntry struct {
 	AuthSource string    `json:"auth_source"`
 	// Console is the send's script output (nil when the send ran no scripts).
 	Console *scripting.Console `json:"console"`
+	// Proxy names the proxy the send went through ("" = direct).
+	Proxy string `json:"proxy"`
 }
 
 type HistoryEntryResult struct {
@@ -344,7 +357,8 @@ func (a *App) GetHistoryEntry(id int64) HistoryEntryResult {
 			URL: h.UrlResolved.String, Headers: resolvedHeaders, Params: []api.KeyValue{},
 			Body: h.ReqBodyResolved.String, BodyType: body.Type, ContentType: body.ContentType,
 		},
-		Hops: unmarshalOr(h.TimingsJson, []engine.Hop{}),
+		Hops:  unmarshalOr(h.TimingsJson, []engine.Hop{}),
+		Proxy: h.ProxyLabel.String,
 	}
 	if ha := unmarshalOr(h.ReqAuthJson, historyAuth{}); h.ReqAuthJson.Valid {
 		e.Auth, e.AuthSource = &ha.Config, ha.Source
