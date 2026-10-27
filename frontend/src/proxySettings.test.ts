@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { choiceToSave, describeProxy, effectiveProxy, globalChoice, passwordStatus, proxyOptions, proxyOverrides, shownProxy } from "./proxySettings";
+import { isGlobalDefault, setDefaultEntry, choiceToSave, describeProxy, effectiveProxy, globalChoice, passwordStatus, proxyOptions, proxyOverrides, shownProxy } from "./proxySettings";
 import { ProxyLevel, resolveProxy } from "./settingsResolver";
 import { buildTree } from "./tree";
 
@@ -87,4 +87,17 @@ describe("password status (local only)", () => {
     [{ saving: false, set: false, username: "me" }, "No password on this machine: sends go without credentials"],
     [{ saving: false, set: false, username: "" }, ""],
   ])("%o", (s, want) => expect(passwordStatus(s)).toBe(want));
+});
+
+describe("global default marker", () => {
+  it("marks only the stored default; none marks nothing", () => {
+    expect(isGlobalDefault("squid", "squid")).toBe(true);
+    expect(isGlobalDefault("corp", "squid")).toBe(false);
+    expect(isGlobalDefault("corp", "none")).toBe(false);
+  });
+  it("Set as global default is disabled on the current default only", () => {
+    expect(setDefaultEntry("squid", "squid")).toEqual({ disabled: true, title: "Already the global default" });
+    expect(setDefaultEntry("corp", "squid").disabled).toBe(false);
+    expect(setDefaultEntry("corp", "none").disabled).toBe(false);
+  });
 });

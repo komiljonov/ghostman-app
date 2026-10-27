@@ -65,11 +65,18 @@ Postman-style shell, logged in:
 
 - **Top bar**, left to right: "Ghostman" · **Team switcher** (my teams with owner badge and
   member count, "+ New team", "Team settings") · **Project switcher** (accessible projects of
-  the current team in sort order, "+ New project", "Project settings", "Manage proxies…") · refresh (↻) · on the
+  the current team in sort order, "+ New project", "Project settings") · refresh (↻) · on the
   right the **env switcher** and then the **profile badge** (initials) whose menu holds user
   name/email, Invitations (count badge), History, Import… (OpenAPI / Swagger / Postman), Settings (server URL modal), Log out.
 - **Left sidebar**: the current project's folders/requests tree (`ProjectTree`) and, docked
-  below it, the **Webhooks panel** (see Webhooks). Never teams, invitations or other navigation. The tree is built client-side (`src/tree.ts`, unit
+  below it, the **bottom area** (`SidebarPanels`, rules `src/sidebarPanels.ts`, unit tested): a stack of
+  collapsible section bars in a FIXED order — **Webhooks**, then **Proxies** (see both). Each bar: chevron ·
+  name · count · "+", one row tall, independently collapsible. With none expanded the area is just the bars;
+  with any expanded it has the stored height (one drag divider on its top edge sizes the whole area against
+  the tree: area ≥ 120 px, tree ≥ 160 px, double-click → 30 %) and the expanded sections split it equally.
+  State per project, local: `ui_sidebar_panels_<project_id>` = {webhooks, proxies, fraction}
+  (`GetSidebarPanels` / `SetSidebarPanels`; the older webhook-only `ui_webhooks_panel_<project_id>` is read as
+  the fallback). Never teams, invitations or other navigation. The tree is built client-side (`src/tree.ts`, unit
   tested) from ONE ListFolders + ONE ListRequests call and rebuilt after every mutation;
   rows are keyed by id and expansion is per-node state (persisted locally under
   `ui_tree_state_<project_id>`), so expand/collapse never rebuilds the tree. Row actions live
@@ -120,7 +127,9 @@ Postman-style shell, logged in:
   Params | Headers | Body | Auth | Scripts | Settings | History with the save status at the row's right end; response below a
   draggable divider), `env` (that environment's variables table), `env_list`
   (create / rename / reorder / delete environments), `history` (see History), `webhook` (see
-  Webhooks), `proxy_list` and `proxy` (see Proxies). There is no separate environments page.
+  Webhooks) and `proxy` (see Proxies). There is no separate environments page. Retired kinds (`proxy_list`)
+  are not tab keys any more: a stored layout naming one is repaired on restore (dropped like an unknown key,
+  emptied groups collapse) and written back once.
 - **Editor groups** (VS Code style; pure rules in `src/layoutTree.ts` and `src/dropZone.ts`,
   both unit tested): the main pane is a split tree — `SplitNode{direction, children, sizes}` /
   `GroupNode{tabs, activeTabId}`. Every tab is in exactly one group; exactly one group is
@@ -544,14 +553,11 @@ Postman-style shell, logged in:
   bound methods in `webhooks.go`; UI: `WebhooksPanel`, `WebhookView`, `CaptureDetailView`, `PlainEditor`;
   rules in `src/webhookModel.ts` + `src/webhookPoll.ts`, both unit tested; shared state `src/webhookStore.ts`).
   The server owns endpoints (slug, preferred domain, configured static response) and captures; `GET
-  /api/v1/meta` lists the capture domains (first = default; empty = feature off). **Panel**: a one-row bar at
-  the bottom of the sidebar (chevron · "Webhooks" · count · "+"), collapsed by default, expanding UPWARD — the
-  sidebar is a column (`.sidebar-stack`): the tree (`nav.tree-sidebar`, its own scroll — the tree DnD
-  scroller, so auto-scroll follows the reduced height; a tree drag released over the panel drops nothing)
-  above the panel. Height = a fraction of the sidebar (default 30 %), clamped in px (panel ≥ 120, tree ≥ 160,
-  `clampPanel`); the top-edge handle rewrites only the element's height while dragging, saves on release,
-  double-click → 30 %. Expanded + fraction per project (`ui_webhooks_panel_<project_id>`,
-  `GetWebhookPanel`/`SetWebhookPanel`). "+" → inline name form; the server's errors are shown verbatim
+  /api/v1/meta` lists the capture domains (first = default; empty = feature off). **Section**
+  (`WebhooksSection`, the first section of the sidebar's bottom area): bar chevron · "Webhooks" · count · "+",
+  collapsed by default — the sidebar is a column (`.sidebar-stack`): the tree (`nav.tree-sidebar`, its own
+  scroll — the tree DnD scroller, so auto-scroll follows the reduced height; a tree drag released over the
+  bottom area drops nothing) above the area (height, divider and expanded state: `SidebarPanels`). "+" → inline name form; the server's errors are shown verbatim
   (quota 409, invalid-domain 400), except the not-configured 409, which Go marks `code
   hooks_not_configured` and the UI explains ("not set up on this server … HOOKS_DOMAINS"; also when meta
   is empty: "+" disabled with that reason). Rows: icon · name · unseen badge · listening dot (green =
@@ -586,12 +592,15 @@ Postman-style shell, logged in:
   row stays put (`overflow-anchor`) and an "N new ↑" chip scrolls to the top; while the tab is not its
   group's active tab the count is "unseen" (tab badge + panel row badge), cleared when it is shown.
 - **Proxies** (Go: `internal/api/proxies.go`, bound `proxies.go`, engine `internal/engine/proxy.go`, fixture
-  `internal/testproxy` + `tools/testproxy`; UI: `ProxyListView` / `ProxyItem` / `ProxyView` / `ProxySettingRow`,
+  `internal/testproxy` + `tools/testproxy`; UI: `ProxiesSection` / `ProxyView` / `ProxySettingRow`,
   rules in `src/proxySettings.ts` + `resolveProxy` in `src/settingsResolver.ts`, both unit tested; state
   `src/proxyStore.ts`). Per-project objects on the server like environments: name, type http | https | socks5,
-  host, port, username, bypass (comma-separated). Env-style tabs: `proxy_list` ("Proxies", from the project
-  switcher → Manage proxies…: create — starts as http localhost:3128 —, rename inline, ↑/↓ `MoveProxy`, delete
-  with confirm "requests using it will fall back to inherit"; the global default carries a badge) and `proxy`
+  host, port, username, bypass (comma-separated). **Sidebar section** (`ProxiesSection`, the second section of
+  the bottom area): rows type chip · name · host:port (muted) · a dot on the project's global default
+  (`isGlobalDefault`); "+" in the bar creates one (http localhost:3128) and opens its tab; click opens the
+  proxy's tab; row menu Open · Rename (inline) · Set as global default (`setDefaultEntry`: disabled on the
+  current default; writes the local `proxy_global_<project_id>`) · Delete (confirm "requests using it will fall
+  back to inherit"). Tab `proxy`
   (the form; autosaved like a request — 600 ms, `UpdateProxy(id, saved, next)` PATCHes the changed fields — plus
   the PASSWORD: password input with reveal, "stored only on this machine", saved locally as you type
   (`SetProxyPassword`, 400 ms; "" removes), status line `passwordStatus`). Tabs follow the list (renames
@@ -647,12 +656,13 @@ environments.go          bound environment/variable methods + local secret acces
 theme.go                 bound theme preference (GetTheme/SetTheme, local settings)
 uiprefs.go               bound layout prefs (GetUIPrefs, SetSidebarWidth, SetResponseWrap)
 responses.go             full response bodies per tab (Go-side), SaveResponseToFile, ReleaseResponse
-proxies.go               bound proxies: CRUD / MoveProxy, local passwords, per-project global default,
+sidebar_panels.go        bound sidebar bottom-area state per project (GetSidebarPanels/SetSidebarPanels)
+proxies.go               bound proxies: CRUD, local passwords, per-project global default,
                          SetRequestProxy, sendProxy (load + local password at send time)
 request_files.go         multipart file fields: local paths (Choose/Clear/Rename/ListRequestFiles), attachFiles at send
 dialog_dev.go            devdialog build tag only: scripted open dialog for UI verification
 webhooks.go              bound webhook capture: endpoints, PollCaptures, capture detail / jq / save / copy,
-                         CopyCaptureAsRequest, sidebar panel prefs (GetWebhookPanel/SetWebhookPanel)
+                         CopyCaptureAsRequest
 import_files.go          bound import: ChooseImportFile, ImportPostmanCollection/Environment, ImportOpenAPI (internal/importer)
 scripts.go               send scripts: gatherScripts (run order), cloneSpec, flushEnv (env writes via envs), GetScriptAPIDocs
 body_format.go           bound FormatJSONBody (raw body Format; rules in internal/jsonfmt)

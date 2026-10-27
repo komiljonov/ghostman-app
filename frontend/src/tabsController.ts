@@ -22,7 +22,7 @@ import {
   moveTab, openTab, resetSizes, resize, Side, singleGroup, splitGroup,
 } from "./layoutTree";
 import { applyDrop, DropTarget } from "./dropZone";
-import { closeEach, CloseMode, cycleKey, ENV_LIST, HISTORY, PROXY_LIST, syncEnvTabs, syncNamedTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
+import { closeEach, CloseMode, cycleKey, ENV_LIST, HISTORY, syncEnvTabs, syncNamedTabs, TabKind, TabRef, tabKey, tabsToClose } from "./tabModel";
 
 export const AUTOSAVE_DELAY_MS = 600;
 
@@ -237,9 +237,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
   const requestKey = (id: string) => tabKey({ kind: "request", id });
   const ENV_LIST_NAME = "Environments";
   const HISTORY_NAME = "History";
-  const PROXY_LIST_NAME = "Proxies";
-  const fixedName = (ref: TabRef) =>
-    ref.kind === "env_list" ? ENV_LIST_NAME : ref.kind === "history" ? HISTORY_NAME : ref.kind === "proxy_list" ? PROXY_LIST_NAME : "";
+  const fixedName = (ref: TabRef) => (ref.kind === "env_list" ? ENV_LIST_NAME : ref.kind === "history" ? HISTORY_NAME : "");
 
   // The active tab of the focused group (what Send / Ctrl+W / the tree follow).
   const activeKey = () => activeTab(state.layout) ?? undefined;
@@ -322,10 +320,6 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
 
     openHistory() {
       openRef(HISTORY, HISTORY_NAME, "ready");
-    },
-
-    openProxyList() {
-      openRef(PROXY_LIST, PROXY_LIST_NAME, "ready");
     },
 
     openProxy(id: string, name: string) {

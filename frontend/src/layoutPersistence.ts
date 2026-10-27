@@ -2,7 +2,9 @@
 // GetLayout / SetLayout, settings key ui_layout_<user>_<project>). Restoring
 // validates and repairs the stored tree (layoutTree.parseLayout), drops tabs whose
 // target is gone (deleted or no longer accessible) and collapses what empties;
-// unreadable data falls back to one empty group — never a crash. Saving is
+// unreadable data falls back to one empty group — never a crash. Retired tab kinds
+// (proxy_list) are not tab keys any more, so they are dropped like unknown ones
+// and the repaired layout is written back. Saving is
 // debounced (300 ms) and flushed on quit.
 import { allTabs, Layout, parseLayout, pruneTabs, serializeLayout, singleGroup } from "./layoutTree";
 import { isTabKey, refFromKey, TabRef } from "./tabModel";
@@ -40,7 +42,10 @@ export async function restoreLayout(
   const present = await Promise.all(keys.map((k) => load(refFromKey(k)!).catch(() => false)));
   const gone = new Set(keys.filter((_, i) => !present[i]));
   const out = gone.size > 0 ? pruneTabs(layout, (k) => !gone.has(k)) : layout;
-  if (gone.size > 0 || (raw !== "" && !parsed)) await saveLayout(storage, projectId, out);
+  // Parsing repaired the stored copy (a retired tab kind such as proxy_list, a
+  // duplicate, bad sizes): write the clean one back once.
+  const repaired = !!parsed && JSON.stringify(serializeLayout(parsed)) !== raw;
+  if (gone.size > 0 || repaired || (raw !== "" && !parsed)) await saveLayout(storage, projectId, out);
   return out;
 }
 

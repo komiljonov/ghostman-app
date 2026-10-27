@@ -3031,6 +3031,22 @@ export namespace main {
 	        this.serverUrl = source["serverUrl"];
 	    }
 	}
+	export class SidebarPanelPrefs {
+	    webhooks: boolean;
+	    proxies: boolean;
+	    fraction: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SidebarPanelPrefs(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.webhooks = source["webhooks"];
+	        this.proxies = source["proxies"];
+	        this.fraction = source["fraction"];
+	    }
+	}
 	export class TabRef {
 	    kind: string;
 	    id: string;
@@ -3320,20 +3336,6 @@ export namespace main {
 		    }
 		    return a;
 		}
-	}
-	export class WebhookPanelPrefs {
-	    expanded: boolean;
-	    fraction: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new WebhookPanelPrefs(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.expanded = source["expanded"];
-	        this.fraction = source["fraction"];
-	    }
 	}
 	export class WebhookPatchInput {
 	    name?: string;

@@ -117,6 +117,8 @@ export function GetSecretValues(arg1:string):Promise<Record<string, string>>;
 
 export function GetSettings():Promise<main.Settings>;
 
+export function GetSidebarPanels(arg1:string):Promise<main.SidebarPanelPrefs>;
+
 export function GetTabs(arg1:string):Promise<main.Tabs>;
 
 export function GetTeam(arg1:string):Promise<main.TeamResult>;
@@ -130,8 +132,6 @@ export function GetUIPrefs():Promise<main.UIPrefs>;
 export function GetWebhook(arg1:string):Promise<main.WebhookResult>;
 
 export function GetWebhookMeta():Promise<main.MetaResult>;
-
-export function GetWebhookPanel(arg1:string):Promise<main.WebhookPanelPrefs>;
 
 export function ImportOpenAPI(arg1:string,arg2:string):Promise<main.ImportReportResult>;
 
@@ -174,8 +174,6 @@ export function MoveEnvironment(arg1:string,arg2:string,arg3:number):Promise<mai
 export function MoveFolder(arg1:string,arg2:string):Promise<main.FolderResult>;
 
 export function MoveProject(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
-
-export function MoveProxy(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
 
 export function MoveRequest(arg1:string,arg2:string):Promise<main.RequestSummaryResult>;
 
@@ -265,6 +263,8 @@ export function SetSecretValue(arg1:string,arg2:string,arg3:string):Promise<main
 
 export function SetServerURL(arg1:string):Promise<session.Result>;
 
+export function SetSidebarPanels(arg1:string,arg2:main.SidebarPanelPrefs):Promise<main.EmptyResult>;
+
 export function SetSidebarWidth(arg1:number):Promise<main.EmptyResult>;
 
 export function SetTabs(arg1:string,arg2:main.Tabs):Promise<main.EmptyResult>;
@@ -278,8 +278,6 @@ export function SetVariableKey(arg1:string,arg2:string,arg3:string):Promise<main
 export function SetVariableType(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
 
 export function SetVariableValue(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
-
-export function SetWebhookPanel(arg1:string,arg2:main.WebhookPanelPrefs):Promise<main.EmptyResult>;
 
 export function UpdateProjectName(arg1:string,arg2:string):Promise<main.ProjectResult>;
 
