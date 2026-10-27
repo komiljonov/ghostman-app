@@ -166,7 +166,7 @@ func TestRestoreSetsEffectiveAuthExplicitly(t *testing.T) {
 	if r := a.RestoreHistoryEntry(historyRows(t, a)[0].ID, "p1"); r.Error != nil {
 		t.Fatal(r.Error.Message)
 	}
-	if got := toJSON(t, srv.patched["auth"]); got != `{"api_key_in":"header","api_key_name":"","api_key_value":"","basic_password":"{{P}}","basic_username":"u","bearer_token":"","type":"basic"}` {
+	if got := toJSON(t, srv.patched["auth"]); got != `{"api_key_in":"header","api_key_name":"","api_key_value":"","basic_password":"{{P}}","basic_username":"u","bearer_token":"","jwt_add_to":"header","jwt_algorithm":"HS256","jwt_name":"","jwt_payload":"","jwt_prefix":"","jwt_secret":"","jwt_secret_base64":false,"type":"basic"}` {
 		t.Fatalf("restored auth = %s", got)
 	}
 	if got := restoredAuth(sql.NullString{}); got.Type != api.AuthInherit {

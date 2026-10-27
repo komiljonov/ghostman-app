@@ -1,6 +1,7 @@
 import { createEffect, onCleanup, onMount, Show, createSignal } from "solid-js";
 import type { CodeEditorHandle } from "../codemirror";
 import { envDisplay } from "../envStore";
+import type { EnvDisplay } from "../vars";
 
 interface Props {
   value: string;
@@ -11,6 +12,8 @@ interface Props {
   onFormat?: () => void;
   // The editor handle, once CodeMirror has loaded (BodyEditor applies Format results).
   onEditor?: (editor: CodeEditorHandle) => void;
+  // What {{vars}} highlight / hover against (default: the active environment).
+  getEnv?: () => EnvDisplay;
 }
 
 // Raw body editor. CodeMirror is loaded on first use (dynamic import) and the
@@ -24,7 +27,7 @@ export default function CodeEditor(props: Props) {
   onMount(async () => {
     const { createCodeEditor } = await import("../codemirror");
     if (!host.isConnected) return; // unmounted while loading
-    editor = createCodeEditor(host, props.value, props.json, (text) => props.onChange(text), envDisplay);
+    editor = createCodeEditor(host, props.value, props.json, (text) => props.onChange(text), props.getEnv ?? envDisplay);
     setReady(true);
     props.onEditor?.(editor);
   });
@@ -38,7 +41,7 @@ export default function CodeEditor(props: Props) {
   });
   // Re-highlight {{vars}} when the active environment or its variables change.
   createEffect(() => {
-    envDisplay();
+    (props.getEnv ?? envDisplay)();
     if (ready()) editor?.refreshVars();
   });
   onCleanup(() => editor?.destroy());

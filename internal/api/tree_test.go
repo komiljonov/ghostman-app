@@ -96,7 +96,7 @@ func TestFolderAndRequestEndpoints(t *testing.T) {
 			want: Request{
 				RequestSummary: RequestSummary{ID: "r1", ProjectID: "p1", FolderID: strPtr("f1"), Name: "R1", Method: "POST",
 					URL: "https://x.io", CreatedAt: "x", UpdatedAt: "y",
-					Auth: Auth{Type: AuthInherit, APIKeyIn: APIKeyInHeader}, Proxy: defProxy}, // absent (older server) -> defaults
+					Auth: defAuth, Proxy: defProxy}, // absent (older server) -> defaults
 				Headers:     []KeyValue{{Key: "A", Value: "1", Enabled: true}},
 				QueryParams: []KeyValue{},
 				Body:        RequestBody{Type: BodyNone, Fields: []KeyValue{}},
@@ -188,5 +188,5 @@ func TestTreeEndpointErrors(t *testing.T) {
 }
 
 // defAuth is what an absent auth object (older server) decodes to in lists.
-var defAuth = Auth{Type: AuthInherit, APIKeyIn: APIKeyInHeader}
+var defAuth = Auth{Type: AuthInherit, APIKeyIn: APIKeyInHeader, JWTAlgorithm: JWTHS256, JWTAddTo: APIKeyInHeader}
 var defProxy = NodeProxy{Mode: ProxyModeInherit}

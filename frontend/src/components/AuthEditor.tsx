@@ -1,7 +1,15 @@
-import { createSignal, For, Index, Match, Show, Switch } from "solid-js";
-import { ApiKeyIn, AUTH_HINT, AuthConfig, AuthType, resolvedLabel, withType } from "../auth";
-import type { ResolvedAuth } from "../settingsResolver";
+import { createMemo, createSignal, For, Index, Match, Show, Switch } from "solid-js";
+import { FormatJSONBody } from "../../wailsjs/go/main/App";
+import { ApiKeyIn, AUTH_HINT, AuthConfig, AuthType, JWT_ALGORITHMS, JWTAlgorithm, resolvedLabel, withType } from "../auth";
+import { FORMAT_SHORTCUT } from "../bodyFormat";
+import type { CodeEditorHandle } from "../codemirror";
+import { envDisplay } from "../envStore";
+import { JWT_DEFAULT_PREFIX, JWT_SECRET_HINT, jwtNamePlaceholder, jwtPrefixDisabled, jwtSentAs, withTimeClaims } from "../jwtAuth";
+import { isExplicitAuth, type ResolvedAuth } from "../settingsResolver";
+import CodeEditor from "./CodeEditor";
 import Icon from "./Icon";
+import JwtHelp from "./JwtHelp";
+import JwtPreview from "./JwtPreview";
 import VarField from "./VarField";
 
 interface Props {
@@ -19,7 +27,30 @@ interface Props {
 // single-line {{var}} editors; secrets belong in a secret variable.
 export default function AuthEditor(props: Props) {
   const [reveal, setReveal] = createSignal(false);
-  const set = (field: keyof AuthConfig, value: string) => props.onChange({ ...props.auth, [field]: value });
+  const set = (field: keyof AuthConfig, value: string | boolean) => props.onChange({ ...props.auth, [field]: value });
+
+  // JWT payload Format (the button or Alt+Shift+F): the raw body's formatter —
+  // Go masks {{vars}} outside strings (internal/jsonfmt), one undoable change.
+  let payloadEditor: CodeEditorHandle | undefined;
+  let formatting = false;
+  const [formatHint, setFormatHint] = createSignal("");
+  const canFormat = () => props.auth.jwt_payload.trim() !== "";
+  const payloadEnv = createMemo(() => withTimeClaims(envDisplay()));
+  const formatPayload = async () => {
+    if (!payloadEditor || formatting || !canFormat()) return;
+    const before = payloadEditor.getDoc();
+    formatting = true;
+    try {
+      const res = await FormatJSONBody(before);
+      if (res.error) {
+        if (payloadEditor.getDoc() === before) setFormatHint(res.error.message);
+      } else if (res.data) {
+        payloadEditor.applyFormatted(before, res.data.formatted);
+      }
+    } finally {
+      formatting = false;
+    }
+  };
 
   return (
     <div class="auth-editor">
@@ -108,10 +139,84 @@ export default function AuthEditor(props: Props) {
             </div>
           </div>
         </Match>
+        <Match when={props.auth.type === "jwt"}>
+          <div class="auth-fields">
+            <label class="auth-field">
+              <span>Algorithm</span>
+              <select aria-label="JWT algorithm" class="jwt-algorithm" value={props.auth.jwt_algorithm}
+                onChange={(e) => set("jwt_algorithm", e.currentTarget.value as JWTAlgorithm)}>
+                <For each={JWT_ALGORITHMS}>{(a) => <option value={a} selected={a === props.auth.jwt_algorithm}>{a}</option>}</For>
+              </select>
+            </label>
+            <div class="auth-field">
+              <span>Secret</span>
+              <VarField value={props.auth.jwt_secret} onChange={(v) => set("jwt_secret", v)}
+                placeholder="{{JWT_SECRET}}" ariaLabel="JWT secret" />
+            </div>
+            <p class="auth-field-note muted small">{JWT_SECRET_HINT}</p>
+            <div class="auth-field">
+              <span />
+              <label class="check-inline">
+                <input type="checkbox" checked={props.auth.jwt_secret_base64}
+                  onChange={(e) => set("jwt_secret_base64", e.currentTarget.checked)} />
+                Secret is Base64-encoded
+              </label>
+            </div>
+            <div class="auth-field top">
+              <span>Payload</span>
+              <div class="jwt-payload">
+                <div class="jwt-payload-bar">
+                  <span class="muted small">JSON object · <code>"{"{{$now+3600}}"}"</code> = a time claim</span>
+                  <JwtHelp />
+                  <span class="format-hint" title={formatHint()} aria-live="polite">{formatHint()}</span>
+                  <span class="toolbar-slot" title={canFormat() ? `Format JSON (${FORMAT_SHORTCUT})` : "Nothing to format"}>
+                    <button type="button" class="format-btn" disabled={!canFormat()} aria-label="Format payload JSON"
+                      onClick={() => {
+                        void formatPayload();
+                        payloadEditor?.focus();
+                      }}>Format</button>
+                  </span>
+                </div>
+                <CodeEditor value={props.auth.jwt_payload} json getEnv={payloadEnv} canFormat={canFormat()} onFormat={() => void formatPayload()}
+                  onEditor={(e) => (payloadEditor = e)}
+                  onChange={(text) => {
+                    setFormatHint("");
+                    set("jwt_payload", text);
+                  }} />
+              </div>
+            </div>
+            <div class="auth-field">
+              <span>Add to</span>
+              <div class="segmented small" role="radiogroup" aria-label="Add JWT to">
+                <For each={[{ v: "header" as ApiKeyIn, l: "Header" }, { v: "query" as ApiKeyIn, l: "Query params" }]}>
+                  {(o) => (
+                    <button type="button" role="radio" aria-checked={props.auth.jwt_add_to === o.v}
+                      classList={{ active: props.auth.jwt_add_to === o.v }}
+                      onClick={() => set("jwt_add_to", o.v)}>{o.l}</button>
+                  )}
+                </For>
+              </div>
+            </div>
+            <div class="auth-field">
+              <span>Name</span>
+              <VarField value={props.auth.jwt_name} onChange={(v) => set("jwt_name", v)}
+                placeholder={jwtNamePlaceholder(props.auth.jwt_add_to)} ariaLabel="JWT header or parameter name" />
+            </div>
+            <div class="auth-field" title={jwtPrefixDisabled(props.auth.jwt_add_to) ? "The prefix applies to a header only" : undefined}>
+              <span>Prefix</span>
+              <VarField value={props.auth.jwt_prefix} onChange={(v) => set("jwt_prefix", v)}
+                placeholder={JWT_DEFAULT_PREFIX} ariaLabel="JWT header prefix" disabled={jwtPrefixDisabled(props.auth.jwt_add_to)} />
+            </div>
+            <div class="auth-preview jwt-sent-as">
+              <span class="muted small">Sent as <code>{jwtSentAs(props.auth)}</code></span>
+              <JwtPreview auth={props.auth} />
+            </div>
+          </div>
+        </Match>
       </Switch>
 
-      <Show when={props.auth.type === "bearer" || props.auth.type === "basic" || props.auth.type === "api_key"}>
-        <p class="auth-hint">{AUTH_HINT}</p>
+      <Show when={isExplicitAuth(props.auth.type)}>
+        <Show when={props.auth.type !== "jwt"}><p class="auth-hint">{AUTH_HINT}</p></Show>
         <p class="auth-hint">
           A header or query parameter you add yourself with the same name wins over the one built here.
         </p>

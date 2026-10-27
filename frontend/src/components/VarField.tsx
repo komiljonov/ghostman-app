@@ -8,6 +8,7 @@ interface Props {
   placeholder: string;
   ariaLabel: string;
   masked?: boolean; // password-style: literal text as bullets, {{vars}} stay visible
+  disabled?: boolean; // read-only and muted (never hidden)
 }
 
 // A standalone single-line field with {{var}} highlighting and hover (the shared
@@ -27,6 +28,7 @@ export default function VarField(props: Props) {
       onChange: (text) => props.onChange(text),
       getEnv: envDisplay,
       masked: !!props.masked,
+      disabled: !!props.disabled,
     });
     setReady(true);
   });
@@ -37,6 +39,14 @@ export default function VarField(props: Props) {
   createEffect(() => {
     const m = !!props.masked;
     if (ready()) editor?.setMasked(m);
+  });
+  createEffect(() => {
+    const p = props.placeholder;
+    if (ready()) editor?.setPlaceholder(p);
+  });
+  createEffect(() => {
+    const d = !!props.disabled;
+    if (ready()) editor?.setDisabled(d);
   });
   // Outside changes (a tab reload) apply, but never while the field is being typed in.
   createEffect(() => {
@@ -49,7 +59,7 @@ export default function VarField(props: Props) {
     <div class="var-field">
       <Show when={!ready()}>
         <input class="var-field-fallback" type={props.masked ? "password" : "text"} spellcheck={false}
-          aria-label={props.ariaLabel} placeholder={props.placeholder} value={props.value}
+          aria-label={props.ariaLabel} placeholder={props.placeholder} value={props.value} disabled={props.disabled}
           onInput={(e) => props.onChange(e.currentTarget.value)} />
       </Show>
       <div class="var-field-host" ref={host} />

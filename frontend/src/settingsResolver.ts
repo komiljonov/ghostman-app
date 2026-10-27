@@ -101,7 +101,10 @@ export interface ResolvedAuth {
   source: Source;
 }
 
-const EXPLICIT_AUTH = new Set(["bearer", "basic", "api_key"]);
+const EXPLICIT_AUTH = new Set(["bearer", "basic", "api_key", "jwt"]);
+
+// A type that IS a config (adds credentials) — not inherit / none / unknown.
+export const isExplicitAuth = (t: string) => EXPLICIT_AUTH.has(t);
 
 export function resolveAuth(node: AuthLevel, ancestorsBottomUp: AuthLevel[]): ResolvedAuth {
   for (const level of [node, ...ancestorsBottomUp]) {

@@ -358,6 +358,10 @@ export function PollCaptures(arg1, arg2) {
   return window['go']['main']['App']['PollCaptures'](arg1, arg2);
 }
 
+export function PreviewJWT(arg1, arg2) {
+  return window['go']['main']['App']['PreviewJWT'](arg1, arg2);
+}
+
 export function Register(arg1, arg2, arg3) {
   return window['go']['main']['App']['Register'](arg1, arg2, arg3);
 }

@@ -17,6 +17,7 @@ import (
 //	basic               → Authorization: Basic base64(<username>:<password>)
 //	api_key, in=header  → <name>: <value>
 //	api_key, in=query   → name=value appended to the query string
+//	jwt                 → the token SignJWT signed (jwt.go): header or query
 //	none / inherit / "" → nothing
 //
 // USER-WRITTEN BEATS DERIVED: if the request's enabled headers already contain
@@ -33,6 +34,7 @@ const (
 	AuthBearer  = "bearer"
 	AuthBasic   = "basic"
 	AuthAPIKey  = "api_key"
+	AuthJWT     = "jwt"
 
 	APIKeyInHeader = "header"
 	APIKeyInQuery  = "query"
@@ -47,11 +49,40 @@ type Auth struct {
 	APIKeyName    string `json:"api_key_name"`
 	APIKeyValue   string `json:"api_key_value"`
 	APIKeyIn      string `json:"api_key_in"`
+
+	JWTAlgorithm    string `json:"jwt_algorithm"`
+	JWTSecret       string `json:"jwt_secret"`
+	JWTSecretBase64 bool   `json:"jwt_secret_base64"`
+	JWTPayload      string `json:"jwt_payload"`
+	JWTAddTo        string `json:"jwt_add_to"`
+	JWTName         string `json:"jwt_name"`
+	JWTPrefix       string `json:"jwt_prefix"`
+
+	// Set during a send, never serialized (a string keeps Auth comparable): the
+	// secret's unresolved keys as "{{A}}, {{B}}" (ResolveSpec) and the signed
+	// token (SignJWT).
+	jwtSecretMissing string
+	jwtToken         string
 }
 
 // resolveAuth resolves {{vars}} inside the values (not the type / placement).
-func resolveAuth(a Auth, res func(string) string) Auth {
+// A JWT secret is resolved on its own: its unresolved keys abort the send
+// (SignJWT) instead of joining the banner; the payload keeps {{$now…}} tokens.
+func resolveAuth(a Auth, res func(string) string, vars map[string]string) Auth {
 	switch a.Type {
+	case AuthJWT:
+		var missing []string
+		a.JWTSecret, missing = Resolve(a.JWTSecret, vars)
+		a.jwtSecretMissing = ""
+		for i, k := range missing {
+			if i > 0 {
+				a.jwtSecretMissing += ", "
+			}
+			a.jwtSecretMissing += "{{" + k + "}}"
+		}
+		a.JWTPayload = resolvePayload(a.JWTPayload, res)
+		a.JWTName, a.JWTPrefix = res(a.JWTName), res(a.JWTPrefix)
+		a.jwtToken = ""
 	case AuthBearer:
 		a.BearerToken = res(a.BearerToken)
 	case AuthBasic:
@@ -88,6 +119,8 @@ func derivedAuth(a Auth) (h *Header, q *Header) {
 			return nil, row
 		}
 		return row, nil
+	case AuthJWT:
+		return jwtRow(a)
 	}
 	return nil, nil
 }

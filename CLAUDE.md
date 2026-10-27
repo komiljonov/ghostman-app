@@ -427,11 +427,11 @@ Postman-style shell, logged in:
   response has **Save response…** (`SaveHistoryResponseToFile`: native dialog, name +
   extension by type incl. png/jpg/svg/mp3/mp4/pdf, the stored bytes).
 - **Authorization** (a cascading setting WITHOUT a global level): requests and folders store
-  `auth` = {type inherit | none | bearer | basic | api_key, bearer_token, basic_username,
-  basic_password, api_key_name, api_key_value, api_key_in header|query} **on the server**; values
+  `auth` = {type inherit | none | bearer | basic | api_key | jwt, bearer_token, basic_username,
+  basic_password, api_key_name, api_key_value, api_key_in header|query, jwt_* (below)} **on the server**; values
   may hold `{{vars}}` (a secret var is the recommended way — literal text is synced to the team).
   Fields not matching the type are KEPT (server and UI; a mode switch changes only `type`).
-  **Resolver** `resolveAuth` (`src/settingsResolver.ts`): bearer/basic/api_key at a level → that
+  **Resolver** `resolveAuth` (`src/settingsResolver.ts`): bearer/basic/api_key/jwt at a level → that
   node's full config, stop; `none` → no auth, stop (source = that node); `inherit` → next folder;
   past the root → no auth (source "default", "nothing set in parents"). A request tab resolves
   its DRAFT's own config + its folders from the tree store (`effectiveAuthOf`), so labels follow
@@ -455,6 +455,33 @@ Postman-style shell, logged in:
   redirect drop rule. History: the resolved copy has the derived header/param; `req_auth_json`
   (migration 00009) keeps the config as authored + its source; Restore sets that effective
   config explicitly on the new root request.
+  **JWT** (Go: `internal/engine/jwt.go`, bound `PreviewJWT` in `jwt_preview.go`; UI: the jwt mode of
+  `AuthEditor`, `JwtPreview`, `JwtHelp`, rules in `src/jwtAuth.ts`, all tested): a token TEMPLATE the
+  client signs at send time — `jwt_algorithm` HS256 | HS384 | HS512 (golang-jwt), `jwt_secret` (a
+  `{{secret}}` var recommended; hint under the field), `jwt_secret_base64` (bool), `jwt_payload` (JSON
+  text), `jwt_add_to` header | query, `jwt_name` (default Authorization / token), `jwt_prefix` (header
+  only, default "Bearer "; the field stays, disabled, for query). **Order per send**: ResolveSpec
+  resolves `{{vars}}` in secret + payload (the `{{$now…}}` family is left alone and never reported)
+  → `engine.SignJWT` ONCE after it (editor.go), so the token sent = the token in history: secret
+  Base64-decoded when flagged (std / raw / url alphabets; invalid → abort), payload must be ONE JSON
+  object ("" = {}; numbers kept exactly — UseNumber; else abort "not valid JSON (line L, col C: …)"),
+  **dynamic claims** (`engine.DynamicClaim`): a string VALUE that is exactly `{{$now}}`, `{{$now+N}}`
+  or `{{$now-N}}` becomes unix seconds (nested values too; anything else — "at {{$now}}", keys,
+  `{{$now+1.5}}` — stays as written), then sign and `ApplyAuth` attaches `<name>: <prefix><token>` or
+  `<name>=<token>` (user-written wins, the cross-host drop applies to Authorization, like every type).
+  **Deliberate deviation from the banner rule**: an unresolved var in the SECRET aborts the send
+  naming it ("JWT not signed: the secret uses {{JWT_SECRET}}, which has no value … on this machine")
+  — never a token signed with a placeholder; unresolved payload vars stay literal + the usual
+  banner. An abort is recorded in history (error, nothing sent). The resolved secret never leaves
+  Go: not logged, not in history (template config + derived token only), not in `SendResult` or the
+  preview (`jwt_preview_test.go` records the fake server, the log, every result and history).
+  **Preview token** (popover under the fields, re-signed on every open, same env map as a send; no
+  pre-scripts): decoded header + payload as signed NOW, the token's first / last 8 chars, the secret
+  as WRITTEN with literal text masked (`maskedSecret`), notes for unresolved vars / no environment;
+  errors are the send's own abort messages. The payload editor is the raw-body CodeEditor (JSON
+  colors, `{{var}}` hover / completion, the Format button + Alt+Shift+F through `FormatJSONBody`);
+  only there `{{$now…}}` highlight as resolved "time claim" pseudo-vars (`withTimeClaims` wraps the
+  env display; `VarInfo.dynamic` = no edit actions). The ? popover documents the claims.
 - **Import** (profile menu → Import…; Go: `internal/importer`, bound methods in `import_files.go`;
   UI: `ImportModal`, `ImportReport`, layout rules in `src/importReport.ts`). ONE file picker (.json / .yaml /
   .yml) for every kind; the sniffer routes by CONTENT: "openapi" 3.x → OpenAPI; "swagger" "2.0" → converted
@@ -666,6 +693,7 @@ webhooks.go              bound webhook capture: endpoints, PollCaptures, capture
 import_files.go          bound import: ChooseImportFile, ImportPostmanCollection/Environment, ImportOpenAPI (internal/importer)
 scripts.go               send scripts: gatherScripts (run order), cloneSpec, flushEnv (env writes via envs), GetScriptAPIDocs
 body_format.go           bound FormatJSONBody (raw body Format; rules in internal/jsonfmt)
+jwt_preview.go           bound PreviewJWT (Auth tab "Preview token"; signing rules in internal/engine/jwt.go)
 redirects.go             follow-redirects: local global value, node setters (server), SaveFolderSettings
                          (folder auth + follow in one PATCH), legacy local→server push
 ui_tokens_test.go        fails on color literals outside frontend/src/tokens.css
@@ -711,7 +739,8 @@ frontend/                Vite + Solid + TS
 - Proxies: PAC files, per-proxy TLS options, a "test connection" button, proxy for the Ghostman server
   connection itself.
 - More cascading settings through the same resolver (timeout, TLS / insecure);
-  the Settings sub-tab and the folder Settings… modal are their home. Auth: OAuth 2.0, digest.
+  the Settings sub-tab and the folder Settings… modal are their home. Auth: OAuth 2.0, digest;
+  JWT: RS* / ES* (key files), custom header claims, Postman jwt auth import (still → inherit).
 - Response search: regex mode.
 - Comments in the raw (JSON) body via Ctrl+/: deliberately NOT supported — comments would be
   sent verbatim and break APIs. Revisit only with an opt-in strip-on-send.

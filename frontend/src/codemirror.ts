@@ -775,10 +775,19 @@ export interface LineEditorHandle {
   setDoc: (text: string) => void;
   getDoc: () => string;
   setMasked: (masked: boolean) => void; // password fields: hide / reveal literal text
+  setPlaceholder: (text: string) => void;
+  // Disabled = read-only, not focusable, muted (.cm-disabled) — never hidden.
+  setDisabled: (disabled: boolean) => void;
   focus: () => void;
   hasFocus: () => boolean;
   destroy: () => void;
 }
+
+const disabledExt = [
+  EditorView.editable.of(false),
+  EditorState.readOnly.of(true),
+  EditorView.editorAttributes.of({ class: "cm-disabled", "aria-disabled": "true" }),
+];
 
 export interface LineEditorOptions {
   placeholder: string;
@@ -789,6 +798,7 @@ export interface LineEditorOptions {
   onPin?: PinListener;
   getEnv: () => EnvDisplay;
   masked?: boolean; // password-style: literal text as bullets ({{vars}} stay visible)
+  disabled?: boolean;
 }
 
 // One factory for every single-line field: newlines are stripped (a pasted multi-line
@@ -824,6 +834,8 @@ export const singleLineFilter = EditorState.transactionFilter.of((tr) => {
 
 export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEditorOptions): LineEditorHandle {
   const mask = new Compartment();
+  const hint = new Compartment();
+  const off = new Compartment();
   const view = new EditorView({
     parent,
     state: EditorState.create({
@@ -837,7 +849,8 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
           ...historyKeymap,
         ]),
         singleLineFilter,
-        placeholderExt(opts.placeholder),
+        hint.of(placeholderExt(opts.placeholder)),
+        off.of(opts.disabled ? disabledExt : []),
         theme,
         varHighlighting(opts.getEnv, opts.onPin),
         varCompletion(opts.getEnv),
@@ -863,6 +876,8 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
     },
     getDoc: () => view.state.doc.toString(),
     setMasked: (masked) => view.dispatch({ effects: mask.reconfigure(masked ? maskPlugin : []) }),
+    setPlaceholder: (text) => view.dispatch({ effects: hint.reconfigure(placeholderExt(text)) }),
+    setDisabled: (disabled) => view.dispatch({ effects: off.reconfigure(disabled ? disabledExt : []) }),
     focus: () => view.focus(),
     hasFocus: () => view.hasFocus,
     destroy: () => view.destroy(),
