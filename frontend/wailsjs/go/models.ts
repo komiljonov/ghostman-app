@@ -56,6 +56,13 @@ export namespace api {
 	    api_key_name: string;
 	    api_key_value: string;
 	    api_key_in: string;
+	    jwt_algorithm: string;
+	    jwt_secret: string;
+	    jwt_secret_base64: boolean;
+	    jwt_payload: string;
+	    jwt_add_to: string;
+	    jwt_name: string;
+	    jwt_prefix: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Auth(source);
@@ -70,6 +77,13 @@ export namespace api {
 	        this.api_key_name = source["api_key_name"];
 	        this.api_key_value = source["api_key_value"];
 	        this.api_key_in = source["api_key_in"];
+	        this.jwt_algorithm = source["jwt_algorithm"];
+	        this.jwt_secret = source["jwt_secret"];
+	        this.jwt_secret_base64 = source["jwt_secret_base64"];
+	        this.jwt_payload = source["jwt_payload"];
+	        this.jwt_add_to = source["jwt_add_to"];
+	        this.jwt_name = source["jwt_name"];
+	        this.jwt_prefix = source["jwt_prefix"];
 	    }
 	}
 	export class AuthPatch {
@@ -80,6 +94,13 @@ export namespace api {
 	    api_key_name?: string;
 	    api_key_value?: string;
 	    api_key_in?: string;
+	    jwt_algorithm?: string;
+	    jwt_secret?: string;
+	    jwt_secret_base64?: boolean;
+	    jwt_payload?: string;
+	    jwt_add_to?: string;
+	    jwt_name?: string;
+	    jwt_prefix?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AuthPatch(source);
@@ -94,6 +115,13 @@ export namespace api {
 	        this.api_key_name = source["api_key_name"];
 	        this.api_key_value = source["api_key_value"];
 	        this.api_key_in = source["api_key_in"];
+	        this.jwt_algorithm = source["jwt_algorithm"];
+	        this.jwt_secret = source["jwt_secret"];
+	        this.jwt_secret_base64 = source["jwt_secret_base64"];
+	        this.jwt_payload = source["jwt_payload"];
+	        this.jwt_add_to = source["jwt_add_to"];
+	        this.jwt_name = source["jwt_name"];
+	        this.jwt_prefix = source["jwt_prefix"];
 	    }
 	}
 	export class CaptureSummary {
@@ -2236,6 +2264,60 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = this.convertValues(source["data"], api.Invitation);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class JWTPreview {
+	    header: string;
+	    payload: string;
+	    token_head: string;
+	    token_tail: string;
+	    unresolved: string[];
+	    environment: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new JWTPreview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.header = source["header"];
+	        this.payload = source["payload"];
+	        this.token_head = source["token_head"];
+	        this.token_tail = source["token_tail"];
+	        this.unresolved = source["unresolved"];
+	        this.environment = source["environment"];
+	    }
+	}
+	export class JWTPreviewResult {
+	    data?: JWTPreview;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new JWTPreviewResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], JWTPreview);
 	        this.error = this.convertValues(source["error"], session.Problem);
 	    }
 	

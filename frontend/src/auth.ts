@@ -2,11 +2,13 @@
 // the mode list and the labels. Resolution is settingsResolver.resolveAuth; the
 // header / query param is built in Go at send time (internal/engine/auth.go).
 // Pure — unit-tested in auth.test.ts.
-import { ResolvedAuth, resolveAuthInTree, resolveAuthParent, sourceLabel } from "./settingsResolver";
+import { isExplicitAuth, ResolvedAuth, resolveAuthInTree, resolveAuthParent, sourceLabel } from "./settingsResolver";
 import type { Tree } from "./tree";
 
-export type AuthType = "inherit" | "none" | "bearer" | "basic" | "api_key";
+export type AuthType = "inherit" | "none" | "bearer" | "basic" | "api_key" | "jwt";
 export type ApiKeyIn = "header" | "query";
+export type JWTAlgorithm = "HS256" | "HS384" | "HS512";
+export const JWT_ALGORITHMS: JWTAlgorithm[] = ["HS256", "HS384", "HS512"];
 
 // The server's shape. Fields that do not match `type` are KEPT (server and UI):
 // switching mode back restores what was typed.
@@ -18,12 +20,20 @@ export interface AuthConfig {
   api_key_name: string;
   api_key_value: string;
   api_key_in: ApiKeyIn;
+  // JWT: a token Go signs at send time (internal/engine/jwt.go) from this template.
+  jwt_algorithm: JWTAlgorithm;
+  jwt_secret: string;
+  jwt_secret_base64: boolean;
+  jwt_payload: string;
+  jwt_add_to: ApiKeyIn;
+  jwt_name: string;
+  jwt_prefix: string;
 }
 
 // Loose input (server JSON / generated models use plain strings).
-export type AuthInput = { [K in keyof AuthConfig]?: string };
+export type AuthInput = { [K in keyof AuthConfig]?: AuthConfig[K] extends boolean ? boolean : string };
 
-export const AUTH_TYPES: AuthType[] = ["inherit", "none", "bearer", "basic", "api_key"];
+export const AUTH_TYPES: AuthType[] = ["inherit", "none", "bearer", "basic", "api_key", "jwt"];
 
 const asType = (v: unknown): AuthType => (AUTH_TYPES.includes(v as AuthType) ? (v as AuthType) : "inherit");
 
@@ -36,6 +46,13 @@ export function normalizeAuth(a?: AuthInput | null): AuthConfig {
     api_key_name: a?.api_key_name ?? "",
     api_key_value: a?.api_key_value ?? "",
     api_key_in: a?.api_key_in === "query" ? "query" : "header",
+    jwt_algorithm: JWT_ALGORITHMS.includes(a?.jwt_algorithm as JWTAlgorithm) ? (a?.jwt_algorithm as JWTAlgorithm) : "HS256",
+    jwt_secret: a?.jwt_secret ?? "",
+    jwt_secret_base64: a?.jwt_secret_base64 === true,
+    jwt_payload: a?.jwt_payload ?? "",
+    jwt_add_to: a?.jwt_add_to === "query" ? "query" : "header",
+    jwt_name: a?.jwt_name ?? "",
+    jwt_prefix: a?.jwt_prefix ?? "",
   };
 }
 
@@ -45,9 +62,10 @@ export const TYPE_LABEL: Record<AuthType, string> = {
   bearer: "Bearer token",
   basic: "Basic auth",
   api_key: "API key",
+  jwt: "JWT",
 };
 
-// Short name of an effective config: "Bearer", "Basic", "API key (query)", "No auth".
+// Short name of an effective config: "Bearer", "Basic", "API key (query)", "JWT", "No auth".
 export function effectiveName(config: AuthConfig | null): string {
   if (!config) return "No auth";
   switch (config.type) {
@@ -57,6 +75,8 @@ export function effectiveName(config: AuthConfig | null): string {
       return "Basic";
     case "api_key":
       return config.api_key_in === "query" ? "API key (query)" : "API key (header)";
+    case "jwt":
+      return "JWT";
     default:
       return "No auth";
   }
@@ -82,7 +102,7 @@ export const withType = (a: AuthConfig, type: AuthType): AuthConfig => ({ ...a, 
 // its own config alone.
 export function effectiveAuthOf(tree: Tree, requestId: string, draft: AuthConfig): ResolvedAuth {
   return resolveAuthInTree(tree, requestId, draft)
-    ?? (draft.type === "bearer" || draft.type === "basic" || draft.type === "api_key"
+    ?? (isExplicitAuth(draft.type)
       ? { config: draft, source: { kind: "node", id: requestId, nodeKind: "request", name: "" } }
       : { config: null, source: draft.type === "none" ? { kind: "node", id: requestId, nodeKind: "request", name: "" } : { kind: "default" } });
 }
@@ -103,6 +123,15 @@ export function authRows(a: AuthConfig): { key: string; value: string }[] {
       return [{ key: "Username", value: a.basic_username }, { key: "Password", value: a.basic_password }];
     case "api_key":
       return [{ key: "Key", value: a.api_key_name }, { key: "Value", value: a.api_key_value }, { key: "Add to", value: a.api_key_in === "query" ? "Query params" : "Header" }];
+    case "jwt":
+      return [
+        { key: "Algorithm", value: a.jwt_algorithm },
+        { key: "Secret", value: a.jwt_secret + (a.jwt_secret_base64 ? " (Base64)" : "") },
+        { key: "Payload", value: a.jwt_payload },
+        { key: "Add to", value: a.jwt_add_to === "query" ? "Query params" : "Header" },
+        { key: "Name", value: a.jwt_name || (a.jwt_add_to === "query" ? "token" : "Authorization") },
+        ...(a.jwt_add_to === "query" ? [] : [{ key: "Prefix", value: a.jwt_prefix || "Bearer " }]),
+      ];
     default:
       return [];
   }

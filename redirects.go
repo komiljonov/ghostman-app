@@ -54,7 +54,7 @@ func (a *App) SetRequestFollowRedirects(id, value string) RequestResult {
 }
 
 func invalidAuth() *session.Problem {
-	return &session.Problem{Kind: session.KindInvalid, Message: "auth type must be inherit, none, bearer, basic or api_key (API key in header or query)"}
+	return &session.Problem{Kind: session.KindInvalid, Message: "auth type must be inherit, none, bearer, basic, api_key or jwt (HS256 / HS384 / HS512; added to the header or query)"}
 }
 
 // SaveFolderSettings saves a folder's cascading settings (Folder settings modal)

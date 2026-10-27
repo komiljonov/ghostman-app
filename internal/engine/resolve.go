@@ -128,7 +128,7 @@ func ResolveSpec(spec RequestSpec, vars map[string]string) (RequestSpec, []strin
 		out.Body.Parts = parts
 	}
 	if spec.Auth != nil { // {{vars}} inside auth values, same map (auth.go)
-		a := resolveAuth(*spec.Auth, res)
+		a := resolveAuth(*spec.Auth, res, vars)
 		out.Auth = &a
 	}
 	return out, all

@@ -69,7 +69,7 @@ describe("in the tree (request tabs, folder modal)", () => {
   it("the inherit option names what it resolves to", () => {
     expect(modeOptions(tree(), "r")[0].label).toBe("Inherit from parent — Bearer (from folder ‘api v2’)");
     expect(modeOptions(tree(), "top")[0].label).toBe("Inherit from parent — No auth (nothing set in parents)");
-    expect(modeOptions(tree(), "r").map((o) => o.value)).toEqual(["inherit", "none", "bearer", "basic", "api_key"]);
+    expect(modeOptions(tree(), "r").map((o) => o.value)).toEqual(["inherit", "none", "bearer", "basic", "api_key", "jwt"]);
   });
   it("a tab's draft (unsaved) replaces the stored config; the folders still apply", () => {
     expect(effectiveAuthOf(tree(), "r", cfg({ type: "none" })).config).toBeNull();

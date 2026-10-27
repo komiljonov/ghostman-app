@@ -1,10 +1,15 @@
 package api
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // Authorization is a cascading per-node setting (like follow_redirects) stored on
 // the server per folder and request: Type inherit | none | bearer | basic |
-// api_key plus typed fields, which may hold {{vars}}. Fields not matching Type
+// api_key | jwt plus typed fields, which may hold {{vars}}. A jwt config is a
+// TEMPLATE the client signs at send time (engine/jwt.go); the server never
+// signs and never sees a resolved secret. Fields not matching Type
 // are kept by the server (switching back restores them), so the client never
 // clears them either. Resolution is the client's job (settingsResolver.ts);
 // sending applies the result (engine/auth.go).
@@ -15,13 +20,19 @@ const (
 	AuthBearer  = "bearer"
 	AuthBasic   = "basic"
 	AuthAPIKey  = "api_key"
+	AuthJWT     = "jwt"
 
 	APIKeyInHeader = "header"
 	APIKeyInQuery  = "query"
+
+	JWTHS256 = "HS256"
 )
 
 // AuthTypes are the valid auth types.
-var AuthTypes = []string{AuthInherit, AuthNone, AuthBearer, AuthBasic, AuthAPIKey}
+var AuthTypes = []string{AuthInherit, AuthNone, AuthBearer, AuthBasic, AuthAPIKey, AuthJWT}
+
+// JWTAlgorithms are the signing algorithms a jwt config may name.
+var JWTAlgorithms = []string{"HS256", "HS384", "HS512"}
 
 // Auth is a node's stored auth configuration (the server's shape).
 type Auth struct {
@@ -32,6 +43,14 @@ type Auth struct {
 	APIKeyName    string `json:"api_key_name"`
 	APIKeyValue   string `json:"api_key_value"`
 	APIKeyIn      string `json:"api_key_in"`
+
+	JWTAlgorithm    string `json:"jwt_algorithm"`     // HS256 | HS384 | HS512
+	JWTSecret       string `json:"jwt_secret"`        // template; a {{secret variable}} is the recommended form
+	JWTSecretBase64 bool   `json:"jwt_secret_base64"` // the (resolved) secret is Base64: decode before signing
+	JWTPayload      string `json:"jwt_payload"`       // JSON object template ({{vars}}, {{$now±N}} claims)
+	JWTAddTo        string `json:"jwt_add_to"`        // header | query
+	JWTName         string `json:"jwt_name"`          // "" = Authorization (header) / token (query)
+	JWTPrefix       string `json:"jwt_prefix"`        // header only; "" = "Bearer "
 }
 
 // AuthPatch is a partial auth update: Type is always sent, the other fields only
@@ -44,14 +63,24 @@ type AuthPatch struct {
 	APIKeyName    *string `json:"api_key_name,omitempty"`
 	APIKeyValue   *string `json:"api_key_value,omitempty"`
 	APIKeyIn      *string `json:"api_key_in,omitempty"`
+
+	JWTAlgorithm    *string `json:"jwt_algorithm,omitempty"`
+	JWTSecret       *string `json:"jwt_secret,omitempty"`
+	JWTSecretBase64 *bool   `json:"jwt_secret_base64,omitempty"`
+	JWTPayload      *string `json:"jwt_payload,omitempty"`
+	JWTAddTo        *string `json:"jwt_add_to,omitempty"`
+	JWTName         *string `json:"jwt_name,omitempty"`
+	JWTPrefix       *string `json:"jwt_prefix,omitempty"`
 }
 
-// ValidAuth reports whether a's type and API key placement are known values.
+// ValidAuth reports whether a's type, API key placement, JWT algorithm and JWT
+// placement are known values.
 func ValidAuth(a Auth) bool {
 	n := NormalizeAuth(a)
+	placement := func(v string) bool { return v == APIKeyInHeader || v == APIKeyInQuery }
 	for _, t := range AuthTypes {
 		if n.Type == t {
-			return n.APIKeyIn == APIKeyInHeader || n.APIKeyIn == APIKeyInQuery
+			return placement(n.APIKeyIn) && placement(n.JWTAddTo) && slices.Contains(JWTAlgorithms, n.JWTAlgorithm)
 		}
 	}
 	return false
@@ -64,6 +93,12 @@ func NormalizeAuth(a Auth) Auth {
 	}
 	if a.APIKeyIn == "" {
 		a.APIKeyIn = APIKeyInHeader
+	}
+	if a.JWTAlgorithm == "" {
+		a.JWTAlgorithm = JWTHS256
+	}
+	if a.JWTAddTo == "" {
+		a.JWTAddTo = APIKeyInHeader
 	}
 	return a
 }
@@ -88,6 +123,16 @@ func BuildAuthPatch(base, draft Auth) (*AuthPatch, bool) {
 	p.APIKeyName = field(b.APIKeyName, d.APIKeyName)
 	p.APIKeyValue = field(b.APIKeyValue, d.APIKeyValue)
 	p.APIKeyIn = field(b.APIKeyIn, d.APIKeyIn)
+	p.JWTAlgorithm = field(b.JWTAlgorithm, d.JWTAlgorithm)
+	p.JWTSecret = field(b.JWTSecret, d.JWTSecret)
+	if b.JWTSecretBase64 != d.JWTSecretBase64 {
+		v := d.JWTSecretBase64
+		p.JWTSecretBase64 = &v
+	}
+	p.JWTPayload = field(b.JWTPayload, d.JWTPayload)
+	p.JWTAddTo = field(b.JWTAddTo, d.JWTAddTo)
+	p.JWTName = field(b.JWTName, d.JWTName)
+	p.JWTPrefix = field(b.JWTPrefix, d.JWTPrefix)
 	return p, true
 }
 
@@ -95,5 +140,7 @@ func BuildAuthPatch(base, draft Auth) (*AuthPatch, bool) {
 func FullAuthPatch(a Auth) *AuthPatch {
 	n := NormalizeAuth(a)
 	return &AuthPatch{Type: n.Type, BearerToken: &n.BearerToken, BasicUsername: &n.BasicUsername, BasicPassword: &n.BasicPassword,
-		APIKeyName: &n.APIKeyName, APIKeyValue: &n.APIKeyValue, APIKeyIn: &n.APIKeyIn}
+		APIKeyName: &n.APIKeyName, APIKeyValue: &n.APIKeyValue, APIKeyIn: &n.APIKeyIn,
+		JWTAlgorithm: &n.JWTAlgorithm, JWTSecret: &n.JWTSecret, JWTSecretBase64: &n.JWTSecretBase64, JWTPayload: &n.JWTPayload,
+		JWTAddTo: &n.JWTAddTo, JWTName: &n.JWTName, JWTPrefix: &n.JWTPrefix}
 }

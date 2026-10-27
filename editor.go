@@ -154,7 +154,9 @@ func engineAuth(a *api.Auth) *engine.Auth {
 	}
 	n := api.NormalizeAuth(*a)
 	return &engine.Auth{Type: n.Type, BearerToken: n.BearerToken, BasicUsername: n.BasicUsername, BasicPassword: n.BasicPassword,
-		APIKeyName: n.APIKeyName, APIKeyValue: n.APIKeyValue, APIKeyIn: n.APIKeyIn}
+		APIKeyName: n.APIKeyName, APIKeyValue: n.APIKeyValue, APIKeyIn: n.APIKeyIn,
+		JWTAlgorithm: n.JWTAlgorithm, JWTSecret: n.JWTSecret, JWTSecretBase64: n.JWTSecretBase64, JWTPayload: n.JWTPayload,
+		JWTAddTo: n.JWTAddTo, JWTName: n.JWTName, JWTPrefix: n.JWTPrefix}
 }
 
 // SendRequest executes a tab's current draft with {{vars}} resolved from the
@@ -279,6 +281,19 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 	spec, unresolved := engine.ResolveSpec(sent, scriptEnv.Vars)
 	if unresolved == nil {
 		unresolved = []string{}
+	}
+	// A JWT is signed ONCE here, so the token that goes out is the one in history.
+	// A config that cannot be signed (secret var without a value, bad Base64,
+	// payload not a JSON object) aborts: nothing is sent.
+	spec, err := engine.SignJWT(spec, time.Now())
+	if err != nil {
+		a.recordHistory(historyRecord{
+			projectID: projectID, requestID: requestID, requestName: opts.RequestName,
+			envID: rv.envID, envName: rv.env, draft: draft, template: template, resolved: spec,
+			auth: opts.Auth, authSource: opts.AuthSource, err: err, start: start, console: console,
+		})
+		return SendResult{Error: &session.Problem{Kind: KindRequest, Message: err.Error()}, Unresolved: unresolved,
+			Environment: rv.env, Hops: []engine.Hop{}, Console: console, ProxyWarning: proxyWarning}
 	}
 	bodyCap := int64(0)
 	if a.store != nil {

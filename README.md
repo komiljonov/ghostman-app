@@ -172,6 +172,12 @@ the database file holds secrets in plain text; treat it like any local credentia
 To remove them: Settings → History → Clear (the space is freed on disk right away). Logs never
 contain resolved URLs, headers or secret values.
 
+**JWT auth** is the exception inside the exception: the token signed at send time is stored in
+the resolved form (it is what was sent), but the resolved JWT **secret** is never stored, logged
+or shown — history keeps the auth config as authored (e.g. `{{JWT_SECRET}}`) plus the token.
+A JWT whose secret variable has no value on this machine is not signed at all: the send stops and
+names the variable.
+
 Retention (Settings → History): at most 100 / 500 / **1,000** / 5,000 entries or unlimited
 (oldest pruned after each send), and responses stored up to 1 MB / **10 MB** / 50 MB or whole
 (bigger ones keep their first part, marked truncated). A response is held in memory up to

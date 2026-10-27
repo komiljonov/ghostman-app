@@ -11,6 +11,8 @@ export interface VarInfo {
   value: string;
   secret: boolean;
   hasValue: boolean; // secrets: whether this machine has a value
+  // Not a variable: a {{$now…}} time claim in the JWT payload editor (jwtAuth.withTimeClaims).
+  dynamic?: boolean;
 }
 
 // What the highlighter knows about the active environment. envName === null means
@@ -73,6 +75,7 @@ export interface TooltipModel {
 
 export function tooltipModel(key: string, env: EnvDisplay): TooltipModel {
   const v = env.vars.get(key);
+  if (v?.dynamic) return { key, resolved: true, secret: false, display: v.value, envName: env.envName, tag: "time claim" };
   if (env.envName === null) {
     return { key, resolved: false, secret: false, display: "unresolved — no environment selected", envName: null };
   }
@@ -120,6 +123,7 @@ export interface TooltipActions {
 
 export function tooltipActions(key: string, env: EnvDisplay): TooltipActions {
   const v = env.vars.get(key);
+  if (v?.dynamic) return { edit: false, editAfterReveal: false };
   if (env.envName === null || !env.envId) return { edit: false, editAfterReveal: false };
   if (!v) return { edit: false, editAfterReveal: false, createIn: env.envName };
   if (v.secret) return { edit: !v.hasValue, editAfterReveal: v.hasValue }; // an unset secret can be set directly

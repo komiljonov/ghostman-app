@@ -183,6 +183,8 @@ export function PlaceNode(arg1:string,arg2:string,arg3:string,arg4:string,arg5:s
 
 export function PollCaptures(arg1:string,arg2:number):Promise<main.CaptureListResult>;
 
+export function PreviewJWT(arg1:string,arg2:api.Auth):Promise<main.JWTPreviewResult>;
+
 export function Register(arg1:string,arg2:string,arg3:string):Promise<session.Result>;
 
 export function RejectInvitation(arg1:string):Promise<main.EmptyResult>;
