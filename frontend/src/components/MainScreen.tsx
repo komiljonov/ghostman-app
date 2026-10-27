@@ -21,7 +21,6 @@ import { currentTree } from "../treeStore";
 import { scriptChain } from "../scriptChain";
 import { effectiveProxy } from "../proxySettings";
 import { loadProxies, proxies, proxiesLoaded, proxyGlobal, reloadProxies } from "../proxyStore";
-import ProxyListView from "./ProxyListView";
 import ProxyView from "./ProxyView";
 import SidebarResizer from "./SidebarResizer";
 import TeamSettingsView from "./TeamSettingsView";
@@ -36,7 +35,7 @@ import { publishProjectId } from "../workspaceStore";
 import RequestEditor from "./RequestEditor";
 import ImportModal from "./ImportModal";
 import ImportReport from "./ImportReport";
-import WebhooksPanel from "./WebhooksPanel";
+import SidebarPanels from "./SidebarPanels";
 import WebhookView from "./WebhookView";
 import { flushWebhookEdits, markSeen, reloadWebhooks, resetWebhooks, syncFeeds, webhooks, webhooksLoaded } from "../webhookStore";
 
@@ -127,10 +126,6 @@ export default function MainScreen(props: Props) {
   };
   const openRequest = (id: string) => {
     tabs()?.open(id);
-    setPane("editor");
-  };
-  const openProxyList = () => {
-    tabs()?.openProxyList();
     setPane("editor");
   };
   const openProxy = (id: string, name: string) => {
@@ -312,7 +307,6 @@ export default function MainScreen(props: Props) {
             onSelect={selectProject}
             onCreated={selectProject}
             onOpenSettings={() => setPane("project-settings")}
-            onManageProxies={openProxyList}
           />
 
           <button type="button" class="icon-button" title="Refresh from server" aria-label="Refresh"
@@ -383,8 +377,8 @@ export default function MainScreen(props: Props) {
                   if (pid === projectId()) tabs()?.syncWithTree(requests);
                 }}
               />
-              <WebhooksPanel projectId={project().id} refreshTick={refreshTick()} onOpen={openWebhook}
-                isOpen={(id) => !!tabs()?.tabByKey(`webhook:${id}`)} />
+              <SidebarPanels projectId={project().id} refreshTick={refreshTick()} onOpenWebhook={openWebhook}
+                onOpenProxy={openProxy} isOpen={(key) => !!tabs()?.tabByKey(key)} />
             </aside>
           )}
         </Show>
@@ -446,9 +440,6 @@ export default function MainScreen(props: Props) {
                         </Match>
                         <Match when={tab.kind === "history"}>
                           <HistoryView projectId={projectId()} requestIds={requestIds()} onOpenRequest={openRequest} />
-                        </Match>
-                        <Match when={tab.kind === "proxy_list"}>
-                          <ProxyListView projectId={projectId()} onOpenProxy={openProxy} />
                         </Match>
                         <Match when={tab.kind === "proxy"}>
                           <ProxyView proxyId={tab.id} />

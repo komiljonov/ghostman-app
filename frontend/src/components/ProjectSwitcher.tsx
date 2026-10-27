@@ -13,7 +13,6 @@ interface Props {
   onSelect: (id: string) => void;
   onCreated: (id: string) => void;
   onOpenSettings: () => void;
-  onManageProxies: () => void;
 }
 
 export default function ProjectSwitcher(props: Props) {
@@ -62,10 +61,6 @@ export default function ProjectSwitcher(props: Props) {
               close();
               props.onOpenSettings();
             }}>Project settings</button>
-            <button type="button" role="menuitem" class="menu-item" onClick={() => {
-              close();
-              props.onManageProxies();
-            }}>Manage proxies…</button>
           </Show>
         </>
       )}

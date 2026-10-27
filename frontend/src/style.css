@@ -4405,7 +4405,9 @@ body.tab-dragging * {
   overflow-y: auto;
 }
 
-.hooks-panel {
+/* The bottom area: a stack of section bars (Webhooks, Proxies). Expanded
+   sections share the area's height equally; collapsed ones are one bar. */
+.sidebar-panels {
   position: relative;
   display: flex;
   flex: 0 0 auto;
@@ -4413,6 +4415,21 @@ body.tab-dragging * {
   min-height: 0;
   border-top: 1px solid var(--border);
   background: var(--bg);
+}
+
+.panel-section {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.panel-section + .panel-section {
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-panels.expanded .panel-section.expanded {
+  flex: 1 1 0;
 }
 
 .hooks-resizer {
@@ -5082,4 +5099,45 @@ body.tab-dragging * {
 .request-settings > .proxy-setting,
 .folder-settings > .proxy-setting {
   margin-top: 14px;
+}
+
+/* Proxies section rows: type chip · name · host:port · global-default dot. */
+.proxy-type-chip {
+  flex-shrink: 0;
+  min-width: 42px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--hover-strong);
+  color: var(--muted);
+  font: 600 10px/16px var(--mono);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.proxy-item-row .hooks-row-name {
+  flex: 0 1 auto;
+}
+
+.proxy-row-addr {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.default-marker {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.default-marker.on {
+  background: var(--accent);
+}
+
+.proxy-item-row.open .proxy-type-chip {
+  color: var(--accent);
 }

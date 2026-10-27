@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -336,49 +335,4 @@ func (a *App) CopyCaptureAsRequest(webhookID string, captureID int64) RequestSum
 		return c.CopyCaptureAsRequest(ctx, webhookID, captureID)
 	})
 	return RequestSummaryResult{Data: ptr(v, p), Error: p}
-}
-
-// Sidebar panel layout, per project (local UI state).
-
-const (
-	settingWebhookPanelPrefix = "ui_webhooks_panel_"
-	// DefaultWebhookPanelFraction is the expanded panel's share of the sidebar height.
-	DefaultWebhookPanelFraction = 0.3
-)
-
-// WebhookPanelPrefs is the panel's persisted state: expanded or not, and its
-// height as a fraction of the sidebar (the UI applies the pixel minimums).
-type WebhookPanelPrefs struct {
-	Expanded bool    `json:"expanded"`
-	Fraction float64 `json:"fraction"`
-}
-
-// GetWebhookPanel returns the project's panel state (collapsed, 30 % by default).
-func (a *App) GetWebhookPanel(projectID string) WebhookPanelPrefs {
-	prefs := WebhookPanelPrefs{Fraction: DefaultWebhookPanelFraction}
-	if a.store == nil || projectID == "" {
-		return prefs
-	}
-	v, ok := a.setting(settingWebhookPanelPrefix + projectID)
-	if !ok {
-		return prefs
-	}
-	var saved WebhookPanelPrefs
-	if err := json.Unmarshal([]byte(v), &saved); err != nil {
-		return prefs
-	}
-	prefs.Expanded = saved.Expanded
-	if saved.Fraction > 0 && saved.Fraction < 1 {
-		prefs.Fraction = saved.Fraction
-	}
-	return prefs
-}
-
-// SetWebhookPanel saves the project's panel state.
-func (a *App) SetWebhookPanel(projectID string, prefs WebhookPanelPrefs) EmptyResult {
-	if projectID == "" || prefs.Fraction <= 0 || prefs.Fraction >= 1 {
-		return EmptyResult{Error: &session.Problem{Kind: session.KindInvalid, Message: "panel height out of range"}}
-	}
-	raw, _ := json.Marshal(prefs)
-	return a.putSetting(settingWebhookPanelPrefix+projectID, string(raw))
 }

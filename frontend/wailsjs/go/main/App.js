@@ -226,6 +226,10 @@ export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
 }
 
+export function GetSidebarPanels(arg1) {
+  return window['go']['main']['App']['GetSidebarPanels'](arg1);
+}
+
 export function GetTabs(arg1) {
   return window['go']['main']['App']['GetTabs'](arg1);
 }
@@ -252,10 +256,6 @@ export function GetWebhook(arg1) {
 
 export function GetWebhookMeta() {
   return window['go']['main']['App']['GetWebhookMeta']();
-}
-
-export function GetWebhookPanel(arg1) {
-  return window['go']['main']['App']['GetWebhookPanel'](arg1);
 }
 
 export function ImportOpenAPI(arg1, arg2) {
@@ -340,10 +340,6 @@ export function MoveFolder(arg1, arg2) {
 
 export function MoveProject(arg1, arg2, arg3) {
   return window['go']['main']['App']['MoveProject'](arg1, arg2, arg3);
-}
-
-export function MoveProxy(arg1, arg2, arg3) {
-  return window['go']['main']['App']['MoveProxy'](arg1, arg2, arg3);
 }
 
 export function MoveRequest(arg1, arg2) {
@@ -522,6 +518,10 @@ export function SetServerURL(arg1) {
   return window['go']['main']['App']['SetServerURL'](arg1);
 }
 
+export function SetSidebarPanels(arg1, arg2) {
+  return window['go']['main']['App']['SetSidebarPanels'](arg1, arg2);
+}
+
 export function SetSidebarWidth(arg1) {
   return window['go']['main']['App']['SetSidebarWidth'](arg1);
 }
@@ -548,10 +548,6 @@ export function SetVariableType(arg1, arg2, arg3) {
 
 export function SetVariableValue(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetVariableValue'](arg1, arg2, arg3);
-}
-
-export function SetWebhookPanel(arg1, arg2) {
-  return window['go']['main']['App']['SetWebhookPanel'](arg1, arg2);
 }
 
 export function UpdateProjectName(arg1, arg2) {

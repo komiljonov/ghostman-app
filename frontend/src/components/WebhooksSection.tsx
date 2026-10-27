@@ -1,12 +1,10 @@
-import { createEffect, createMemo, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
-import { CreateWebhook, DeleteWebhook, GetWebhookPanel, SetWebhookPanel, UpdateWebhook } from "../../wailsjs/go/main/App";
+import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js";
+import { CreateWebhook, DeleteWebhook, UpdateWebhook } from "../../wailsjs/go/main/App";
 import { api, main } from "../../wailsjs/go/models";
 import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 import { handleProblem } from "../authStore";
 import { createAction } from "../action";
-import {
-  clampPanel, effectiveDomain, hookUrls, isNotConfigured, NOT_CONFIGURED_TEXT, PANEL_DEFAULT_FRACTION, panelFraction, panelHeight,
-} from "../webhookModel";
+import { effectiveDomain, hookUrls, isNotConfigured, NOT_CONFIGURED_TEXT } from "../webhookModel";
 import {
   feedOf, hookDomains, hookMetaLoaded, listenState, loadWebhooks, reloadWebhooks, webhooks, webhooksError, webhooksLoaded,
 } from "../webhookStore";
@@ -21,19 +19,15 @@ interface Props {
   onOpen: (id: string, name: string) => void;
   // A webhook tab is open (and therefore polled) for this endpoint.
   isOpen: (id: string) => boolean;
+  expanded: boolean; // the section's state lives in SidebarPanels (persisted per project)
+  onToggle: () => void;
+  onExpand: () => void;
 }
 
-// The "Webhooks" panel docked at the bottom of the sidebar: one bar (chevron,
-// title, endpoint count, "+") that expands upward into the endpoint list; the
-// tree above shrinks and keeps its own scroll. Expanded state and height are
-// per project (GetWebhookPanel / SetWebhookPanel); the height is a fraction of
-// the sidebar, clamped so the panel keeps 120 px and the tree 160 px
-// (webhookModel.panelHeight). Dragging the top edge rewrites only this element's
-// height (no re-render) and saves once on release; double-click resets to 30 %.
-export default function WebhooksPanel(props: Props) {
-  const [expanded, setExpanded] = createSignal(false);
-  const [fraction, setFraction] = createSignal(PANEL_DEFAULT_FRACTION);
-  const [total, setTotal] = createSignal(0); // the sidebar's height
+// The "Webhooks" section of the sidebar's bottom area (SidebarPanels): one bar
+// (chevron, title, endpoint count, "+") and, expanded, the endpoint list. The
+// area's height, the divider and the expanded state belong to SidebarPanels.
+export default function WebhooksSection(props: Props) {
   const [creating, setCreating] = createSignal(false);
   const [newName, setNewName] = createSignal("");
   const [notConfigured, setNotConfigured] = createSignal(false);
@@ -43,89 +37,26 @@ export default function WebhooksPanel(props: Props) {
   const [deleting, setDeleting] = createSignal<api.Webhook>();
   const [menu, setMenu] = createSignal<{ hook: api.Webhook; x: number; y: number }>();
   const [copied, setCopied] = createSignal<string>();
-  let panelEl!: HTMLElement;
   let copiedTimer: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(copiedTimer));
 
   const off = () => hookMetaLoaded() && hookDomains().length === 0;
-  const height = () => panelHeight(fraction(), total());
 
-  // Per project: restore the panel state, then load its endpoints.
+  // Per project: load its endpoints.
   const projectId = createMemo(() => props.projectId);
   createEffect(on(projectId, async (id) => {
     setCreating(false);
     setRenamingId(undefined);
     setRowError(undefined);
     setNotConfigured(false);
-    const prefs = await GetWebhookPanel(id);
-    if (id !== props.projectId) return;
-    setExpanded(prefs.expanded);
-    setFraction(prefs.fraction);
     await loadWebhooks(id);
   }));
   createEffect(on(() => props.refreshTick, () => void reloadWebhooks(), { defer: true }));
 
-  // The sidebar's height decides the clamp; observed, never polled.
-  onMount(() => {
-    const stack = panelEl.parentElement!;
-    const ro = new ResizeObserver(() => setTotal(stack.clientHeight));
-    ro.observe(stack);
-    setTotal(stack.clientHeight);
-    onCleanup(() => ro.disconnect());
-  });
-
-  const savePrefs = () =>
-    void SetWebhookPanel(props.projectId, main.WebhookPanelPrefs.createFrom({ expanded: expanded(), fraction: fraction() }));
-  const toggle = () => {
-    setExpanded(!expanded());
-    savePrefs();
-  };
-
-  const onResizeStart = (e: PointerEvent) => {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    const handle = e.currentTarget as HTMLElement;
-    handle.setPointerCapture(e.pointerId);
-    const startY = e.clientY;
-    const startH = panelEl.getBoundingClientRect().height;
-    const all = total();
-    let lastY = startY;
-    let frame = 0;
-    document.documentElement.classList.add("resizing-hooks");
-    const px = () => clampPanel(startH + startY - lastY, all);
-    const move = (ev: PointerEvent) => {
-      lastY = ev.clientY;
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        panelEl.style.height = `${px()}px`;
-      });
-    };
-    const up = () => {
-      handle.removeEventListener("pointermove", move);
-      handle.removeEventListener("pointerup", up);
-      handle.removeEventListener("pointercancel", up);
-      if (frame) cancelAnimationFrame(frame);
-      document.documentElement.classList.remove("resizing-hooks");
-      if (lastY === startY) return;
-      setFraction(panelFraction(px(), all));
-      panelEl.style.height = `${height()}px`;
-      savePrefs();
-    };
-    handle.addEventListener("pointermove", move);
-    handle.addEventListener("pointerup", up);
-    handle.addEventListener("pointercancel", up);
-  };
-  const resetHeight = () => {
-    setFraction(PANEL_DEFAULT_FRACTION);
-    panelEl.style.height = `${height()}px`;
-    savePrefs();
-  };
-
   // ---- Create ----
   const create = createAction((name: string) => CreateWebhook(props.projectId, name));
   const startCreate = () => {
-    if (!expanded()) toggle();
+    props.onExpand();
     setCreating(true);
     setNotConfigured(false);
     create.setError(undefined);
@@ -188,16 +119,11 @@ export default function WebhooksPanel(props: Props) {
   const count = () => webhooks().length;
 
   return (
-    <section ref={panelEl} classList={{ "hooks-panel": true, expanded: expanded() }} aria-label="Webhooks"
-      style={expanded() ? { height: `${height()}px` } : undefined}>
-      <Show when={expanded()}>
-        <div class="hooks-resizer" role="separator" aria-orientation="horizontal" aria-label="Resize the webhooks panel"
-          title="Drag to resize · double-click to reset" onPointerDown={onResizeStart} onDblClick={resetHeight} />
-      </Show>
+    <section classList={{ "panel-section": true, expanded: props.expanded }} aria-label="Webhooks">
       <div class="hooks-bar">
-        <button type="button" class="hooks-toggle" aria-expanded={expanded()} onClick={toggle}
-          title={expanded() ? "Collapse webhooks" : "Show webhooks"}>
-          <Icon name="chevron" class={expanded() ? "hooks-chevron open" : "hooks-chevron"} size={14} />
+        <button type="button" class="hooks-toggle" aria-expanded={props.expanded} onClick={() => props.onToggle()}
+          title={props.expanded ? "Collapse webhooks" : "Show webhooks"}>
+          <Icon name="chevron" class={props.expanded ? "hooks-chevron open" : "hooks-chevron"} size={14} />
           <span class="menu-heading">Webhooks</span>
           <span class="hooks-count" aria-label={`${count()} endpoints`}>{count()}</span>
         </button>
@@ -206,7 +132,7 @@ export default function WebhooksPanel(props: Props) {
           <Icon name="plus" />
         </button>
       </div>
-      <Show when={expanded()}>
+      <Show when={props.expanded}>
         <div class="hooks-body">
           <Show when={creating() && !off()}>
             <form class="hooks-create" onSubmit={submitCreate}>

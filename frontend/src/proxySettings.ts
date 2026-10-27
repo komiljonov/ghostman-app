@@ -87,3 +87,11 @@ export function passwordStatus(s: { saving: boolean; error?: string; set: boolea
   if (s.set) return "Saved on this machine — never sent to the server";
   return s.username ? "No password on this machine: sends go without credentials" : "";
 }
+
+// The ● marker on the sidebar row of the project's global default proxy, and
+// whether "Set as global default" applies (not to the one that already is).
+export const isGlobalDefault = (id: string, globalDefault: string) => id === globalDefault;
+
+export function setDefaultEntry(id: string, globalDefault: string): { disabled: boolean; title?: string } {
+  return isGlobalDefault(id, globalDefault) ? { disabled: true, title: "Already the global default" } : { disabled: false };
+}

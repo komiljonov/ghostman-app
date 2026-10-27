@@ -152,28 +152,3 @@ func TestCaptureDetailBinaryIsNotText(t *testing.T) {
 		t.Fatalf("empty = %+v", d)
 	}
 }
-
-func TestWebhookPanelPrefs(t *testing.T) {
-	a := newTestApp(t, false, nil)
-	if got := a.GetWebhookPanel("p1"); got != (WebhookPanelPrefs{Fraction: DefaultWebhookPanelFraction}) {
-		t.Fatalf("default = %+v", got)
-	}
-	if r := a.SetWebhookPanel("p1", WebhookPanelPrefs{Expanded: true, Fraction: 0.45}); r.Error != nil {
-		t.Fatal(r.Error.Message)
-	}
-	if got := a.GetWebhookPanel("p1"); got != (WebhookPanelPrefs{Expanded: true, Fraction: 0.45}) {
-		t.Fatalf("saved = %+v", got)
-	}
-	if got := a.GetWebhookPanel("p2"); got.Expanded {
-		t.Fatal("panel state leaked to another project")
-	}
-	for _, f := range []float64{0, 1, -2} {
-		if r := a.SetWebhookPanel("p1", WebhookPanelPrefs{Fraction: f}); r.Error == nil {
-			t.Fatalf("fraction %v accepted", f)
-		}
-	}
-	_ = a.store.PutSetting(a.ctx, settingWebhookPanelPrefix+"p1", "{broken")
-	if got := a.GetWebhookPanel("p1"); got != (WebhookPanelPrefs{Fraction: DefaultWebhookPanelFraction}) {
-		t.Fatalf("corrupt = %+v", got)
-	}
-}

@@ -8,7 +8,6 @@ import (
 
 	"ghostman/internal/api"
 	"ghostman/internal/engine"
-	"ghostman/internal/envs"
 	"ghostman/internal/session"
 )
 
@@ -254,22 +253,4 @@ func sameNodeProxy(a, b api.NodeProxy) bool {
 		return *p.ProxyID
 	}
 	return a.Mode == b.Mode && id(a) == id(b)
-}
-
-// MoveProxy moves a proxy up (offset -1) or down (+1) in the project's order.
-func (a *App) MoveProxy(projectID, proxyID string, offset int) EmptyResult {
-	return callEmpty(a, func(ctx context.Context, c *api.APIClient) error {
-		list, err := c.ListProxies(ctx, projectID)
-		if err != nil {
-			return err
-		}
-		ids := make([]string, len(list))
-		for i, p := range list {
-			ids[i] = p.ID
-		}
-		if moved, ok := envs.Move(ids, proxyID, offset); ok {
-			return c.ReorderProxies(ctx, projectID, moved)
-		}
-		return nil
-	})
 }
