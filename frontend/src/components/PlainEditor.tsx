@@ -7,6 +7,11 @@ interface Props {
   onChange: (text: string) => void;
   ariaLabel: string;
   placeholder: string;
+  // Format JSON: Alt+Shift+F calls onFormat while canFormat; onEditor gets the
+  // handle (to apply Go's result as one undoable change).
+  canFormat?: boolean;
+  onFormat?: () => void;
+  onEditor?: (editor: PlainEditorHandle) => void;
 }
 
 // A plain text editor (createPlainEditor: no {{var}} highlighting or completion).
@@ -22,6 +27,11 @@ export default function PlainEditor(props: Props) {
     editor = createPlainEditor(host, props.value, (text) => props.onChange(text),
       { ariaLabel: props.ariaLabel, placeholder: props.placeholder, json: props.json });
     setReady(true);
+    props.onEditor?.(editor);
+  });
+  createEffect(() => {
+    const on = !!props.canFormat;
+    if (ready()) editor?.setFormatter(on ? () => props.onFormat?.() : null);
   });
   createEffect(() => {
     const v = props.value;

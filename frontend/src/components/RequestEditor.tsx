@@ -17,6 +17,9 @@ import SaveIndicator from "./SaveIndicator";
 import UrlEditor from "./UrlEditor";
 import ScriptsPanel from "./ScriptsPanel";
 import { hasScripts } from "../scriptChain";
+import { examplesTabLabel } from "../examplesModel";
+import { exampleCount } from "../examplesStore";
+import ExamplesPanel from "./ExamplesPanel";
 
 interface Props {
   tab: TabState;
@@ -64,6 +67,7 @@ export default function RequestEditor(props: Props) {
     { id: "scripts" as const, label: "Scripts", count: () => 0 },
     { id: "settings" as const, label: "Settings", count: () => 0 },
     { id: "history" as const, label: "History", count: () => 0 },
+    { id: "examples" as const, label: "Examples", count: () => 0 },
   ];
 
   return (
@@ -112,7 +116,7 @@ export default function RequestEditor(props: Props) {
                     <button type="button" role="tab" aria-selected={props.tab.section === s.id}
                       classList={{ active: props.tab.section === s.id }}
                       onClick={() => view((t) => (t.section = s.id))}>
-                      {s.label}
+                      {s.id === "examples" ? examplesTabLabel(exampleCount(props.tab.id)) : s.label}
                       <Show when={s.count() > 0}><span class="muted"> {s.count()}</span></Show>
                       <Show when={s.id === "body" && props.tab.draft.body.type !== "none"}>
                         <span class="muted"> {props.tab.draft.body.type === "multipart" ? "form-data" : props.tab.draft.body.type}</span>
@@ -156,6 +160,13 @@ export default function RequestEditor(props: Props) {
                   </Match>
                   <Match when={props.tab.section === "settings"}>
                     <RequestSettingsPanel requestId={props.tab.id} />
+                  </Match>
+                  <Match when={props.tab.section === "examples"}>
+                    <ExamplesPanel requestId={props.tab.id} openId={props.tab.exampleId} mode={props.tab.exampleMode}
+                      onOpen={(eid, mode) => view((t) => {
+                        t.exampleId = eid;
+                        t.exampleMode = mode ?? "view";
+                      })} />
                   </Match>
                   <Match when={props.tab.section === "history"}>
                     <RequestHistoryPanel requestId={props.tab.id} requestName={props.tab.name}

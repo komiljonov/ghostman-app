@@ -44,6 +44,7 @@ type App struct {
 	clipboard  clipboardFunc  // system clipboard (tests replace it)
 	historyDoc historyDocCache
 	captures   captureCache // the capture the webhook detail view shows
+	examples   exampleCache // the examples opened in Examples sub-tabs (examples.go)
 
 	quitMu   sync.Mutex
 	quitting bool
@@ -167,6 +168,7 @@ func (a *App) Register(email, password, name string) session.Result {
 // Logout clears the local session (always) and tells the server (best-effort).
 func (a *App) Logout() session.AuthState {
 	a.responses.clear() // held response bodies belong to the session's data
+	a.examples.clear()
 	return a.session.Logout(a.ctx)
 }
 

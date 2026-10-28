@@ -10,6 +10,8 @@ interface Props {
   rows: Row[];
   onChange: (rows: Row[]) => void;
   keyPlaceholder?: string;
+  // Plain text cells: no {{var}} highlighting / completion (example responses).
+  plain?: boolean;
 }
 
 // A key/value table (params, headers, form fields) with its alternate bulk text
@@ -31,9 +33,9 @@ export default function KeyValueEditor(props: Props) {
         </button>
       </div>
       <Show when={bulk()} fallback={
-        <KeyValueTable rows={props.rows} keyPlaceholder={props.keyPlaceholder} onChange={(rows) => props.onChange(rows)} />
+        <KeyValueTable rows={props.rows} keyPlaceholder={props.keyPlaceholder} plain={props.plain} onChange={(rows) => props.onChange(rows)} />
       }>
-        <BulkEditor rows={props.rows} onChange={(rows) => props.onChange(rows)}
+        <BulkEditor rows={props.rows} plain={props.plain} onChange={(rows) => props.onChange(rows)}
           ariaLabel={`${props.kind === "form" ? "Form fields" : props.kind === "headers" ? "Headers" : "Query params"} (bulk edit)`} />
       </Show>
     </div>

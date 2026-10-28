@@ -1,4 +1,4 @@
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, on, Show } from "solid-js";
 import { main } from "../../wailsjs/go/models";
 import { formatBytes, formatDuration, formRows, RequestForm, rowLabel, timeOfDay } from "../historyModel";
 import { BodyView, hasStructure, prettyFallback } from "../responseView";
@@ -18,6 +18,7 @@ import { EvalHistoryFilter, WarmHistoryFilter } from "../../wailsjs/go/main/App"
 import { filterAvailability, filterDisplay, FilterState, NO_FILTER, saveChoices } from "../responseFilter";
 import ResponseFilterBar from "./ResponseFilterBar";
 import ContextMenu from "./ContextMenu";
+import SaveExampleDialog from "./SaveExampleDialog";
 
 interface Props {
   entry: main.HistoryEntry;
@@ -49,6 +50,9 @@ export default function HistoryDetail(props: Props) {
   const [respPart, setRespPart] = createSignal<"body" | "headers">("body");
   const [view, setView] = createSignal<BodyView>("pretty");
   const [confirmDelete, setConfirmDelete] = createSignal(false);
+  const [savingExample, setSavingExample] = createSignal(false);
+  const [savedExample, setSavedExample] = createSignal<string>(); // inline confirmation
+  createEffect(on(() => props.entry.summary.id, () => setSavedExample(undefined), { defer: true }));
   // The jq filter starts empty here (exploration), not from the request's saved one.
   const [fquery, setFquery] = createSignal("");
   const [fstate, setFstate] = createSignal<FilterState>(NO_FILTER);
@@ -117,6 +121,15 @@ export default function HistoryDetail(props: Props) {
             title={resp() ? "Save the stored response body to a file" : noResponse}>
             Save response…
           </button>
+          <span title={!resp() ? noResponse : !props.openOriginal.ok ? `Needs the original request — ${props.openOriginal.why}` : "Save this response as an example of the original request (shared with your team)"}>
+            <button type="button" class="small" disabled={!resp() || !props.openOriginal.ok} aria-haspopup="dialog"
+              onClick={() => setSavingExample(true)}>
+              <Icon name="bookmark" size={14} /> Save as example
+            </button>
+          </span>
+          <Show when={savedExample()}>
+            {(n) => <span class="history-saved small" role="status"><Icon name="check-circle" size={14} /> Saved example “{n()}”</span>}
+          </Show>
           <Show when={confirmDelete()} fallback={
             <button type="button" class="small danger-outline" onClick={() => setConfirmDelete(true)}>
               <Icon name="trash" size={14} /> Delete
@@ -269,6 +282,10 @@ export default function HistoryDetail(props: Props) {
               onSelect: () => (c.id === "full" ? props.onSave() : props.onSaveFiltered(fquery())),
             }))} />
         )}
+      </Show>
+      <Show when={savingExample()}>
+        <SaveExampleDialog source={main.ExampleSource.createFrom({ kind: "history", tab_id: "", history_id: s().id })}
+          onSaved={(name) => setSavedExample(name)} onClose={() => setSavingExample(false)} />
       </Show>
     </div>
   );

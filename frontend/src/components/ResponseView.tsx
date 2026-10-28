@@ -5,6 +5,7 @@ import {
 import { filterAvailability, filterDisplay, saveChoices } from "../responseFilter";
 import ResponseFilterBar from "./ResponseFilterBar";
 import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
+import { main } from "../../wailsjs/go/models";
 import { handleProblem } from "../authStore";
 import { responseFindTarget } from "../responseSearch";
 import {
@@ -24,6 +25,7 @@ import MediaPreview from "./MediaPreview";
 import { triggerLabel } from "../timingModel";
 import { CONSOLE_EMPTY, consoleBadge } from "../consoleView";
 import ConsoleView from "./ConsoleView";
+import SaveExampleDialog from "./SaveExampleDialog";
 
 interface Props {
   tab: TabState;
@@ -100,6 +102,7 @@ export default function ResponseView(props: Props) {
   });
 
   const [saveMenu, setSaveMenu] = createSignal<{ x: number; y: number }>();
+  const [savingExample, setSavingExample] = createSignal(false);
   const report = (result: Awaited<ReturnType<typeof SaveResponseToFile>>, what: string) => {
     handleProblem(result.error);
     if (result.error) return showToast(false, result.error.message);
@@ -207,6 +210,10 @@ export default function ResponseView(props: Props) {
             <button type="button" class="toolbar-icon" aria-label="Save response to file" disabled={!controls().save.enabled}
               aria-haspopup={saveChoices(props.tab.filter) ? "menu" : undefined}
               onClick={onSaveClick}><Icon name="download" /></button>
+          </span>
+          <span class="toolbar-slot" title={shown() ? "Save as example (shared with your team)" : "Send the request to save its response as an example"}>
+            <button type="button" class="toolbar-icon" aria-label="Save as example" disabled={!shown()}
+              aria-haspopup="dialog" onClick={() => setSavingExample(true)}><Icon name="bookmark" /></button>
           </span>
         </div>
         {/* One fixed-size cluster: in a narrow pane it wraps to a second row as a unit
@@ -329,6 +336,11 @@ export default function ResponseView(props: Props) {
               onSelect: () => void (c.id === "full" ? save() : saveFiltered()),
             }))} />
         )}
+      </Show>
+      <Show when={savingExample()}>
+        <SaveExampleDialog source={main.ExampleSource.createFrom({ kind: "response", tab_id: props.tab.id, history_id: 0 })}
+          onSaved={(name) => showToast(true, `Saved example “${name}” — see the Examples tab`)}
+          onClose={() => setSavingExample(false)} />
       </Show>
       <Show when={headerMenu()}>
         {(m) => <ContextMenu x={m().x} y={m().y} label="Response headers" items={headerItems(m().row)} onClose={() => setHeaderMenu(undefined)} />}

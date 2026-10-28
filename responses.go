@@ -27,8 +27,10 @@ type heldBody struct {
 	data        []byte
 	capped      bool // the body was larger than engine.MaxFullBody
 	contentType string
-	version     int64      // bumped by every put: the media URL changes with each response
-	parsed      *parsedDoc // the body parsed as JSON for the filter bar, once (lazily)
+	status      int             // the response's status and headers: Save as example (examples.go)
+	headers     []engine.Header //
+	version     int64           // bumped by every put: the media URL changes with each response
+	parsed      *parsedDoc      // the body parsed as JSON for the filter bar, once (lazily)
 }
 
 type responseStore struct {

@@ -28,6 +28,7 @@ import (
 const (
 	historyMediaPrefix  = "/history-media/"
 	responseMediaPrefix = "/response-media/" // + request (tab) id + "?v=" + version
+	exampleMediaPrefix  = "/example-media/"  // + example id + "?v=" + updated_at (examples.go)
 )
 
 // responseMediaURL is a tab's active media response. The version changes with
@@ -43,7 +44,8 @@ func servableMedia(kind string) bool {
 	return kind == engine.MediaImage || kind == engine.MediaAudio || kind == engine.MediaVideo
 }
 
-// mediaMiddleware serves GET /history-media/{id} (assetserver.Options
+// mediaMiddleware serves GET /history-media/{id}, /response-media/{tab} and
+// /example-media/{id} (assetserver.Options
 // Middleware, so it works in dev and built apps alike); every other request goes
 // on to the frontend assets. Only image / audio / video bodies are served —
 // never HTML or other text — with their stored type, nosniff, no caching (ids can
@@ -53,7 +55,8 @@ func (a *App) mediaMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		isHistory := strings.HasPrefix(r.URL.Path, historyMediaPrefix)
 		isResponse := strings.HasPrefix(r.URL.Path, responseMediaPrefix)
-		if !isHistory && !isResponse {
+		isExample := strings.HasPrefix(r.URL.Path, exampleMediaPrefix)
+		if !isHistory && !isResponse && !isExample {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -63,6 +66,10 @@ func (a *App) mediaMiddleware(next http.Handler) http.Handler {
 		}
 		if isResponse {
 			a.serveResponseMedia(w, r)
+			return
+		}
+		if isExample {
+			a.serveExampleMedia(w, r)
 			return
 		}
 		id, err := strconv.ParseInt(strings.TrimPrefix(r.URL.Path, historyMediaPrefix), 10, 64)

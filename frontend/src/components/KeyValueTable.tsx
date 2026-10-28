@@ -1,4 +1,4 @@
-import { Index } from "solid-js";
+import { Index, Show } from "solid-js";
 import { editRow, isGhost, newRow, removeRow, Row, toggleRow } from "../rows";
 import VarCell from "./VarCell";
 import Icon from "./Icon";
@@ -8,6 +8,7 @@ interface Props {
   onChange: (rows: Row[]) => void;
   keyPlaceholder?: string;
   valuePlaceholder?: string;
+  plain?: boolean; // plain inputs instead of VarCells (no {{var}} machinery)
 }
 
 const GHOST = newRow();
@@ -35,12 +36,24 @@ export default function KeyValueTable(props: Props) {
                     onChange={() => props.onChange(toggleRow(props.rows, i))} />
                 </td>
                 <td>
-                  <VarCell value={row().key} placeholder={props.keyPlaceholder ?? "Key"} ariaLabel={props.keyPlaceholder ?? "Key"}
-                    onChange={(text) => props.onChange(editRow(props.rows, i, { key: text }))} />
+                  <Show when={props.plain} fallback={
+                    <VarCell value={row().key} placeholder={props.keyPlaceholder ?? "Key"} ariaLabel={props.keyPlaceholder ?? "Key"}
+                      onChange={(text) => props.onChange(editRow(props.rows, i, { key: text }))} />
+                  }>
+                    <input class="kv-plain" type="text" spellcheck={false} value={row().key}
+                      placeholder={props.keyPlaceholder ?? "Key"} aria-label={props.keyPlaceholder ?? "Key"}
+                      onInput={(e) => props.onChange(editRow(props.rows, i, { key: e.currentTarget.value }))} />
+                  </Show>
                 </td>
                 <td>
-                  <VarCell value={row().value} placeholder={props.valuePlaceholder ?? "Value"} ariaLabel={props.valuePlaceholder ?? "Value"}
-                    onChange={(text) => props.onChange(editRow(props.rows, i, { value: text }))} />
+                  <Show when={props.plain} fallback={
+                    <VarCell value={row().value} placeholder={props.valuePlaceholder ?? "Value"} ariaLabel={props.valuePlaceholder ?? "Value"}
+                      onChange={(text) => props.onChange(editRow(props.rows, i, { value: text }))} />
+                  }>
+                    <input class="kv-plain" type="text" spellcheck={false} value={row().value}
+                      placeholder={props.valuePlaceholder ?? "Value"} aria-label={props.valuePlaceholder ?? "Value"}
+                      onInput={(e) => props.onChange(editRow(props.rows, i, { value: e.currentTarget.value }))} />
+                  </Show>
                 </td>
                 <td class="kv-remove">
                   <button type="button" class="icon-button" title="Remove row" aria-label="Remove row"

@@ -51,6 +51,8 @@ export function CreateWebhook(arg1:string,arg2:string):Promise<main.WebhookResul
 
 export function DeleteEnvironment(arg1:string,arg2:string):Promise<main.EmptyResult>;
 
+export function DeleteExample(arg1:string):Promise<main.EmptyResult>;
+
 export function DeleteFolder(arg1:string):Promise<main.EmptyResult>;
 
 export function DeleteHistoryEntry(arg1:number):Promise<main.EmptyResult>;
@@ -84,6 +86,10 @@ export function GetAuthState():Promise<session.AuthState>;
 export function GetCaptureDetail(arg1:string,arg2:number):Promise<main.CaptureDetailResult>;
 
 export function GetEnvContext(arg1:string):Promise<main.EnvContextResult>;
+
+export function GetExampleDetail(arg1:string):Promise<main.ExampleDetailResult>;
+
+export function GetExampleEditBody(arg1:string):Promise<main.ExampleEditBodyResult>;
 
 export function GetFollowRedirectsDefault():Promise<boolean>;
 
@@ -139,6 +145,8 @@ export function ImportPostmanCollection(arg1:string,arg2:string):Promise<main.Im
 
 export function ImportPostmanEnvironment(arg1:string,arg2:string):Promise<main.ImportReportResult>;
 
+export function ListExamples(arg1:string):Promise<main.ExampleListResult>;
+
 export function ListFolders(arg1:string):Promise<main.FolderListResult>;
 
 export function ListHistory(arg1:main.HistoryFilter):Promise<main.HistoryPageResult>;
@@ -171,6 +179,8 @@ export function MigrateLegacyRequestSettings():Promise<main.LegacyMigrationResul
 
 export function MoveEnvironment(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
 
+export function MoveExample(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
+
 export function MoveFolder(arg1:string,arg2:string):Promise<main.FolderResult>;
 
 export function MoveProject(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
@@ -183,6 +193,8 @@ export function PlaceNode(arg1:string,arg2:string,arg3:string,arg4:string,arg5:s
 
 export function PollCaptures(arg1:string,arg2:number):Promise<main.CaptureListResult>;
 
+export function PrepareExample(arg1:main.ExampleSource):Promise<main.ExampleDraftResult>;
+
 export function PreviewJWT(arg1:string,arg2:api.Auth):Promise<main.JWTPreviewResult>;
 
 export function Register(arg1:string,arg2:string,arg3:string):Promise<session.Result>;
@@ -194,6 +206,8 @@ export function ReleaseResponse(arg1:string):Promise<void>;
 export function RemoveMember(arg1:string,arg2:string):Promise<main.EmptyResult>;
 
 export function RenameEnvironment(arg1:string,arg2:string):Promise<main.EnvironmentResult>;
+
+export function RenameExample(arg1:string,arg2:string):Promise<main.ExampleSummaryResult>;
 
 export function RenameFolder(arg1:string,arg2:string):Promise<main.FolderResult>;
 
@@ -214,6 +228,10 @@ export function RevokeInvitation(arg1:string):Promise<main.EmptyResult>;
 export function SaveCaptureBodyToFile(arg1:string,arg2:number):Promise<main.SavedFileResult>;
 
 export function SaveCaptureFilteredToFile(arg1:string,arg2:number,arg3:string):Promise<main.SavedFileResult>;
+
+export function SaveExample(arg1:main.ExampleSource,arg2:string):Promise<main.ExampleSummaryResult>;
+
+export function SaveExampleBodyToFile(arg1:string):Promise<main.SavedFileResult>;
 
 export function SaveFilteredResponseToFile(arg1:string,arg2:string):Promise<main.SavedFileResult>;
 
@@ -282,6 +300,8 @@ export function SetVariableType(arg1:string,arg2:string,arg3:string):Promise<mai
 export function SetVariableValue(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
 
 export function SwitchAuthType(arg1:string,arg2:api.Auth,arg3:string):Promise<main.AuthSwitchResult>;
+
+export function UpdateExample(arg1:string,arg2:main.ExampleInput):Promise<main.ExampleSummaryResult>;
 
 export function UpdateProjectName(arg1:string,arg2:string):Promise<main.ProjectResult>;
 
