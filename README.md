@@ -172,6 +172,11 @@ the database file holds secrets in plain text; treat it like any local credentia
 To remove them: Settings → History → Clear (the space is freed on disk right away). Logs never
 contain resolved URLs, headers or secret values.
 
+**Auth-field memory** (choosing Bearer / Basic / API key / JWT on a request or folder whose fields are
+empty fills in the last values you saved for that type in the project) is local too: the remembered
+values live in the `auth_defaults` table of the same file, may be literal tokens or passwords, are
+never synced to the server or teammates, and are never logged.
+
 **JWT auth** is the exception inside the exception: the token signed at send time is stored in
 the resolved form (it is what was sent), but the resolved JWT **secret** is never stored, logged
 or shown — history keeps the auth config as authored (e.g. `{{JWT_SECRET}}`) plus the token.
