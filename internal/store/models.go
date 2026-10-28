@@ -8,6 +8,13 @@ import (
 	"database/sql"
 )
 
+type AuthDefault struct {
+	ProjectID  string `json:"projectId"`
+	AuthType   string `json:"authType"`
+	FieldsJson string `json:"fieldsJson"`
+	UpdatedAt  string `json:"updatedAt"`
+}
+
 type History struct {
 	ID                     int64          `json:"id"`
 	CreatedAt              int64          `json:"createdAt"`

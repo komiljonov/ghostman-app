@@ -455,6 +455,20 @@ Postman-style shell, logged in:
   redirect drop rule. History: the resolved copy has the derived header/param; `req_auth_json`
   (migration 00009) keeps the config as authored + its source; Restore sets that effective
   config explicitly on the new root request.
+  **Auth-field memory** (Postman-style; rules `internal/authmemory`, glue `auth_memory.go`, local SQLite
+  `auth_defaults` (project_id, auth_type, fields_json, updated_at), migration 00013): per project + type
+  (bearer / basic / api_key / jwt — jwt remembers ALL its fields), the last values the user SAVED. Capture =
+  after a successful `SaveRequest` / `SaveFolderSettings` whose patch changed at least one field of the saved
+  type (`Captures`; a pure mode switch captures nothing, so switching onto another node's server-kept values
+  never clobbers it) and whose type is not Empty; values verbatim ({{vars}}, {{$now…}}). Prefill = the mode
+  select calls bound `SwitchAuthType(project, current, type)` (no server call): only the type changes, unless
+  EVERY field of that type on the node is empty (`Empty`: text fields only — api_key `in`, jwt algorithm /
+  add_to / base64 never count; jwt = secret AND payload empty) — then the memory is copied in; any value
+  already there (typed, or kept by the server from an earlier switch) means nothing is touched. Prefilled
+  values are ordinary edits (autosave / the modal's Save persist them); a note under the select says so until
+  the next edit. Inherit / none: nothing either way. LOCAL ONLY by design: the values may be literal secrets
+  (tokens, passwords, JWT secrets) — never synced, never logged (failures log the type only); same trust
+  level as `secret_values` (README "History and secrets").
   **JWT** (Go: `internal/engine/jwt.go`, bound `PreviewJWT` in `jwt_preview.go`; UI: the jwt mode of
   `AuthEditor`, `JwtPreview`, `JwtHelp`, rules in `src/jwtAuth.ts`, all tested): a token TEMPLATE the
   client signs at send time — `jwt_algorithm` HS256 | HS384 | HS512 (golang-jwt), `jwt_secret` (a
@@ -693,6 +707,7 @@ webhooks.go              bound webhook capture: endpoints, PollCaptures, capture
 import_files.go          bound import: ChooseImportFile, ImportPostmanCollection/Environment, ImportOpenAPI (internal/importer)
 scripts.go               send scripts: gatherScripts (run order), cloneSpec, flushEnv (env writes via envs), GetScriptAPIDocs
 body_format.go           bound FormatJSONBody (raw body Format; rules in internal/jsonfmt)
+auth_memory.go           auth-field memory: capture after auth saves, bound SwitchAuthType (rules in internal/authmemory)
 jwt_preview.go           bound PreviewJWT (Auth tab "Preview token"; signing rules in internal/engine/jwt.go)
 redirects.go             follow-redirects: local global value, node setters (server), SaveFolderSettings
                          (folder auth + follow in one PATCH), legacy local→server push
@@ -707,6 +722,7 @@ internal/importer/       import: sniff, ordered tree, pure planners (Postman map
 internal/testproxy/      HTTP (forward + CONNECT) + SOCKS5 test proxy with auth and a request log
                          (tests; `go run ./tools/testproxy -addr 127.0.0.1:3128 [-user u -pass p]`)
 internal/scripting/      pre/post scripts: sandboxed goja VM per script, watchdog budgets, gm API, console, API docs
+internal/authmemory/     auth-field memory rules: which fields a type has, Empty, Captures, Switch (prefill)
 internal/jsonfmt/        Format JSON for template bodies: mask {{vars}} outside strings, indent, restore
 internal/filter/         jq (gojq) evaluation for the response filter bar: parse once, cap, note
 internal/store/          SQLite open/migrate, sqlc output (*.sql.go, db.go, models.go)

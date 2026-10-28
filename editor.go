@@ -126,6 +126,9 @@ func (a *App) SaveRequest(id string, base, draft api.RequestDraft) RequestResult
 	v, p := call(a, func(ctx context.Context, c *api.APIClient) (api.Request, error) {
 		return c.UpdateRequest(ctx, id, patch)
 	})
+	if p == nil && patch.Auth != nil {
+		a.rememberAuth(v.ProjectID, base.Auth, draft.Auth) // auth-field memory (auth_memory.go)
+	}
 	return RequestResult{Data: ptr(v, p), Error: p}
 }
 

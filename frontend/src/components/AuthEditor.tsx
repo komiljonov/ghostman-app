@@ -1,11 +1,14 @@
 import { createMemo, createSignal, For, Index, Match, Show, Switch } from "solid-js";
-import { FormatJSONBody } from "../../wailsjs/go/main/App";
-import { ApiKeyIn, AUTH_HINT, AuthConfig, AuthType, JWT_ALGORITHMS, JWTAlgorithm, resolvedLabel, withType } from "../auth";
+import { FormatJSONBody, SwitchAuthType } from "../../wailsjs/go/main/App";
+import { api } from "../../wailsjs/go/models";
+import { ApiKeyIn, AUTH_HINT, AuthConfig, AuthType, JWT_ALGORITHMS, JWTAlgorithm, normalizeAuth, resolvedLabel, TYPE_LABEL, withType } from "../auth";
+import { handleProblem } from "../authStore";
 import { FORMAT_SHORTCUT } from "../bodyFormat";
 import type { CodeEditorHandle } from "../codemirror";
 import { envDisplay } from "../envStore";
 import { JWT_DEFAULT_PREFIX, JWT_SECRET_HINT, jwtNamePlaceholder, jwtPrefixDisabled, jwtSentAs, withTimeClaims } from "../jwtAuth";
 import { isExplicitAuth, type ResolvedAuth } from "../settingsResolver";
+import { currentProjectId } from "../workspaceStore";
 import CodeEditor from "./CodeEditor";
 import Icon from "./Icon";
 import JwtHelp from "./JwtHelp";
@@ -27,7 +30,30 @@ interface Props {
 // single-line {{var}} editors; secrets belong in a secret variable.
 export default function AuthEditor(props: Props) {
   const [reveal, setReveal] = createSignal(false);
-  const set = (field: keyof AuthConfig, value: string | boolean) => props.onChange({ ...props.auth, [field]: value });
+  // Set by a mode switch that filled the fields from this project's auth memory;
+  // the note under the mode select shows until the next edit.
+  const [prefilled, setPrefilled] = createSignal<AuthType>();
+  const set = (field: keyof AuthConfig, value: string | boolean) => {
+    setPrefilled(undefined);
+    props.onChange({ ...props.auth, [field]: value });
+  };
+
+  // A mode switch goes through Go (SwitchAuthType, internal/authmemory): only the
+  // type changes, unless that type's fields are all empty here — then the last
+  // values saved for it in this project are filled in (local only, no server
+  // call; the autosave / Save persists them like any edit).
+  let switchSeq = 0;
+  const switchType = async (type: AuthType) => {
+    const mine = ++switchSeq;
+    const before = props.auth;
+    setPrefilled(undefined);
+    const res = await SwitchAuthType(currentProjectId(), api.Auth.createFrom(before), type);
+    if (mine !== switchSeq) return;
+    handleProblem(res.error);
+    if (!res.data || props.auth !== before) return props.onChange(withType(props.auth, type));
+    props.onChange(normalizeAuth(res.data.auth));
+    if (res.data.prefilled) setPrefilled(type);
+  };
 
   // JWT payload Format (the button or Alt+Shift+F): the raw body's formatter —
   // Go masks {{vars}} outside strings (internal/jsonfmt), one undoable change.
@@ -57,7 +83,7 @@ export default function AuthEditor(props: Props) {
       <label class="field auth-mode">
         <span>Type</span>
         <select id={`${props.idPrefix}-auth-type`} aria-label="Auth type" value={props.auth.type}
-          onChange={(e) => props.onChange(withType(props.auth, e.currentTarget.value as AuthType))}>
+          onChange={(e) => void switchType(e.currentTarget.value as AuthType)}>
           {/* Index, not For: the labels are recomputed on every change, and recreated
               <option>s would drop the selection back to the first one. */}
           <Index each={props.options}>
@@ -65,6 +91,11 @@ export default function AuthEditor(props: Props) {
           </Index>
         </select>
       </label>
+      <Show when={prefilled() !== undefined && prefilled() === props.auth.type}>
+        <p class="auth-prefilled small" role="status">
+          Filled in from the last {TYPE_LABEL[props.auth.type]} settings saved in this project (remembered on this computer only) — edit freely.
+        </p>
+      </Show>
 
       <Switch>
         <Match when={props.auth.type === "inherit"}>

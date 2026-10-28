@@ -5297,3 +5297,12 @@ body.tab-dragging * {
 .jwt-help-rule {
   margin: 2px 0;
 }
+
+/* Auth-field memory: a mode switch filled the fields (AuthEditor). */
+.auth-prefilled {
+  margin: -4px 0 0;
+  padding: 4px 8px;
+  color: var(--text);
+  background: var(--accent-soft);
+  border-radius: 4px;
+}

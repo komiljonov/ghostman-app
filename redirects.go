@@ -102,6 +102,9 @@ func (a *App) SaveFolderSettings(id string, saved, next FolderSettingsInput) Fol
 	v, p := call(a, func(ctx context.Context, c *api.APIClient) (api.FolderDetail, error) {
 		return c.UpdateFolderSettings(ctx, id, patch)
 	})
+	if p == nil && patch.Auth != nil {
+		a.rememberAuth(v.ProjectID, saved.Auth, next.Auth) // auth-field memory (auth_memory.go)
+	}
 	return FolderResult{Data: ptr(v, p), Error: p}
 }
 

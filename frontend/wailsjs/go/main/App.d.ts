@@ -281,6 +281,8 @@ export function SetVariableType(arg1:string,arg2:string,arg3:string):Promise<mai
 
 export function SetVariableValue(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
 
+export function SwitchAuthType(arg1:string,arg2:api.Auth,arg3:string):Promise<main.AuthSwitchResult>;
+
 export function UpdateProjectName(arg1:string,arg2:string):Promise<main.ProjectResult>;
 
 export function UpdateProxy(arg1:string,arg2:main.ProxyInput,arg3:main.ProxyInput):Promise<main.ProxyResult>;

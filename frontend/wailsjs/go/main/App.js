@@ -554,6 +554,10 @@ export function SetVariableValue(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetVariableValue'](arg1, arg2, arg3);
 }
 
+export function SwitchAuthType(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SwitchAuthType'](arg1, arg2, arg3);
+}
+
 export function UpdateProjectName(arg1, arg2) {
   return window['go']['main']['App']['UpdateProjectName'](arg1, arg2);
 }
