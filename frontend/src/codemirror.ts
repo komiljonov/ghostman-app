@@ -323,7 +323,7 @@ export function createCodeEditor(
   isJSON: boolean,
   onChange: (text: string) => void,
   getEnv: () => EnvDisplay,
-  opts: { bulk?: boolean } = {},
+  opts: { bulk?: boolean; vars?: boolean } = {}, // vars: false = no {{var}} highlight / completion (examples)
 ): CodeEditorHandle {
   const language = new Compartment();
   const formatter = new Compartment();
@@ -336,8 +336,7 @@ export function createCodeEditor(
         basicSetup,
         theme,
         language.of(isJSON ? json() : []),
-        varHighlighting(getEnv),
-        varCompletion(getEnv),
+        opts.vars === false ? [] : [varHighlighting(getEnv), varCompletion(getEnv)],
         lineToggleKeymap, // Ctrl+/: toggles "//" in bulk editors only, a no-op in the raw body
         formatKeymap, // Alt+Shift+F: formats when a formatter is set (raw JSON body), else a no-op
         formatter.of(bodyFormatter.of(null)),
@@ -467,6 +466,10 @@ export function createScriptEditor(
 
 export interface PlainEditorHandle extends ScriptEditorHandle {
   setJSON: (on: boolean) => void;
+  // Format JSON, as in CodeEditor (Alt+Shift+F while a formatter is set).
+  setFormatter: (fn: BodyFormatter | null) => void;
+  applyFormatted: (before: string, formatted: string) => boolean;
+  focus: () => void;
 }
 
 export function createPlainEditor(
@@ -476,6 +479,7 @@ export function createPlainEditor(
   opts: { ariaLabel: string; placeholder: string; json: boolean },
 ): PlainEditorHandle {
   const language = new Compartment();
+  const formatter = new Compartment();
   const view = new EditorView({
     parent,
     state: EditorState.create({
@@ -485,6 +489,8 @@ export function createPlainEditor(
         basicSetup,
         theme,
         language.of(opts.json ? json() : []),
+        formatKeymap, // Alt+Shift+F: formats when a formatter is set (example bodies), else a no-op
+        formatter.of(bodyFormatter.of(null)),
         placeholderExt(opts.placeholder),
         EditorView.contentAttributes.of({ "aria-label": opts.ariaLabel, spellcheck: "false" }),
         EditorView.updateListener.of((u) => {
@@ -509,6 +515,13 @@ export function createPlainEditor(
     },
     getDoc: () => view.state.doc.toString(),
     setJSON: (on) => view.dispatch({ effects: language.reconfigure(on ? json() : []) }),
+    setFormatter: (fn) => view.dispatch({ effects: formatter.reconfigure(bodyFormatter.of(fn)) }),
+    applyFormatted: (before, formatted) => {
+      const spec = formatTransaction(view.state, before, formatted);
+      if (spec) view.dispatch(spec);
+      return spec !== null || view.state.doc.toString() === formatted;
+    },
+    focus: () => view.focus(),
     destroy: () => view.destroy(),
   };
 }

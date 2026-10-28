@@ -204,6 +204,30 @@ export namespace api {
 	        this.created_at = source["created_at"];
 	    }
 	}
+	export class ExampleSummary {
+	    id: string;
+	    name: string;
+	    status: number;
+	    content_type: string;
+	    body_size: number;
+	    sort_order: number;
+	    updated_at: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExampleSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.status = source["status"];
+	        this.content_type = source["content_type"];
+	        this.body_size = source["body_size"];
+	        this.sort_order = source["sort_order"];
+	        this.updated_at = source["updated_at"];
+	    }
+	}
 	export class NodeProxy {
 	    mode: string;
 	    proxy_id?: string;
@@ -659,6 +683,7 @@ export namespace api {
 	    body: RequestBody;
 	    pre_script: string;
 	    post_script: string;
+	    example_count: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Request(source);
@@ -684,6 +709,7 @@ export namespace api {
 	        this.body = this.convertValues(source["body"], RequestBody);
 	        this.pre_script = source["pre_script"];
 	        this.post_script = source["post_script"];
+	        this.example_count = source["example_count"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1671,6 +1697,310 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = this.convertValues(source["data"], api.EnvironmentDetail);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ExampleDetail {
+	    id: string;
+	    request_id: string;
+	    name: string;
+	    status: number;
+	    headers: api.KeyValue[];
+	    content_type: string;
+	    body_size: number;
+	    updated_at: string;
+	    body: string;
+	    raw_body: string;
+	    formatted: boolean;
+	    preview_cut: boolean;
+	    media: string;
+	    media_url: string;
+	    text: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExampleDetail(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.request_id = source["request_id"];
+	        this.name = source["name"];
+	        this.status = source["status"];
+	        this.headers = this.convertValues(source["headers"], api.KeyValue);
+	        this.content_type = source["content_type"];
+	        this.body_size = source["body_size"];
+	        this.updated_at = source["updated_at"];
+	        this.body = source["body"];
+	        this.raw_body = source["raw_body"];
+	        this.formatted = source["formatted"];
+	        this.preview_cut = source["preview_cut"];
+	        this.media = source["media"];
+	        this.media_url = source["media_url"];
+	        this.text = source["text"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ExampleDetailResult {
+	    data?: ExampleDetail;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExampleDetailResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], ExampleDetail);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ExampleDraft {
+	    request_id: string;
+	    default_name: string;
+	    status: number;
+	    content_type: string;
+	    size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExampleDraft(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.request_id = source["request_id"];
+	        this.default_name = source["default_name"];
+	        this.status = source["status"];
+	        this.content_type = source["content_type"];
+	        this.size = source["size"];
+	    }
+	}
+	export class ExampleDraftResult {
+	    data?: ExampleDraft;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExampleDraftResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], ExampleDraft);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ExampleEditBody {
+	    text: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExampleEditBody(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.text = source["text"];
+	    }
+	}
+	export class ExampleEditBodyResult {
+	    data?: ExampleEditBody;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExampleEditBodyResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], ExampleEditBody);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ExampleInput {
+	    name: string;
+	    status: number;
+	    headers: api.KeyValue[];
+	    content_type: string;
+	    body?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExampleInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.status = source["status"];
+	        this.headers = this.convertValues(source["headers"], api.KeyValue);
+	        this.content_type = source["content_type"];
+	        this.body = source["body"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ExampleListResult {
+	    data: api.ExampleSummary[];
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExampleListResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.ExampleSummary);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ExampleSource {
+	    kind: string;
+	    tab_id: string;
+	    history_id: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExampleSource(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.tab_id = source["tab_id"];
+	        this.history_id = source["history_id"];
+	    }
+	}
+	export class ExampleSummaryResult {
+	    data?: api.ExampleSummary;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExampleSummaryResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], api.ExampleSummary);
 	        this.error = this.convertValues(source["error"], session.Problem);
 	    }
 	

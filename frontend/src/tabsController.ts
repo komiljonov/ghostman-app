@@ -1,3 +1,4 @@
+import { setExampleCount } from "./examplesStore";
 import { createStore, produce, unwrap } from "solid-js/store";
 import {
   CancelRequest, EvalResponseFilter, GetLayout, GetRequest, ReleaseResponse, SaveRequest, SendRequest, SetLayout,
@@ -65,7 +66,10 @@ export interface TabState {
   // The last send's proxy needed a password this machine does not have.
   proxyWarning?: string;
   // View state (not saved anywhere).
-  section: "params" | "headers" | "body" | "auth" | "scripts" | "settings" | "history";
+  section: "params" | "headers" | "body" | "auth" | "scripts" | "settings" | "history" | "examples";
+  // The Examples sub-tab's open example (undefined = the list) and its mode.
+  exampleId?: string;
+  exampleMode: "view" | "edit";
   responseSection: "body" | "headers" | "console";
   // The last send's script output (per send, never persisted); cleared by every send.
   console?: scripting.Console;
@@ -166,7 +170,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
 
   const newTab = (ref: TabRef, name: string, status: TabState["status"]): TabState => ({
     kind: ref.kind, id: ref.id, key: tabKey(ref), name, status, draft: emptyDraft(), save: "idle", sending: false,
-    unresolved: [], filter: NO_FILTER, section: "params", responseSection: "body", responseView: "raw", responseShare: 0.45,
+    unresolved: [], filter: NO_FILTER, section: "params", exampleMode: "view", responseSection: "body", responseView: "raw", responseShare: 0.45,
     hops: [],
   });
   const addTab = (ref: TabRef, name: string, status: TabState["status"]) => {
@@ -220,6 +224,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     const adopted = adoptUrlQuery(loaded.url, loaded.query_params);
     const draft = { ...loaded, url: adopted.url, query_params: adopted.rows };
     savers.set(id, makeSaver(id));
+    setExampleCount(id, result.data.example_count ?? 0); // the "Examples (N)" sub-tab
     update(id, (t) => {
       t.status = "ready";
       t.name = result.data!.name;

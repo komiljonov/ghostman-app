@@ -8,6 +8,7 @@ interface Props {
   rows: Row[];
   onChange: (rows: Row[]) => void;
   ariaLabel: string;
+  plain?: boolean; // no {{var}} highlighting / completion (example responses)
 }
 
 // The bulk text view of a key/value table (format: bulkEdit.ts): one multi-line
@@ -26,7 +27,7 @@ export default function BulkEditor(props: Props) {
     if (!host.isConnected) return;
     editor = createCodeEditor(host, serializeRows(props.rows), false, (text) => {
       if (!textMeansRows(text, props.rows)) props.onChange(parseBulk(text));
-    }, envDisplay, { bulk: true }); // bulk: Ctrl+/ toggles "//" (disable / enable rows)
+    }, envDisplay, { bulk: true, vars: !props.plain }); // bulk: Ctrl+/ toggles "//" (disable / enable rows)
     host.querySelector(".cm-content")?.setAttribute("aria-label", props.ariaLabel);
     setReady(true);
   });

@@ -172,6 +172,11 @@ the database file holds secrets in plain text; treat it like any local credentia
 To remove them: Settings → History → Clear (the space is freed on disk right away). Logs never
 contain resolved URLs, headers or secret values.
 
+**Saved response examples are the opposite: they SYNC.** "Save as example" uploads the response as
+received (status, headers, body — up to 1 MB) to the server, where everyone on the project sees it. A
+response can contain real tokens the API returned; the save dialog says so, and nothing is scrubbed
+automatically — check the body before saving.
+
 **Auth-field memory** (choosing Bearer / Basic / API key / JWT on a request or folder whose fields are
 empty fills in the last values you saved for that type in the project) is local too: the remembered
 values live in the `auth_defaults` table of the same file, may be literal tokens or passwords, are

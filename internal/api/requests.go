@@ -39,6 +39,9 @@ type Request struct {
 	// single-request payloads carry them (the list does not).
 	PreScript  string `json:"pre_script"`
 	PostScript string `json:"post_script"`
+	// ExampleCount is how many saved response examples the request has (single-
+	// request payloads only; examples.go).
+	ExampleCount int64 `json:"example_count"`
 }
 
 // NewRequest is the input of CreateRequest. Empty Method/URL let the server

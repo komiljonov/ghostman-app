@@ -349,6 +349,35 @@ Postman-style shell, logged in:
   **Right-click**: body → Copy (needs a selection) / Copy All (text as displayed) / Search in
   response (prefilled); headers → Copy value / Copy "Key: value" / Copy All headers; none in
   Preview. Clipboard via the Wails runtime (`ClipboardSetText`).
+- **Saved response examples** (server `request_examples`; Go: `api` client in `internal/api/examples.go`, bound
+  `examples.go`; UI: `ExamplesPanel` / `ExampleView` / `ExampleEditor` / `SaveExampleDialog`, rules in
+  `src/examplesModel.ts` (save flow + edit autosave wiring, unit tested), counts in `src/examplesStore.ts`).
+  Named example responses on a request, SHARED with the team: name, status, headers (rows), content_type,
+  body (raw bytes; `[]byte` = base64 on the wire, 1 MB cap). **Save as example**: response toolbar icon (after
+  Save, disabled-not-hidden until a response exists) and the history detail's button (needs the original
+  request: disabled with the reason otherwise) → `SaveExampleDialog`: `PrepareExample(source)` (Go: default
+  name "<status> response", or a REFUSAL — body over 1 MB, or itself cut at the 20 MB retention cap /
+  history_max_response_bytes: "response too large for an example (1MB limit) — use Save to file"; never
+  truncated) → name → `SaveExample(source, name)`: status + response headers (enabled rows) + Content-Type +
+  the FULL body from the tab's Go-side retention (`heldBody` now keeps status + headers) or the stored history
+  body. The dialog's one muted line: "Examples sync to your team — check the body for secrets before saving."
+  — no scrubbing (false comfort). Success: toast (response pane) / inline confirmation (history) and the badge
+  re-fetched (`refreshExampleCount`). **Examples sub-tab** (after History; label "Examples (N)": `example_count`
+  from GetRequest, then every list fetch): list name · status badge · type · size · updated, ↑ / ↓
+  (`MoveExample`: the server's full order with two swapped), ⋯ / right-click Open · Edit · Rename (inline) ·
+  Delete (confirm); re-fetched on mount, window focus and after a save elsewhere (`examplesTick`). Detail
+  (open example + mode per tab: `TabState.exampleId/exampleMode`; sticky header ← Examples · status · name ·
+  SaveIndicator · View | Edit): **View** = the response pane's rules (`responseView.ts`) over Go's preview of
+  the example cached Go-side (`exampleCache`, ≤ 16): Pretty (folding) / Raw / Preview — HTML in the sandboxed
+  iframe, image / audio / video streamed from `/example-media/{id}?v=updated_at` (history_media.go middleware;
+  only cached + servable kinds), pdf / binary → `MediaPreview` file card; search / collapse / expand / save
+  (`SaveExampleBodyToFile`). **Edit** = name, status (100–599; invalid → not saved, the saved one is sent),
+  Content-Type, headers (`KeyValueEditor plain` — plain cells, no `{{var}}` machinery: a response has no vars),
+  body in `PlainEditor` (JSON colors + Format / Alt+Shift+F via `FormatJSONBody` when the type is JSON; the
+  body loads WHOLE via `GetExampleEditBody`, binary bodies aren't editable as text). Autosave 600 ms
+  (`createExampleEditSaver` over `createAutosaver`); `UpdateExample(id, next)` diffs next against the cached
+  last server state in Go and PATCHes only the changed fields (the body only when text and edited). Deleting
+  the request deletes its examples (server). Teammates see changes on re-fetch as everywhere.
 - **Save response to file**: toolbar download icon (any view, once a response exists) → bound
   `SaveResponseToFile(tabID)`: native save dialog (`runtime.SaveFileDialog`, behind the
   `saveDialog` field so tests mock it), default name = request name (sanitized) + extension
@@ -706,6 +735,8 @@ webhooks.go              bound webhook capture: endpoints, PollCaptures, capture
                          CopyCaptureAsRequest
 import_files.go          bound import: ChooseImportFile, ImportPostmanCollection/Environment, ImportOpenAPI (internal/importer)
 scripts.go               send scripts: gatherScripts (run order), cloneSpec, flushEnv (env writes via envs), GetScriptAPIDocs
+examples.go              bound saved response examples: list/detail/edit (Go-side cache, diffed PATCH), save from
+                         a tab's held response or a history entry (1 MB cap refusal), reorder, body to file
 body_format.go           bound FormatJSONBody (raw body Format; rules in internal/jsonfmt)
 auth_memory.go           auth-field memory: capture after auth saves, bound SwitchAuthType (rules in internal/authmemory)
 jwt_preview.go           bound PreviewJWT (Auth tab "Preview token"; signing rules in internal/engine/jwt.go)
@@ -757,6 +788,8 @@ frontend/                Vite + Solid + TS
 - More cascading settings through the same resolver (timeout, TLS / insecure);
   the Settings sub-tab and the folder Settings… modal are their home. Auth: OAuth 2.0, digest;
   JWT: RS* / ES* (key files), custom header claims, Postman jwt auth import (still → inherit).
+- Examples: jq filter in the example view, examples as mock responses / in docs, examples on folders,
+  drag-and-drop reorder.
 - Response search: regex mode.
 - Comments in the raw (JSON) body via Ctrl+/: deliberately NOT supported — comments would be
   sent verbatim and break APIs. Revisit only with an opt-in strip-on-send.

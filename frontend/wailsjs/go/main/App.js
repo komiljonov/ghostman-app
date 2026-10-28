@@ -94,6 +94,10 @@ export function DeleteEnvironment(arg1, arg2) {
   return window['go']['main']['App']['DeleteEnvironment'](arg1, arg2);
 }
 
+export function DeleteExample(arg1) {
+  return window['go']['main']['App']['DeleteExample'](arg1);
+}
+
 export function DeleteFolder(arg1) {
   return window['go']['main']['App']['DeleteFolder'](arg1);
 }
@@ -160,6 +164,14 @@ export function GetCaptureDetail(arg1, arg2) {
 
 export function GetEnvContext(arg1) {
   return window['go']['main']['App']['GetEnvContext'](arg1);
+}
+
+export function GetExampleDetail(arg1) {
+  return window['go']['main']['App']['GetExampleDetail'](arg1);
+}
+
+export function GetExampleEditBody(arg1) {
+  return window['go']['main']['App']['GetExampleEditBody'](arg1);
 }
 
 export function GetFollowRedirectsDefault() {
@@ -270,6 +282,10 @@ export function ImportPostmanEnvironment(arg1, arg2) {
   return window['go']['main']['App']['ImportPostmanEnvironment'](arg1, arg2);
 }
 
+export function ListExamples(arg1) {
+  return window['go']['main']['App']['ListExamples'](arg1);
+}
+
 export function ListFolders(arg1) {
   return window['go']['main']['App']['ListFolders'](arg1);
 }
@@ -334,6 +350,10 @@ export function MoveEnvironment(arg1, arg2, arg3) {
   return window['go']['main']['App']['MoveEnvironment'](arg1, arg2, arg3);
 }
 
+export function MoveExample(arg1, arg2, arg3) {
+  return window['go']['main']['App']['MoveExample'](arg1, arg2, arg3);
+}
+
 export function MoveFolder(arg1, arg2) {
   return window['go']['main']['App']['MoveFolder'](arg1, arg2);
 }
@@ -358,6 +378,10 @@ export function PollCaptures(arg1, arg2) {
   return window['go']['main']['App']['PollCaptures'](arg1, arg2);
 }
 
+export function PrepareExample(arg1) {
+  return window['go']['main']['App']['PrepareExample'](arg1);
+}
+
 export function PreviewJWT(arg1, arg2) {
   return window['go']['main']['App']['PreviewJWT'](arg1, arg2);
 }
@@ -380,6 +404,10 @@ export function RemoveMember(arg1, arg2) {
 
 export function RenameEnvironment(arg1, arg2) {
   return window['go']['main']['App']['RenameEnvironment'](arg1, arg2);
+}
+
+export function RenameExample(arg1, arg2) {
+  return window['go']['main']['App']['RenameExample'](arg1, arg2);
 }
 
 export function RenameFolder(arg1, arg2) {
@@ -420,6 +448,14 @@ export function SaveCaptureBodyToFile(arg1, arg2) {
 
 export function SaveCaptureFilteredToFile(arg1, arg2, arg3) {
   return window['go']['main']['App']['SaveCaptureFilteredToFile'](arg1, arg2, arg3);
+}
+
+export function SaveExample(arg1, arg2) {
+  return window['go']['main']['App']['SaveExample'](arg1, arg2);
+}
+
+export function SaveExampleBodyToFile(arg1) {
+  return window['go']['main']['App']['SaveExampleBodyToFile'](arg1);
 }
 
 export function SaveFilteredResponseToFile(arg1, arg2) {
@@ -556,6 +592,10 @@ export function SetVariableValue(arg1, arg2, arg3) {
 
 export function SwitchAuthType(arg1, arg2, arg3) {
   return window['go']['main']['App']['SwitchAuthType'](arg1, arg2, arg3);
+}
+
+export function UpdateExample(arg1, arg2) {
+  return window['go']['main']['App']['UpdateExample'](arg1, arg2);
 }
 
 export function UpdateProjectName(arg1, arg2) {
