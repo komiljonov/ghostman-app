@@ -83,13 +83,26 @@ Postman-style shell, logged in:
   in the shared context menu (⋯ or right-click); "+" at the top creates at the project root.
   Rows: indent 16 px per level · chevron + folder icon (folders) or the method badge in the
   same 36 px column (requests) · name, so names align per depth.
+  **Examples under requests** (`TreeExampleItem`; cache `src/exampleCache.ts` via `examplesStore`, unit tested
+  in `treeExamples.test.ts`): a request with `example_count` > 0 (in the request LIST) gets a chevron at the
+  row's RIGHT end, before ⋯ (the lead column is the badge's — a request without examples looks the same).
+  Expanded (state in `ui_tree_state_<project_id>` with the folders; `staleExpanded` drops requests that are
+  gone or have no examples), its examples follow as leaf rows: example icon · name · status chip. Summaries are
+  LAZY: one ListExamples on the first expand, cached; dropped when a newer count disagrees (every tree load
+  seeds the counts), re-fetched after a change here (`examplesChangedFor`: save dialog, tree rename / delete;
+  the sub-tab's own list fetches update it too) and on ↻ / window focus (`invalidateExampleLists`). Click /
+  Enter → the request's tab on Examples with that example open (`tabs.openExample`); menu Open · Rename
+  (inline, Ctrl+E) · Delete (confirm, Del). Example rows are `li.tree-example`, NOT `li.tree-item`: DnD reads
+  only tree-items, and a press starts a drag only on a node's OWN row (`dragSourceOf`), so examples are never
+  dragged nor drop targets and "after a request" lands below its examples.
   The sidebar is **resizable**: a handle on its right edge (180 px to half the window,
   double-click → 260 px) rewrites only the `--sidebar-width` CSS variable while dragging
   (no re-render) and saves once on release (`ui_sidebar_width`, bound `SetSidebarWidth`;
   `GetUIPrefs` on startup, `src/uiPrefs.ts`).
 - **Tree selection & keys** (`src/treeNav.ts`, unit tested): click selects, and the selection
-  follows the active request tab. With the tree focused: Up/Down move, Right expands/enters,
-  Left collapses/goes to the parent, Enter opens (or toggles a folder), Home/End, Shift+F10
+  follows the active request tab (a selected example row of that request stays selected). With the
+  tree focused: Up/Down move, Right expands/enters (folders, requests with examples), Left
+  collapses/goes to the parent, Enter opens (a request, an example; toggles a folder), Home/End, Shift+F10
   opens the row menu; **Ctrl+E** inline rename, **Del** delete (existing confirm), **Ctrl+D**
   duplicate (requests only; no-op on folders). Never while the rename input, any input or
   editor has focus, or a modal is open (`canUseTreeKeys`).
@@ -362,7 +375,10 @@ Postman-style shell, logged in:
   the FULL body from the tab's Go-side retention (`heldBody` now keeps status + headers) or the stored history
   body. The dialog's one muted line: "Examples sync to your team — check the body for secrets before saving."
   — no scrubbing (false comfort). Success: toast (response pane) / inline confirmation (history) and the badge
-  re-fetched (`refreshExampleCount`). **Examples sub-tab** (after History; label "Examples (N)": `example_count`
+  re-fetched (`examplesChangedFor`: badge, tree rows, open panels). From HISTORY also: the History tab's row menu
+  and the request History sub-tab's rows (menu + hover button), all through `canSaveAsExample`
+  (`historyModel.ts`): needs a response and the original request in the current project's tree, else
+  disabled with the reason ("original request no longer exists"); the example attaches to that request. **Examples sub-tab** (after History; label "Examples (N)": `example_count`
   from GetRequest, then every list fetch): list name · status badge · type · size · updated, ↑ / ↓
   (`MoveExample`: the server's full order with two swapped), ⋯ / right-click Open · Edit · Rename (inline) ·
   Delete (confirm); re-fetched on mount, window focus and after a save elsewhere (`examplesTick`). Detail

@@ -175,7 +175,9 @@ contain resolved URLs, headers or secret values.
 **Saved response examples are the opposite: they SYNC.** "Save as example" uploads the response as
 received (status, headers, body — up to 1 MB) to the server, where everyone on the project sees it. A
 response can contain real tokens the API returned; the save dialog says so, and nothing is scrubbed
-automatically — check the body before saving.
+automatically — check the body before saving. Examples are listed in the request's Examples tab and
+under the request in the sidebar tree (a chevron appears once it has any); a History entry can be saved
+as an example of its request too, from its row's menu.
 
 **Auth-field memory** (choosing Bearer / Basic / API key / JWT on a request or folder whose fields are
 empty fills in the last values you saved for that type in the project) is local too: the remembered

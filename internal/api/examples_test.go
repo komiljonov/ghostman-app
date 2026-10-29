@@ -152,3 +152,25 @@ func TestExampleServerErrorSurfaces(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+// The project request list carries each request's example count (the sidebar tree
+// shows a chevron for > 0); GET keeps it through the embedded summary.
+func TestRequestListAndGetCarryExampleCount(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/projects/p1/requests" {
+			_, _ = io.WriteString(w, `[{"id":"r1","name":"a","example_count":2},{"id":"r2","name":"b","example_count":0}]`)
+			return
+		}
+		_, _ = io.WriteString(w, `{"id":"r1","name":"a","example_count":3}`)
+	}))
+	t.Cleanup(srv.Close)
+	c := New(srv.URL)
+	list, err := c.ListRequests(context.Background(), "p1")
+	if err != nil || len(list) != 2 || list[0].ExampleCount != 2 || list[1].ExampleCount != 0 {
+		t.Fatalf("list = %+v, err %v", list, err)
+	}
+	req, err := c.GetRequest(context.Background(), "r1")
+	if err != nil || req.ExampleCount != 3 {
+		t.Fatalf("get = %+v, err %v", req, err)
+	}
+}

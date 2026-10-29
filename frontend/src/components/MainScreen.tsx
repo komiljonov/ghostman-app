@@ -38,6 +38,7 @@ import ImportReport from "./ImportReport";
 import SidebarPanels from "./SidebarPanels";
 import WebhookView from "./WebhookView";
 import { flushWebhookEdits, markSeen, reloadWebhooks, resetWebhooks, syncFeeds, webhooks, webhooksLoaded } from "../webhookStore";
+import { invalidateExampleLists } from "../examplesStore";
 
 interface Props {
   onOpenSettings: () => void;
@@ -126,6 +127,10 @@ export default function MainScreen(props: Props) {
   };
   const openRequest = (id: string) => {
     tabs()?.open(id);
+    setPane("editor");
+  };
+  const openExample = (requestId: string, exampleId: string) => {
+    tabs()?.openExample(requestId, exampleId);
     setPane("editor");
   };
   const openProxy = (id: string, name: string) => {
@@ -252,6 +257,7 @@ export default function MainScreen(props: Props) {
   };
 
   const refresh = async () => {
+    invalidateExampleLists(); // expanded tree requests re-fetch their examples
     setRefreshTick((n) => n + 1);
     await Promise.all([reloadWorkspace(), refreshInvitations(), refreshEnvContext(), reloadProxies()]);
   };
@@ -373,6 +379,7 @@ export default function MainScreen(props: Props) {
                 refreshTick={refreshTick() + treeTick()}
                 selectedRequestId={pane() === "editor" ? tabs()?.activeRequestId() : undefined}
                 onOpenRequest={openRequest}
+                onOpenExample={openExample}
                 onLoaded={(pid, requests) => {
                   if (pid === projectId()) tabs()?.syncWithTree(requests);
                 }}

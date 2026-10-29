@@ -1,5 +1,5 @@
 import { createContext, useContext } from "solid-js";
-import { session } from "../wailsjs/go/models";
+import { api, session } from "../wailsjs/go/models";
 import { Tree, TreeNode } from "./tree";
 
 // Shared by every row of the sidebar tree, so rows don't need long prop chains.
@@ -32,6 +32,9 @@ export interface TreeCtx {
   askDelete: (node: TreeNode) => void;
   // Creates "New folder"/"New request" inside parentId ("" = root) and starts renaming it.
   create: (kind: "folder" | "request", parentId: string) => Promise<session.Problem | undefined>;
+  // A request's saved examples (child rows): open in its tab's Examples sub-tab, delete (confirm).
+  openExample: (requestId: string, exampleId: string) => void;
+  askDeleteExample: (requestId: string, example: api.ExampleSummary) => void;
 }
 
 export const TreeContext = createContext<TreeCtx>();

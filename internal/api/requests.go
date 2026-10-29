@@ -23,10 +23,13 @@ type RequestSummary struct {
 	// Auth is the cascading auth setting (auth.go), stored values unresolved.
 	Auth Auth `json:"auth"`
 	// Proxy is the cascading proxy setting (proxies.go), set by its own call.
-	Proxy     NodeProxy `json:"proxy"`
-	SortOrder int32     `json:"sort_order"`
-	CreatedAt string    `json:"created_at"`
-	UpdatedAt string    `json:"updated_at"`
+	Proxy NodeProxy `json:"proxy"`
+	// ExampleCount is how many saved response examples the request has (the list
+	// and the single-request payloads; examples.go). The tree shows a chevron for > 0.
+	ExampleCount int64  `json:"example_count"`
+	SortOrder    int32  `json:"sort_order"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
 }
 
 // Request is a full saved request.
@@ -39,9 +42,6 @@ type Request struct {
 	// single-request payloads carry them (the list does not).
 	PreScript  string `json:"pre_script"`
 	PostScript string `json:"post_script"`
-	// ExampleCount is how many saved response examples the request has (single-
-	// request payloads only; examples.go).
-	ExampleCount int64 `json:"example_count"`
 }
 
 // NewRequest is the input of CreateRequest. Empty Method/URL let the server

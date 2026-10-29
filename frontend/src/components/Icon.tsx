@@ -95,6 +95,8 @@ const SHAPES = {
   download: () => <path d="M8 2.5v7.5M4.75 6.75L8 10l3.25-3.25M3 12.75h10" />,
   // Save as example: a bookmark ribbon.
   bookmark: () => <path d="M4.25 2.25h7.5v11.5L8 11 4.25 13.75z" />,
+  // A saved response example: a page with a return arrow (tree rows under a request).
+  example: () => <path d="M4.25 1.75h5l2.5 2.5v10h-7.5zM9.25 1.75v2.5h2.5M10 9.25H6.25M7.75 7.5L6 9.25 7.75 11" />,
   // A file (form-data file fields): a page with a folded corner.
   file: () => <path d="M4 1.75h5l3.25 3.25v8.5c0 .41-.34.75-.75.75h-7.5c-.41 0-.75-.34-.75-.75V2.5c0-.41.34-.75.75-.75zM9 1.75V5h3.25" />,
   // Webhook endpoint: an incoming arrow into a tray.

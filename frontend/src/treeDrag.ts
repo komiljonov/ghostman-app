@@ -24,6 +24,25 @@ export interface DragView {
   listWidth: number;
 }
 
+// Presses that never start a drag: the row's buttons and the rename input.
+export const NO_DRAG_FROM = ".row-menu-trigger, .tree-examples-toggle, .tree-rename, input";
+
+interface PressTarget {
+  closest: (selector: string) => PressRow | null;
+}
+interface PressRow {
+  parentElement: { matches: (selector: string) => boolean } | null;
+}
+
+// The node a press would drag: the li.tree-item whose OWN row was pressed. A
+// press anywhere else inside its <li> — an example row (reorder stays in the
+// Examples sub-tab), the gap or "Loading…" line of its children — drags nothing.
+export function dragSourceOf(target: PressTarget): Exclude<PressRow["parentElement"], null> | null {
+  if (target.closest(NO_DRAG_FROM)) return null;
+  const li = target.closest(".tree-row")?.parentElement ?? null;
+  return li?.matches("li.tree-item") ? li : null;
+}
+
 export interface TreeDragOptions {
   tree: () => Tree;
   list: () => HTMLElement | undefined; // ul.tree
@@ -56,8 +75,7 @@ export function createTreeDrag(opts: TreeDragOptions) {
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0 || !opts.canStart()) return;
     const target = e.target as HTMLElement;
-    if (target.closest(".row-menu-trigger, .tree-rename, input")) return;
-    const li = target.closest<HTMLElement>("li.tree-item");
+    const li = dragSourceOf(target) as HTMLElement | null;
     const list = opts.list();
     if (!li || !list) return;
     const dragged: Dragged = { id: li.dataset.id!, kind: li.dataset.kind as NodeKind };

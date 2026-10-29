@@ -6,7 +6,7 @@ import { api, main } from "../../wailsjs/go/models";
 import { SaveState } from "../autosave";
 import { handleProblem } from "../authStore";
 import { exampleMeta, moveState } from "../examplesModel";
-import { examplesTick, setExampleCount } from "../examplesStore";
+import { examplesTick, setExampleList } from "../examplesStore";
 import ConfirmDialog from "./ConfirmDialog";
 import ContextMenu, { MenuEntry } from "./ContextMenu";
 import ExampleEditor from "./ExampleEditor";
@@ -59,7 +59,9 @@ export default function ExamplesPanel(props: Props) {
     setError(r.error?.message);
     if (r.data) {
       setList(r.data);
-      setExampleCount(id, r.data.length);
+      setExampleList(id, r.data); // the badge and the tree's rows
+      // Deleted elsewhere (the tree, a teammate): leave its detail.
+      if (props.openId && !r.data.some((e) => e.id === props.openId)) props.onOpen(undefined);
     }
   };
   const loadDetail = async (id: string) => {
@@ -84,6 +86,10 @@ export default function ExamplesPanel(props: Props) {
     onCleanup(() => window.removeEventListener("focus", onFocus));
   });
   createEffect(on([() => props.requestId, examplesTick], () => void reload()));
+  // Renamed elsewhere (the tree): the open View re-reads it.
+  createEffect(on(examplesTick, () => {
+    if (props.openId && props.mode === "view") void loadDetail(props.openId);
+  }, { defer: true }));
   // Opening an example, or switching back to View, fetches it fresh (edits included).
   createEffect(on([() => props.openId, () => props.mode], ([id, mode]) => {
     setDetail(undefined);

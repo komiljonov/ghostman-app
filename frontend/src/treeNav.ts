@@ -3,22 +3,42 @@
 // over the rendered rows, so they are unit-testable; ProjectTree wires them up.
 import type { TreeNode } from "./tree";
 
+export type RowKind = "folder" | "request" | "example";
+
 // One rendered row, in screen order.
 export interface VisibleRow {
   id: string;
-  kind: "folder" | "request";
-  parentId: string | null; // containing folder, null at the project root
-  expanded: boolean; // folders only
+  kind: RowKind;
+  parentId: string | null; // containing folder (an example: its request), null at the project root
+  expandable: boolean; // folders, and requests with examples
+  expanded: boolean;
 }
 
-// Rows in screen order: children of expanded folders follow their folder.
-export function visibleRows(root: TreeNode[], isExpanded: (id: string) => boolean): VisibleRow[] {
+// What the tree knows about a request's saved examples: the latest count (a
+// chevron for > 0) and the summaries once loaded (examplesStore).
+export interface ExampleRows {
+  count: (requestId: string) => number;
+  list: (requestId: string) => readonly { id: string }[] | undefined;
+}
+
+const NO_EXAMPLES: ExampleRows = { count: () => 0, list: () => undefined };
+
+// Rows in screen order: children of expanded folders follow their folder, the
+// loaded examples of an expanded request (leaf rows) follow it.
+export function visibleRows(root: TreeNode[], isExpanded: (id: string) => boolean, examples: ExampleRows = NO_EXAMPLES): VisibleRow[] {
   const out: VisibleRow[] = [];
   const walk = (nodes: TreeNode[], parentId: string | null) => {
     for (const n of nodes) {
-      const expanded = n.kind === "folder" && isExpanded(n.id);
-      out.push({ id: n.id, kind: n.kind, parentId, expanded });
-      if (n.kind === "folder" && expanded) walk(n.children, n.id);
+      const expandable = n.kind === "folder" || examples.count(n.id) > 0;
+      const expanded = expandable && isExpanded(n.id);
+      out.push({ id: n.id, kind: n.kind, parentId, expandable, expanded });
+      if (!expanded) continue;
+      if (n.kind === "folder") walk(n.children, n.id);
+      else {
+        for (const e of examples.list(n.id) ?? []) {
+          out.push({ id: e.id, kind: "example", parentId: n.id, expandable: false, expanded: false });
+        }
+      }
     }
   };
   walk(root, null);
@@ -31,9 +51,9 @@ export type TreeMove =
 
 // What an arrow/Enter/Home/End key does with the current selection.
 //   Up/Down     previous/next visible row (nothing selected: first/last row)
-//   Right       collapsed folder: expand; expanded folder: go to its first child
-//   Left        expanded folder: collapse; otherwise go to the containing folder
-//   Enter       request: open; folder: expand/collapse
+//   Right       collapsed folder / request with examples: expand; expanded: go to its first child
+//   Left        expanded: collapse; otherwise go to the parent (folder, or an example's request)
+//   Enter       request: open; example: open it (its request's Examples sub-tab); folder: expand/collapse
 export function navigate(rows: VisibleRow[], selectedId: string | undefined, key: string): TreeMove {
   if (rows.length === 0) return null;
   const i = rows.findIndex((r) => r.id === selectedId);
@@ -54,14 +74,14 @@ export function navigate(rows: VisibleRow[], selectedId: string | undefined, key
     case "End":
       return at(rows.length - 1);
     case "ArrowRight":
-      if (row.kind !== "folder") return null;
+      if (!row.expandable) return null;
       if (!row.expanded) return { type: "expand", id: row.id };
       return rows[i + 1]?.parentId === row.id ? at(i + 1) : null;
     case "ArrowLeft":
-      if (row.kind === "folder" && row.expanded) return { type: "collapse", id: row.id };
+      if (row.expanded) return { type: "collapse", id: row.id };
       return row.parentId ? { type: "select", id: row.parentId } : null;
     case "Enter":
-      return row.kind === "request" ? { type: "open", id: row.id } : { type: "toggle", id: row.id };
+      return row.kind === "folder" ? { type: "toggle", id: row.id } : { type: "open", id: row.id };
     default:
       return null;
   }
@@ -87,8 +107,8 @@ export function treeShortcut(e: KeyLike): TreeShortcut | null {
   return null;
 }
 
-// Duplicate is for requests only (on a folder it does nothing).
-export function shortcutApplies(action: TreeShortcut, kind: "folder" | "request"): boolean {
+// Duplicate is for requests only (on a folder or an example it does nothing).
+export function shortcutApplies(action: TreeShortcut, kind: RowKind): boolean {
   return action !== "duplicate" || kind === "request";
 }
 

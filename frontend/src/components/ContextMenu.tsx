@@ -10,6 +10,7 @@ export type MenuEntry =
     hint?: string; // keyboard shortcut, shown right-aligned
     danger?: boolean;
     disabled?: boolean;
+    title?: string; // tooltip, e.g. why it is disabled
     onSelect: () => void;
   }
   | "separator";
@@ -80,7 +81,7 @@ export default function ContextMenu(props: Props) {
             <Show when={entry !== "separator" && entry} fallback={<div class="context-sep" role="separator" />}>
               {(item) => (
                 <button type="button" role="menuitem" classList={{ "context-item": true, "context-danger": !!item().danger }}
-                  disabled={item().disabled}
+                  disabled={item().disabled} title={item().title}
                   onClick={() => {
                     const pick = item().onSelect;
                     props.onClose();

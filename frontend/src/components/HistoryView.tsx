@@ -7,7 +7,7 @@ import { main } from "../../wailsjs/go/models";
 import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 import { handleProblem } from "../authStore";
 import {
-  canOpenOriginal, defaultFilter, FilterState, formatBytes, requestFilter, filterToQuery, formatDuration, groupByDay, METHODS, nextCursor,
+  canOpenOriginal, canSaveAsExample, defaultFilter, FilterState, formatBytes, requestFilter, filterToQuery, formatDuration, groupByDay, METHODS, nextCursor,
   restoreAndOpen, rowLabel, STATUS_CLASSES, StatusClass, statusChip, timeOfDay,
 } from "../historyModel";
 import { consumeHistoryFocus, historyChanged, historyFocus, historyTick } from "../historyStore";
@@ -16,6 +16,7 @@ import ContextMenu, { MenuEntry } from "./ContextMenu";
 import HistoryDetail from "./HistoryDetail";
 import Icon from "./Icon";
 import MethodBadge from "./MethodBadge";
+import SaveExampleDialog from "./SaveExampleDialog";
 
 interface Props {
   projectId: string;
@@ -100,6 +101,8 @@ export default function HistoryView(props: Props) {
   };
 
   const original = (s: main.HistorySummary) => canOpenOriginal(s, props.projectId, props.requestIds);
+  const exampleSave = (s: main.HistorySummary) => canSaveAsExample(s, props.projectId, props.requestIds);
+  const [savingExample, setSavingExample] = createSignal<number>(); // history entry id
 
   const restore = async (id: number) => {
     setBusy(true);
@@ -176,6 +179,8 @@ export default function HistoryView(props: Props) {
       { label: "Open original request", disabled: !orig.ok, onSelect: () => props.onOpenRequest(s.request_id) },
       { label: "Copy resolved URL", disabled: !s.url_resolved, onSelect: () => copyURL(s) },
       { label: "Save response…", disabled: !!s.error, onSelect: () => void save(s.id) },
+      { label: "Save as example…", icon: "bookmark", disabled: !exampleSave(s).ok, title: exampleSave(s).why || undefined,
+        onSelect: () => setSavingExample(s.id) },
       "separator",
       { label: "Delete entry", icon: "trash", danger: true, onSelect: () => void remove(s.id) },
     ];
@@ -270,7 +275,7 @@ export default function HistoryView(props: Props) {
       <div class="history-detail-pane">
         <Show when={entry()} keyed fallback={<p class="placeholder">{selected() === undefined ? "Select an entry to see the request and response." : "Loading…"}</p>}>
           {(e) => (
-            <HistoryDetail entry={e} busy={busy()} openOriginal={original(e.summary)}
+            <HistoryDetail entry={e} busy={busy()} openOriginal={original(e.summary)} saveExample={exampleSave(e.summary)}
               onRestore={() => void restore(e.summary.id)}
               onOpenOriginal={() => props.onOpenRequest(e.summary.request_id)}
               onCopyURL={() => copyURL(e.summary)}
@@ -283,6 +288,12 @@ export default function HistoryView(props: Props) {
       </div>
       <Show when={menu()}>
         {(m) => <ContextMenu x={m().x} y={m().y} label="History entry actions" items={menuItems(m().item)} onClose={() => setMenu(undefined)} />}
+      </Show>
+      <Show when={savingExample()}>
+        {(id) => (
+          <SaveExampleDialog source={main.ExampleSource.createFrom({ kind: "history", tab_id: "", history_id: id() })}
+            onSaved={(name) => flash(`Saved example “${name}”`)} onClose={() => setSavingExample(undefined)} />
+        )}
       </Show>
     </div>
   );
