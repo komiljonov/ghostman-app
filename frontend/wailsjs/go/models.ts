@@ -675,6 +675,7 @@ export namespace api {
 	    response_filter: string;
 	    auth: Auth;
 	    proxy: NodeProxy;
+	    example_count: number;
 	    sort_order: number;
 	    created_at: string;
 	    updated_at: string;
@@ -683,7 +684,6 @@ export namespace api {
 	    body: RequestBody;
 	    pre_script: string;
 	    post_script: string;
-	    example_count: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Request(source);
@@ -701,6 +701,7 @@ export namespace api {
 	        this.response_filter = source["response_filter"];
 	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.proxy = this.convertValues(source["proxy"], NodeProxy);
+	        this.example_count = source["example_count"];
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	        this.updated_at = source["updated_at"];
@@ -709,7 +710,6 @@ export namespace api {
 	        this.body = this.convertValues(source["body"], RequestBody);
 	        this.pre_script = source["pre_script"];
 	        this.post_script = source["post_script"];
-	        this.example_count = source["example_count"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -838,6 +838,7 @@ export namespace api {
 	    response_filter: string;
 	    auth: Auth;
 	    proxy: NodeProxy;
+	    example_count: number;
 	    sort_order: number;
 	    created_at: string;
 	    updated_at: string;
@@ -858,6 +859,7 @@ export namespace api {
 	        this.response_filter = source["response_filter"];
 	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.proxy = this.convertValues(source["proxy"], NodeProxy);
+	        this.example_count = source["example_count"];
 	        this.sort_order = source["sort_order"];
 	        this.created_at = source["created_at"];
 	        this.updated_at = source["updated_at"];

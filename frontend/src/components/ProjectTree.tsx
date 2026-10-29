@@ -1,15 +1,18 @@
 import { createEffect, createMemo, createSignal, For, on, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import {
-  CreateFolder, CreateRequest, DuplicateRequest, GetTreeState, ListFolders, ListRequests, PlaceNode, SetTreeState,
+  CreateFolder, CreateRequest, DeleteExample, DuplicateRequest, GetTreeState, ListFolders, ListRequests, PlaceNode, SetTreeState,
 } from "../../wailsjs/go/main/App";
+import { api } from "../../wailsjs/go/models";
 import { handleProblem } from "../authStore";
-import { buildTree, Tree, TreeNode } from "../tree";
+import { exampleCount, exampleList, exampleOwner, examplesChangedFor, setExampleCounts } from "../examplesStore";
+import { buildTree, staleExpanded, Tree, TreeNode } from "../tree";
 import { createAndOpen, duplicateAndOpen } from "../treeActions";
 import { TreeContext, TreeCtx } from "../treeContext";
 import { canUseTreeKeys, navigate, shortcutApplies, treeShortcut, visibleRows } from "../treeNav";
 import { createTreeDrag } from "../treeDrag";
 import { clearTree, publishTree, treeReloadTick } from "../treeStore";
+import ConfirmDialog from "./ConfirmDialog";
 import FolderSettingsModal from "./FolderSettingsModal";
 import Dropdown from "./Dropdown";
 import FormError from "./FormError";
@@ -25,6 +28,7 @@ interface Props {
   refreshTick: number;
   selectedRequestId: string | undefined;
   onOpenRequest: (id: string) => void;
+  onOpenExample: (requestId: string, exampleId: string) => void; // its tab, Examples sub-tab
   // After every successful load: lets open tabs follow renames and deletions.
   onLoaded: (projectId: string, requests: Map<string, { name: string }>) => void;
 }
@@ -44,17 +48,29 @@ export default function ProjectTree(props: Props) {
   const [renamingId, setRenamingId] = createSignal<string>();
   const [moving, setMoving] = createSignal<TreeNode>();
   const [deleting, setDeleting] = createSignal<TreeNode>();
+  const [deletingExample, setDeletingExample] = createSignal<{ requestId: string; example: api.ExampleSummary }>();
   const [folderSettings, setFolderSettings] = createSignal<string>(); // folder id
   const [selectedId, setSelectedId] = createSignal<string>();
   const [menu, setMenu] = createSignal<{ id: string; x: number; y: number }>();
   let treeEl: HTMLUListElement | undefined;
   let navEl: HTMLElement | undefined;
 
-  // The selection follows the active request tab (opening from anywhere selects it).
-  createEffect(on(() => props.selectedRequestId, (id) => id && setSelectedId(id)));
+  // The selection follows the active request tab (opening from anywhere selects it),
+  // except that a selected example row of that request stays selected.
+  createEffect(on(() => props.selectedRequestId, (id) => {
+    const cur = selectedId();
+    if (id && !(cur && exampleOwner(cur) === id)) setSelectedId(id);
+  }));
 
   const nodeById = (id: string | undefined): TreeNode | undefined =>
     id ? lookup().folders.get(id) ?? lookup().requests.get(id) : undefined;
+  // An example row (a loaded summary under its request).
+  const exampleById = (id: string | undefined) => {
+    const requestId = id ? exampleOwner(id) : undefined;
+    const example = requestId ? exampleList(requestId)?.find((e) => e.id === id) : undefined;
+    return requestId && example ? { requestId, example } : undefined;
+  };
+  const exampleRows = { count: (id: string) => exampleCount(id) ?? 0, list: exampleList };
 
   const select = (id: string) => {
     setSelectedId(id);
@@ -70,12 +86,15 @@ export default function ProjectTree(props: Props) {
     setLoadError(problem?.message);
     if (problem) return;
     const tree = buildTree(folders.data, requests.data);
+    // The latest counts (chevrons, "Examples (N)"); a cached list that disagrees is dropped.
+    setExampleCounts([...tree.requests.values()].map((r) => [r.id, r.exampleCount] as [string, number]));
     setLookup(tree);
     publishTree(tree); // open tabs re-resolve cascading settings from it
     setView("root", reconcile(tree.root, { key: "id" }));
     setLoaded(true);
-    // Forget expanded state of folders that no longer exist (deleted here or elsewhere).
-    const stale = Object.keys(expanded).filter((id) => expanded[id] && !tree.folders.has(id));
+    // Forget expanded state of folders that no longer exist (deleted here or elsewhere)
+    // and of requests that are gone or have no examples left.
+    const stale = staleExpanded(Object.keys(expanded).filter((id) => expanded[id]), tree);
     if (stale.length > 0) {
       for (const id of stale) setExpanded(id, undefined!);
       persistExpanded();
@@ -151,6 +170,8 @@ export default function ProjectTree(props: Props) {
     askMove: setMoving,
     askFolderSettings: (id) => setFolderSettings(id),
     askDelete: setDeleting,
+    openExample: props.onOpenExample,
+    askDeleteExample: (requestId, example) => setDeletingExample({ requestId, example }),
     create: async (kind, parentId) => {
       const problem = await createAndOpen(kind, parentId, {
         create: () => kind === "folder"
@@ -175,28 +196,37 @@ export default function ProjectTree(props: Props) {
   const onTreeKey = (e: KeyboardEvent) => {
     if (!canUseTreeKeys({ modalOpen: modalOpen(), renaming: !!renamingId(), target: e.target as HTMLElement })) return;
     const node = nodeById(selectedId());
+    const ex = node ? undefined : exampleById(selectedId());
     const shortcut = treeShortcut(e);
     if (shortcut) {
       e.preventDefault(); // Ctrl+D / Ctrl+E also mean something to the browser
+      if (ex) {
+        if (!shortcutApplies(shortcut, "example")) return;
+        if (shortcut === "rename") setRenamingId(ex.example.id);
+        else ctx.askDeleteExample(ex.requestId, ex.example);
+        return;
+      }
       if (!node || !shortcutApplies(shortcut, node.kind)) return;
       if (shortcut === "rename") setRenamingId(node.id);
       else if (shortcut === "delete") setDeleting(node);
       else void ctx.duplicate(node.id);
       return;
     }
-    if (node && (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10"))) {
+    const rowId = node?.id ?? ex?.example.id;
+    if (rowId && (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10"))) {
       e.preventDefault();
-      const r = document.getElementById(`tree-row-${node.id}`)?.getBoundingClientRect();
-      if (r) ctx.openMenu(node.id, r.left + 24, r.bottom);
+      const r = document.getElementById(`tree-row-${rowId}`)?.getBoundingClientRect();
+      if (r) ctx.openMenu(rowId, r.left + 24, r.bottom);
       return;
     }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    const move = navigate(visibleRows(view.root, ctx.isExpanded), selectedId(), e.key);
+    const move = navigate(visibleRows(view.root, ctx.isExpanded, exampleRows), selectedId(), e.key);
     if (!move) return;
     e.preventDefault();
     if (move.type === "select") select(move.id);
     else if (move.type === "expand") ctx.expand(move.id);
     else if (move.type === "collapse" || move.type === "toggle") ctx.toggle(move.id);
+    else if (ex) props.onOpenExample(ex.requestId, ex.example.id);
     else props.onOpenRequest(move.id);
   };
 
@@ -247,7 +277,7 @@ export default function ProjectTree(props: Props) {
         <Show when={loaded()} fallback={<Show when={!loadError()}><p class="placeholder small tree-note">Loading…</p></Show>}>
           <Show when={view.root.length > 0} fallback={<p class="placeholder small tree-note">No requests yet — create one</p>}>
             <ul class="tree" role="tree" aria-label="Folders and requests" tabIndex={0} ref={treeEl}
-              aria-activedescendant={selectedId() && nodeById(selectedId()) ? `tree-row-${selectedId()}` : undefined}
+              aria-activedescendant={selectedId() && (nodeById(selectedId()) || exampleById(selectedId())) ? `tree-row-${selectedId()}` : undefined}
               onKeyDown={onTreeKey} onPointerDown={drag.onPointerDown}>
               <For each={view.root}>{(node) => <TreeItem node={node} depth={0} />}</For>
             </ul>
@@ -285,6 +315,22 @@ export default function ProjectTree(props: Props) {
       </Show>
       <Show when={deleting()}>
         {(node) => <DeleteNodeModal node={node()} onClose={() => setDeleting(undefined)} />}
+      </Show>
+      <Show when={deletingExample()}>
+        {(d) => (
+          <ConfirmDialog title="Delete example"
+            message={`Delete the example “${d().example.name}” for everyone on the project?`}
+            confirmLabel="Delete example"
+            action={() => DeleteExample(d().example.id)}
+            onDone={() => {
+              select(d().requestId);
+              void examplesChangedFor(d().requestId);
+            }}
+            onClose={() => {
+              setDeletingExample(undefined);
+              ctx.focusTree();
+            }} />
+        )}
       </Show>
     </TreeContext.Provider>
   );

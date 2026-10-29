@@ -199,6 +199,22 @@ export function canOpenOriginal(s: { project_id: string; request_id: string }, p
   return { ok: true, why: "" };
 }
 
+// "Save as example" from a history entry (its detail, the History tab's rows, a
+// request's History sub-tab): the stored response is attached to the entry's
+// ORIGINAL request, so it needs a response and that request in the current
+// project's tree. Go's PrepareExample still applies the 1 MB cap.
+export const ORPHAN_EXAMPLE_WHY = "original request no longer exists";
+export function canSaveAsExample(
+  s: { project_id: string; request_id: string; status: number; error: string },
+  projectId: string,
+  requestIds: Set<string>,
+): { ok: boolean; why: string } {
+  if (s.error || s.status === 0) return { ok: false, why: "No response: the request failed" };
+  if (s.request_id && s.project_id !== projectId) return { ok: false, why: "The original request is in another project" };
+  if (!s.request_id || !requestIds.has(s.request_id)) return { ok: false, why: ORPHAN_EXAMPLE_WHY };
+  return { ok: true, why: "" };
+}
+
 export interface RestoreDeps {
   restore: (id: number, projectId: string) => Promise<{ data?: { id: string } | null; error?: { message: string } }>;
   reloadTree: () => void;

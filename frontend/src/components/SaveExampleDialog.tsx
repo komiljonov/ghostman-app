@@ -3,7 +3,7 @@ import { PrepareExample, SaveExample } from "../../wailsjs/go/main/App";
 import { main } from "../../wailsjs/go/models";
 import { handleProblem } from "../authStore";
 import { createSaveFlow, EXAMPLE_SYNC_NOTICE, SaveDialogState } from "../examplesModel";
-import { examplesChanged, refreshExampleCount } from "../examplesStore";
+import { examplesChanged, examplesChangedFor } from "../examplesStore";
 import FormError from "./FormError";
 import Modal from "./Modal";
 
@@ -33,8 +33,9 @@ export default function SaveExampleDialog(props: Props) {
       return { data: r.data ?? undefined, error: r.error };
     },
     onSaved: (e) => {
-      examplesChanged();
-      if (requestId) void refreshExampleCount(requestId); // the "Examples (N)" badge
+      // The "Examples (N)" badge, the tree's rows under the request, open panels.
+      if (requestId) void examplesChangedFor(requestId);
+      else examplesChanged();
       props.onSaved(e.name);
       props.onClose();
     },

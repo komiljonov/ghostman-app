@@ -315,6 +315,21 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       apply(openTab(state.layout, requestKey(id)));
     },
 
+    // Opens a request's tab on its Examples sub-tab with one example shown (the
+    // tree's example rows). An example open in Edit stays in Edit.
+    openExample(requestId: string, exampleId: string) {
+      if (!tab(requestId)) {
+        addLoadingTab(requestId);
+        void load(requestId);
+      }
+      apply(openTab(state.layout, requestKey(requestId)));
+      update(requestId, (t) => {
+        if (t.section !== "examples" || t.exampleId !== exampleId) t.exampleMode = "view";
+        t.section = "examples";
+        t.exampleId = exampleId;
+      });
+    },
+
     openEnv(id: string, name: string) {
       openRef({ kind: "env", id }, name, "ready");
     },

@@ -23,6 +23,7 @@ import SaveExampleDialog from "./SaveExampleDialog";
 interface Props {
   entry: main.HistoryEntry;
   openOriginal: { ok: boolean; why: string };
+  saveExample: { ok: boolean; why: string }; // canSaveAsExample
   busy: boolean;
   onRestore: () => void;
   onOpenOriginal: () => void;
@@ -121,8 +122,8 @@ export default function HistoryDetail(props: Props) {
             title={resp() ? "Save the stored response body to a file" : noResponse}>
             Save response…
           </button>
-          <span title={!resp() ? noResponse : !props.openOriginal.ok ? `Needs the original request — ${props.openOriginal.why}` : "Save this response as an example of the original request (shared with your team)"}>
-            <button type="button" class="small" disabled={!resp() || !props.openOriginal.ok} aria-haspopup="dialog"
+          <span title={props.saveExample.ok ? "Save this response as an example of the original request (shared with your team)" : props.saveExample.why}>
+            <button type="button" class="small" disabled={!resp() || !props.saveExample.ok} aria-haspopup="dialog"
               onClick={() => setSavingExample(true)}>
               <Icon name="bookmark" size={14} /> Save as example
             </button>

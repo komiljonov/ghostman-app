@@ -43,6 +43,7 @@ export interface RequestInput {
   follow_redirects?: string;
   auth?: AuthInput;
   proxy?: ProxyInput;
+  example_count?: number; // saved response examples (the tree's chevron for > 0)
 }
 
 export interface FolderNode {
@@ -70,6 +71,7 @@ export interface RequestNode {
   settings: NodeSettings;
   auth: AuthConfig;
   proxy: NodeProxy;
+  exampleCount: number; // as listed; examplesStore has the latest known count
 }
 
 export type TreeNode = FolderNode | RequestNode;
@@ -150,7 +152,7 @@ export function buildTree(
   for (const r of requestList) {
     const node: RequestNode = {
       kind: "request", id: r.id, folderId: r.folder_id ?? null, name: r.name, method: r.method, url: r.url, sortOrder: r.sort_order,
-      settings: nodeSettings(r), auth: normalizeAuth(r.auth), proxy: nodeProxy(r.proxy),
+      settings: nodeSettings(r), auth: normalizeAuth(r.auth), proxy: nodeProxy(r.proxy), exampleCount: r.example_count ?? 0,
     };
     requests.set(r.id, node);
     place(node, node.folderId, "request");
@@ -219,4 +221,10 @@ export function flattenFolders(tree: Tree): { folder: FolderNode; depth: number 
 
 function nodeSettings(n: { follow_redirects?: string }): NodeSettings {
   return { follow_redirects: n.follow_redirects || "inherit" };
+}
+
+// Expanded ids (the persisted tree state) that no longer mean anything: folders
+// gone from the tree, requests gone or without examples (nothing to expand).
+export function staleExpanded(ids: string[], tree: Tree): string[] {
+  return ids.filter((id) => !tree.folders.has(id) && !tree.requests.get(id)?.exampleCount);
 }

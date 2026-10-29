@@ -4,11 +4,13 @@ import {
 } from "../../wailsjs/go/main/App";
 import { api, session } from "../../wailsjs/go/models";
 import { createAction } from "../action";
+import { ensureExamples, exampleCount, exampleList } from "../examplesStore";
 import { canMove, reorderedSiblingIds, TreeNode } from "../tree";
 import { useTree } from "../treeContext";
 import ContextMenu, { MenuEntry } from "./ContextMenu";
 import Icon from "./Icon";
 import MethodBadge from "./MethodBadge";
+import TreeExampleItem from "./TreeExampleItem";
 
 interface Props {
   node: TreeNode;
@@ -21,13 +23,24 @@ const INDENT = 16;
 // One row of the sidebar tree (folder or request). Folders render their children
 // only while expanded; expansion is per-node state, so toggling never rebuilds the
 // tree. Row layout: indent · chevron (folders) · folder icon or method badge ·
-// name · ⋯. Right-click or ⋯ opens the shared context menu.
+// name · ⋯. Right-click or ⋯ opens the shared context menu. A request with saved
+// examples gets a chevron at the row's right end (the lead column is the method
+// badge's, so names stay aligned and a request without examples looks the same);
+// expanded, its examples follow as leaf rows, fetched on the first expand
+// (examplesStore caches them).
 export default function TreeItem(props: Props) {
   const tree = useTree();
   const [draft, setDraft] = createSignal("");
 
   const isFolder = () => props.node.kind === "folder";
-  const expanded = () => isFolder() && tree.isExpanded(props.node.id);
+  const examples = () => (isFolder() ? 0 : exampleCount(props.node.id) ?? (props.node as { exampleCount: number }).exampleCount);
+  const expanded = () => (isFolder() || examples() > 0) && tree.isExpanded(props.node.id);
+  const exampleRows = () => (isFolder() ? undefined : exampleList(props.node.id));
+  // Lazy: the first expand (or a restored expanded state) loads the summaries; an
+  // invalidated cache (count changed, ↻) loads them again while expanded.
+  createEffect(() => {
+    if (!isFolder() && expanded() && !exampleRows()) void ensureExamples(props.node.id);
+  });
   const renaming = () => tree.renamingId() === props.node.id;
   const selected = () => tree.selectedId() === props.node.id;
   const menuAt = () => {
@@ -122,7 +135,7 @@ export default function TreeItem(props: Props) {
 
   return (
     <li class="tree-item" role="treeitem" id={`tree-row-${props.node.id}`} aria-selected={selected()}
-      aria-expanded={isFolder() ? expanded() : undefined}
+      aria-expanded={isFolder() || examples() > 0 ? expanded() : undefined}
       data-id={props.node.id} data-kind={props.node.kind} data-depth={props.depth} data-expanded={String(expanded())}
       data-parent={(isFolder() ? (props.node as { parentId: string | null }).parentId : (props.node as { folderId: string | null }).folderId) ?? ""}
       data-name={props.node.name} data-method={isFolder() ? "" : (props.node as { method: string }).method}>
@@ -161,6 +174,18 @@ export default function TreeItem(props: Props) {
             }}
             onBlur={() => void submitRename()} />
         </Show>
+        <Show when={examples() > 0}>
+          <button type="button" class="tree-examples-toggle" tabIndex={-1} aria-expanded={expanded()}
+            aria-label={`${expanded() ? "Hide" : "Show"} the examples of ${props.node.name}`}
+            title={`${examples()} example${examples() === 1 ? "" : "s"}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              tree.select(props.node.id);
+              tree.toggle(props.node.id);
+            }}>
+            <span classList={{ "tree-chevron": true, open: expanded() }}><Icon name="chevron" size={14} /></span>
+          </button>
+        </Show>
         <button type="button" class="row-menu-trigger" aria-label={`Actions for ${props.node.name}`} tabIndex={-1}
           aria-haspopup="menu" aria-expanded={!!menuAt()}
           onClick={(e) => {
@@ -185,7 +210,17 @@ export default function TreeItem(props: Props) {
       <Show when={error()}>
         <p class="tree-error" style={{ "margin-left": `${40 + props.depth * INDENT}px` }}>{error()}</p>
       </Show>
-      <Show when={expanded()}>
+      <Show when={!isFolder() && expanded()}>
+        <ul class="tree-children" role="group">
+          <For each={exampleRows() ?? []}>
+            {(e) => <TreeExampleItem example={e} requestId={props.node.id} depth={props.depth + 1} />}
+          </For>
+          <Show when={!exampleRows()}>
+            <li class="tree-empty" style={{ "padding-left": `${40 + (props.depth + 1) * INDENT}px` }}>Loading examples…</li>
+          </Show>
+        </ul>
+      </Show>
+      <Show when={isFolder() && expanded()}>
         <ul class="tree-children" role="group">
           <For each={(props.node as { children: TreeNode[] }).children}>
             {(child) => <TreeItem node={child} depth={props.depth + 1} />}
