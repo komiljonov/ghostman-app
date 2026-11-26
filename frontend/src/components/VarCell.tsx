@@ -90,7 +90,7 @@ export default function VarCell(props: Props) {
           <Show when={props.value} fallback={<span class="var-cell-placeholder">{props.placeholder}</span>}>
             <For each={segments(props.value, envDisplay())}>
               {(s) => (
-                <span classList={{ "cm-var": s.kind !== "plain", "cm-var-resolved": s.kind === "resolved", "cm-var-unresolved": s.kind === "unresolved" }}>
+                <span classList={{ "cm-var": s.kind !== "plain", "cm-var-resolved": s.kind === "resolved", "cm-var-unresolved": s.kind === "unresolved", "cm-var-dynamic": s.kind === "dynamic" }}>
                   {s.text}
                 </span>
               )}

@@ -38,6 +38,12 @@
   --ok-line: rgba(76, 195, 138, 0.45);
   --client-soft: rgba(230, 180, 80, 0.08);
   --client-line: rgba(230, 180, 80, 0.7);
+  --var-dynamic: #c792ea; /* {{$uuid}} & co.: generated at send time */
+  --var-dynamic-soft: rgba(199, 146, 234, 0.16);
+  --var-dynamic-line: rgba(199, 146, 234, 0.5);
+  --path-var: #5fb3e6; /* ":id" path variables in the URL bar */
+  --path-var-soft: rgba(95, 179, 230, 0.15);
+  --path-var-line: rgba(95, 179, 230, 0.5);
   --server-soft: rgba(240, 106, 106, 0.08);
   --shadow: rgba(0, 0, 0, 0.45);
   --backdrop: rgba(0, 0, 0, 0.55);
@@ -133,6 +139,12 @@
   --ok-line: rgba(23, 130, 78, 0.45);
   --client-soft: rgba(154, 98, 0, 0.09);
   --client-line: rgba(154, 98, 0, 0.65);
+  --var-dynamic: #7a32b8;
+  --var-dynamic-soft: rgba(122, 50, 184, 0.1);
+  --var-dynamic-line: rgba(122, 50, 184, 0.45);
+  --path-var: #0b6ea8;
+  --path-var-soft: rgba(11, 110, 168, 0.1);
+  --path-var-line: rgba(11, 110, 168, 0.45);
   --server-soft: rgba(196, 48, 43, 0.07);
   --shadow: rgba(20, 30, 50, 0.16);
   --backdrop: rgba(20, 25, 35, 0.35);

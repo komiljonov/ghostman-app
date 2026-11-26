@@ -70,6 +70,8 @@ export default function NewVariableRow(props: Props) {
       <td>
         <input ref={keyInput} type="text" class="var-key" spellcheck={false} placeholder="New variable" aria-label="New variable key"
           value={draft().key} onInput={(e) => edit({ key: e.currentTarget.value })} onKeyDown={onKey("key")} />
+        {/* Under the key (the widest cell): a long message wraps instead of widening the table. */}
+        <Show when={error()}><div class="inline-error var-row-error" role="alert">{error()}</div></Show>
       </td>
       <td>
         <select aria-label="New variable type" value={draft().type} onChange={(e) => edit({ type: e.currentTarget.value })}
@@ -91,7 +93,6 @@ export default function NewVariableRow(props: Props) {
       </td>
       <td class="var-actions">
         <button type="button" class="icon-button" aria-label="Delete variable" tabIndex={-1} disabled><Icon name="trash" size={14} /></button>
-        <Show when={error()}><div class="inline-error">{error()}</div></Show>
       </td>
     </tr>
   );

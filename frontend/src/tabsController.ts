@@ -13,7 +13,7 @@ import { BodyView, defaultView } from "./responseView";
 import type { BodyChoice, HistoryChoice } from "./viewChoice";
 import type { SavedSearch } from "./responseSearch";
 import { afterEval, FilterState, NO_FILTER, shouldAutoApply } from "./responseFilter";
-import { adoptUrlQuery } from "./urlParams";
+import { adoptUrlQuery, PathParam, reconcilePathParams } from "./urlParams";
 import { AuthConfig, normalizeAuth } from "./auth";
 import { sourceLabel, type ResolvedAuth } from "./settingsResolver";
 import { Row } from "./rows";
@@ -43,6 +43,7 @@ export interface Draft {
   url: string;
   headers: Row[];
   query_params: Row[];
+  path_params: PathParam[]; // values of the URL's :key segments (urlParams.ts)
   body: Body;
   auth: AuthConfig; // the request's own auth setting (cascades: settingsResolver.resolveAuth)
   response_filter: string; // jq query for the response view (synced; "" = none)
@@ -96,7 +97,7 @@ export interface TabState {
 }
 
 const emptyDraft = (): Draft => ({
-  method: "GET", url: "", headers: [], query_params: [], body: { type: "none", content_type: "application/json", content: "", fields: [], parts: [] },
+  method: "GET", url: "", headers: [], query_params: [], path_params: [], body: { type: "none", content_type: "application/json", content: "", fields: [], parts: [] },
   auth: normalizeAuth(),
   response_filter: "",
   pre_script: "",
@@ -109,6 +110,7 @@ export function draftFromRequest(r: api.Request): Draft {
     url: r.url,
     headers: (r.headers ?? []).map((h) => ({ ...h })),
     query_params: (r.query_params ?? []).map((q) => ({ ...q })),
+    path_params: (r.path_params ?? []).map((p) => ({ key: p.key, value: p.value })),
     body: {
       type: r.body?.type || "none",
       content_type: r.body?.content_type || "application/json",
@@ -240,7 +242,10 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     const loaded = draftFromRequest(result.data);
     bases.set(id, clone(loaded));
     const adopted = adoptUrlQuery(loaded.url, loaded.query_params);
-    const draft = { ...loaded, url: adopted.url, query_params: adopted.rows };
+    // Path rows follow the URL (a teammate's older client may have left them
+    // behind); persisted with the next edit too, never on open.
+    const draft = { ...loaded, url: adopted.url, query_params: adopted.rows,
+      path_params: reconcilePathParams(loaded.path_params, adopted.url) };
     savers.set(id, makeSaver(id));
     setExampleCount(id, result.data.example_count ?? 0); // the "Examples (N)" sub-tab
     update(id, (t) => {

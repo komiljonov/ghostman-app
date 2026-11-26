@@ -115,7 +115,7 @@ func (a *App) generate(projectID, requestID string, draft api.RequestDraft, opts
 		var unresolved []string
 		spec, unresolved = engine.ResolveSpec(template, rv.vars)
 		for _, k := range unresolved {
-			warnings = append(warnings, "{{"+k+"}} has no value here — left as written")
+			warnings = append(warnings, engine.DescribeUnresolved(k)+" — left as written")
 		}
 		signed, err := engine.SignJWT(spec, time.Now())
 		if err != nil {

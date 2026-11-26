@@ -71,11 +71,11 @@ type Auth struct {
 // resolveAuth resolves {{vars}} inside the values (not the type / placement).
 // A JWT secret is resolved on its own: its unresolved keys abort the send
 // (SignJWT) instead of joining the banner; the payload keeps {{$now…}} tokens.
-func resolveAuth(a Auth, res func(string) string, vars map[string]string) Auth {
+func resolveAuth(a Auth, res func(string) string, resolveSecret func(string) (string, []string)) Auth {
 	switch a.Type {
 	case AuthJWT:
 		var missing []string
-		a.JWTSecret, missing = Resolve(a.JWTSecret, vars)
+		a.JWTSecret, missing = resolveSecret(a.JWTSecret)
 		a.jwtSecretMissing = ""
 		for i, k := range missing {
 			if i > 0 {

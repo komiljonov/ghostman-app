@@ -42,6 +42,7 @@ type History struct {
 	ReqAuthJson            sql.NullString `json:"reqAuthJson"`
 	ConsoleJson            sql.NullString `json:"consoleJson"`
 	ProxyLabel             sql.NullString `json:"proxyLabel"`
+	ReqPathParamsJson      sql.NullString `json:"reqPathParamsJson"`
 }
 
 type ProxyPassword struct {

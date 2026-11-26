@@ -1,4 +1,5 @@
 import { createSignal, For, Match, onCleanup, onMount, Show, Switch } from "solid-js";
+import { unresolvedBanner } from "../dynamicVars";
 import {
   CopyFilteredResult, EvalResponseFilter, SaveFilteredResponseToFile, SaveResponseToFile, WarmResponseFilter,
 } from "../../wailsjs/go/main/App";
@@ -254,7 +255,7 @@ export default function ResponseView(props: Props) {
         </Show>
         <Show when={!props.tab.sending && props.tab.unresolved.length > 0}>
           <p class="notice unresolved-banner" role="status">
-            Unresolved variables: {props.tab.unresolved.join(", ")} <span class="muted">(sent literally)</span>
+            {unresolvedBanner(props.tab.unresolved)} <span class="muted">(sent literally)</span>
           </p>
         </Show>
         <Switch fallback={<p class="placeholder response-empty">Send the request to see the response.</p>}>

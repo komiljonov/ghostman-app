@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 
 	"ghostman/internal/api"
@@ -247,8 +248,24 @@ func (m *Manager) find(ctx context.Context, c Client, envID, varID string) (api.
 	return api.Variable{}, ErrNotFound
 }
 
+// ErrDollarKey refuses a variable key starting with "$": {{$name}} is a
+// generated variable (engine/dynamic.go) and never reads an environment.
+var ErrDollarKey = &api.APIError{Status: 400, Code: "invalid_key",
+	Message: `variable names can't start with "$" — {{$…}} is reserved for generated variables like {{$uuid}}`}
+
+// CheckKey refuses keys the resolver could never read.
+func CheckKey(key string) error {
+	if strings.HasPrefix(strings.TrimSpace(key), "$") {
+		return ErrDollarKey
+	}
+	return nil
+}
+
 // CreateVariable adds a variable (no value yet).
 func (m *Manager) CreateVariable(ctx context.Context, c Client, envID, key, typ string) (api.Variable, error) {
+	if err := CheckKey(key); err != nil {
+		return api.Variable{}, err
+	}
 	return c.CreateVariable(ctx, envID, api.NewVariable{Key: key, Type: typ})
 }
 
@@ -272,6 +289,9 @@ func (m *Manager) SetValue(ctx context.Context, c Client, envID, varID, value st
 
 // SetKey renames a variable; a secret's local value moves to the new key.
 func (m *Manager) SetKey(ctx context.Context, c Client, envID, varID, key string) error {
+	if err := CheckKey(key); err != nil {
+		return err
+	}
 	v, err := m.find(ctx, c, envID, varID)
 	if err != nil {
 		return err

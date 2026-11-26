@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GENERATED } from "./dynamicVars";
 import { CompletionContext } from "@codemirror/autocomplete";
 import { EditorState } from "@codemirror/state";
 import {
@@ -132,6 +133,7 @@ describe("CodeMirror source (the shared extension)", () => {
     const all = run("{{|", d)!;
     expect(all.options.map((o) => [o.label, (o.section as { rank: number }).rank])).toEqual([
       ["API_TOKEN", 0], ["BASE_URL", 0], ["base_url_alt", 1], ["PROD_ONLY", 1], ["STAGE", 1],
+      ...GENERATED.map((g) => [g.key, 2]), // the Generated group, always last
     ]);
   });
   it("multi-line body: the context is the cursor's line", () => {
@@ -140,7 +142,8 @@ describe("CodeMirror source (the shared extension)", () => {
   it("no matches closes; an empty project shows the disabled line", () => {
     expect(run("{{zzz|", d)).toBeNull();
     const empty = run("{{|", env(null, [], []))!;
-    expect(empty.options.map((o) => o.label)).toEqual([EMPTY_LINE]);
+    // The disabled line, then the generated variables (they need no environment).
+    expect(empty.options.map((o) => o.label)).toEqual([EMPTY_LINE, ...GENERATED.map((g) => g.key)]);
   });
 });
 

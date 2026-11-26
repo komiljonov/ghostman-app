@@ -98,6 +98,7 @@ export default function VariableRow(props: Props) {
             if (e.key === "Enter") e.currentTarget.blur();
             if (e.key === "Escape") setKey(props.variable.key);
           }} />
+        <Show when={error()}><div class="inline-error var-row-error" role="alert">{error()}</div></Show>
       </td>
       <td>
         <select aria-label="Variable type" value={props.variable.type} disabled={retype.pending()}
@@ -134,7 +135,6 @@ export default function VariableRow(props: Props) {
       <td class="var-actions">
         <button type="button" class="icon-button" title="Delete variable" aria-label="Delete variable" tabIndex={-1}
           disabled={del.pending()} onClick={() => void doDelete()}><Icon name="trash" size={14} /></button>
-        <Show when={error()}><div class="inline-error">{error()}</div></Show>
       </td>
       <Show when={confirmRegular()}>
         <ConfirmDialog

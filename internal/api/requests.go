@@ -35,9 +35,12 @@ type RequestSummary struct {
 // Request is a full saved request.
 type Request struct {
 	RequestSummary
-	Headers     []KeyValue  `json:"headers"`
-	QueryParams []KeyValue  `json:"query_params"`
-	Body        RequestBody `json:"body"`
+	Headers     []KeyValue `json:"headers"`
+	QueryParams []KeyValue `json:"query_params"`
+	// PathParams are the values of the URL's :key segments (single-request
+	// payloads only; the list omits them).
+	PathParams []PathParam `json:"path_params"`
+	Body       RequestBody `json:"body"`
 	// PreScript / PostScript run around every send (internal/scripting); only the
 	// single-request payloads carry them (the list does not).
 	PreScript  string `json:"pre_script"`
@@ -56,12 +59,14 @@ type NewRequest struct {
 // RequestPatch is a partial update; nil fields are left unchanged. Headers,
 // query params and a body replace the stored value as a whole.
 type RequestPatch struct {
-	Name        *string      `json:"name,omitempty"`
-	Method      *string      `json:"method,omitempty"`
-	URL         *string      `json:"url,omitempty"`
-	Headers     *[]KeyValue  `json:"headers,omitempty"`
-	QueryParams *[]KeyValue  `json:"query_params,omitempty"`
-	Body        *RequestBody `json:"body,omitempty"`
+	Name        *string     `json:"name,omitempty"`
+	Method      *string     `json:"method,omitempty"`
+	URL         *string     `json:"url,omitempty"`
+	Headers     *[]KeyValue `json:"headers,omitempty"`
+	QueryParams *[]KeyValue `json:"query_params,omitempty"`
+	// PathParams replaces the stored rows as a whole.
+	PathParams *[]PathParam `json:"path_params,omitempty"`
+	Body       *RequestBody `json:"body,omitempty"`
 	// FollowRedirects is set on its own (Settings tab), never by autosave.
 	FollowRedirects *string `json:"follow_redirects,omitempty"`
 	// Auth rides the autosave (BuildRequestPatch): type + the fields that changed.
@@ -111,6 +116,9 @@ func (c *APIClient) GetRequest(ctx context.Context, id string) (Request, error) 
 func (r Request) withDefaults() Request {
 	r.Headers = nonNilRows(r.Headers)
 	r.QueryParams = nonNilRows(r.QueryParams)
+	if r.PathParams == nil {
+		r.PathParams = []PathParam{}
+	}
 	r.Body.Fields = nonNilRows(r.Body.Fields)
 	if r.Body.Type == "" {
 		r.Body.Type = BodyNone
@@ -122,7 +130,7 @@ func (r Request) withDefaults() Request {
 
 // Draft returns the editable part of the request.
 func (r Request) Draft() RequestDraft {
-	return RequestDraft{Method: r.Method, URL: r.URL, Headers: r.Headers, QueryParams: r.QueryParams, Body: r.Body, Auth: r.Auth,
+	return RequestDraft{Method: r.Method, URL: r.URL, Headers: r.Headers, QueryParams: r.QueryParams, PathParams: r.PathParams, Body: r.Body, Auth: r.Auth,
 		ResponseFilter: r.ResponseFilter, PreScript: r.PreScript, PostScript: r.PostScript}
 }
 

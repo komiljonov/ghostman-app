@@ -4,8 +4,8 @@ INSERT INTO history (
     env_id, env_name, req_headers_json, req_params_json, req_body_json,
     req_headers_resolved_json, req_body_resolved, status, duration_ms, error,
     resp_headers_json, resp_body, resp_body_size, resp_truncated, timings_json, req_auth_json, console_json,
-    proxy_label
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    proxy_label, req_path_params_json
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id;
 
 -- name: ListHistoryPage :many

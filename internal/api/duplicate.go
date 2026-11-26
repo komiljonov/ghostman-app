@@ -33,6 +33,9 @@ func (c *APIClient) CreateRequestFrom(ctx context.Context, projectID string, fol
 	patch := RequestPatch{
 		Method: &method, URL: &url, Headers: &headers, QueryParams: &query, Body: &body, Auth: FullAuthPatch(d.Auth),
 	}
+	if pp := NormalizePathParams(d.PathParams); len(pp) > 0 {
+		patch.PathParams = &pp // a copy / restore keeps the path variables' values
+	}
 	if d.ResponseFilter != "" {
 		patch.ResponseFilter = &d.ResponseFilter // a copy keeps its filter
 	}

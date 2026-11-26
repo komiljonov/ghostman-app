@@ -104,3 +104,25 @@ func TestBuildRequestPatch(t *testing.T) {
 		})
 	}
 }
+
+// path_params is a full replacement: any change sends every (keyed) row.
+func TestBuildRequestPatchPathParams(t *testing.T) {
+	base := RequestDraft{URL: "/u/:id", PathParams: []PathParam{{Key: "id", Value: "1"}}}
+	if _, changed := BuildRequestPatch(base, base); changed {
+		t.Fatal("no change")
+	}
+	next := base
+	next.URL = "/u/:id/:post"
+	next.PathParams = []PathParam{{Key: "id", Value: "1"}, {Key: "post", Value: ""}, {Key: " ", Value: "x"}}
+	p, changed := BuildRequestPatch(base, next)
+	raw, _ := json.Marshal(p)
+	if !changed || string(raw) != `{"url":"/u/:id/:post","path_params":[{"key":"id","value":"1"},{"key":"post","value":""}]}` {
+		t.Fatalf("patch = %s", raw)
+	}
+	next.PathParams = nil // the last variable left the URL: an empty list is sent
+	p, _ = BuildRequestPatch(base, next)
+	raw, _ = json.Marshal(p)
+	if string(raw) != `{"url":"/u/:id/:post","path_params":[]}` {
+		t.Fatalf("patch = %s", raw)
+	}
+}
