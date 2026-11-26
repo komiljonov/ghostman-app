@@ -26,8 +26,7 @@ import { json } from "@codemirror/lang-json";
 import { completionPath, javascript, javascriptLanguage } from "@codemirror/lang-javascript";
 import { buildMembers, envKeySpot, hoverDoc, insertion, Member, memberAt, memberOptions, Phase } from "./scriptComplete";
 import { scriptDocs } from "./scriptDocs";
-import { classify, createFromTooltip, EnvDisplay, findTokens, maskRanges, previewResolved, saveFromTooltip, tooltipActions, tooltipModel } from "./vars";
-import { pathVarSpans, type PathParam } from "./urlParams";
+import { classify, createFromTooltip, EnvDisplay, maskRanges, saveFromTooltip, tooltipActions, tooltipModel } from "./vars";
 import { runShortcut } from "./shortcuts";
 import type { ShortcutAction } from "./tabModel";
 import { varEditApi } from "./varEdit";
@@ -305,59 +304,6 @@ export function varHighlighting(getEnv: () => EnvDisplay, onPin?: PinListener): 
   });
 
   return [decorations, pinField, hover];
-}
-
-// ---- Path variables in the URL bar (":id"; rules in urlParams.ts) ----
-// Highlighted in their own style (an empty value is marked like an unresolved
-// var); the hover shows the value — with a resolved preview when it holds
-// {{vars}} — or the "no value" state. Values are edited in Params only.
-
-function pathVarDecorations(view: EditorView, getValues: () => PathParam[]): DecorationSet {
-  const builder = new RangeSetBuilder<Decoration>();
-  const values = getValues();
-  for (const s of pathVarSpans(view.state.doc.toString())) {
-    const empty = !values.find((p) => p.key === s.key)?.value;
-    builder.add(s.from, s.to, Decoration.mark({ class: empty ? "cm-path-var is-empty" : "cm-path-var" }));
-  }
-  return builder.finish();
-}
-
-function pathVarCard(key: string, value: string, env: EnvDisplay): HTMLElement {
-  const root = el("div", `var-tooltip path-var-tooltip ${value ? "is-resolved" : "is-unresolved"}`);
-  const head = el("div", "var-tooltip-key", `:${key}`);
-  head.append(" ", el("span", "var-tooltip-tag", "path variable"));
-  root.append(head);
-  if (!value) {
-    root.append(el("div", "var-tooltip-value", `no value — sent as :${key}`));
-  } else {
-    root.append(el("div", "var-tooltip-value", value));
-    if (findTokens(value).length > 0) root.append(el("div", "var-tooltip-example", `→ ${previewResolved(value, env)}`));
-  }
-  root.append(el("div", "var-tooltip-source", "edit in Params › Path variables"));
-  return root;
-}
-
-export function pathVarHighlighting(getValues: () => PathParam[], getEnv: () => EnvDisplay): Extension {
-  const decorations = ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet;
-      constructor(view: EditorView) {
-        this.decorations = pathVarDecorations(view, getValues);
-      }
-      update(u: ViewUpdate) {
-        const refreshed = u.transactions.some((tr) => tr.effects.some((e) => e.is(refreshVars)));
-        if (u.docChanged || refreshed) this.decorations = pathVarDecorations(u.view, getValues);
-      }
-    },
-    { decorations: (v) => v.decorations },
-  );
-  const hover = hoverTooltip((view, pos) => {
-    const span = pathVarSpans(view.state.doc.toString()).find((s) => pos >= s.from && pos <= s.to);
-    if (!span) return null;
-    const value = getValues().find((p) => p.key === span.key)?.value ?? "";
-    return { pos: span.from, end: span.to, above: true, create: () => ({ dom: pathVarCard(span.key, value, getEnv()) }) };
-  });
-  return [decorations, hover];
 }
 
 // ---- Raw body editor ----
@@ -953,7 +899,6 @@ export interface LineEditorOptions {
   masked?: boolean; // password-style: literal text as bullets ({{vars}} stay visible)
   disabled?: boolean;
   completions?: CompletionSource[]; // beside {{var}} completion (table cells: headerKeySource …)
-  pathVars?: () => PathParam[]; // the URL bar: ":id" highlight + hover (values from the draft)
 }
 
 // One factory for every single-line field: newlines are stripped (a pasted multi-line
@@ -1008,7 +953,6 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
         off.of(opts.disabled ? disabledExt : []),
         theme,
         varHighlighting(opts.getEnv, opts.onPin),
-        opts.pathVars ? pathVarHighlighting(opts.pathVars, opts.getEnv) : [],
         varCompletion(opts.getEnv, opts.completions),
         lineToggleKeymap, // Ctrl+/: a no-op here (not a bulk editor)
         mask.of(opts.masked ? maskPlugin : []),

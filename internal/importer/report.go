@@ -33,6 +33,8 @@ const (
 	CodeScriptPreRequest  = "script.prerequest"
 	CodeScriptTest        = "script.test"
 	CodeScriptOther       = "script.other"
+	CodeScriptImported    = "script.imported"
+	CodeScriptPartial     = "script.partial"
 	CodeDescriptions      = "descriptions"
 	CodeExamples          = "examples"
 	CodeCollectionVars    = "variables.collection"
@@ -56,10 +58,11 @@ var FallbackCodes = []string{
 	CodeMethodUnsupported, CodeNameEmpty, CodeURLPathVariable, CodeURLFragment, CodeRowKeyless,
 	CodeBodyDisabled, CodeBodyGraphQL, CodeBodyMultipart, CodeBodyFormFile, CodeBodyFile, CodeBodyUnknown,
 	CodeAuthUnsupported, CodeAuthAPIKeyIn, CodeScriptPreRequest, CodeScriptTest, CodeScriptOther,
+	CodeScriptImported, CodeScriptPartial,
 	CodeDescriptions, CodeExamples, CodeCollectionVars, CodeFolderVars, CodeSettingOther,
 	CodeOrderInterleaved, CodeItemEmpty,
 	CodeEnvSecret, CodeEnvDisabled, CodeEnvKeyless, CodeEnvDuplicate, CodeEnvGlobals,
-	CodeOANameLong, CodeOATrace, CodeOAPathParams, CodeOACookieParams, CodeOADeprecated, CodeOASynthesized,
+	CodeOANameLong, CodeOATrace, CodeOACookieParams, CodeOADeprecated, CodeOASynthesized,
 	CodeOARefCycle, CodeOADepthCap, CodeOARefBroken, CodeOABodyOther, CodeOAAltContent, CodeOAAuthSet,
 	CodeOAAuthCookie, CodeOAAuthCombined, CodeOAOpSecurity, CodeOAServerVar, CodeOAServerRelative,
 	CodeOANoServers, CodeOASchemes,

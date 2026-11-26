@@ -171,7 +171,6 @@ export interface FormLike {
   url: string;
   headers: { key: string; value: string; enabled: boolean }[];
   params: { key: string; value: string; enabled: boolean }[];
-  path_params?: { key: string; value: string }[];
   body: string;
   body_type: string;
   content_type: string;
@@ -186,8 +185,6 @@ export function formRows(form: FormLike, mode: RequestForm) {
     url: form.url,
     headers: rows(form.headers ?? []),
     params: mode === "template" ? rows(form.params ?? []) : [],
-    // template only: the resolved URL has them substituted
-    pathParams: mode === "template" ? (form.path_params ?? []).map((p) => ({ key: `:${p.key}`, value: p.value, off: false })) : [],
     body: form.body_type === "none" ? "" : form.body,
     bodyLabel: form.body_type === "form" ? "Form (urlencoded)" : form.body_type === "raw" ? form.content_type || "Raw" : "",
   };

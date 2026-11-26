@@ -1,11 +1,10 @@
 import { createEffect, createSignal, onCleanup, onMount, Show } from "solid-js";
 import type { LineEditorHandle } from "../codemirror";
 import { envDisplay } from "../envStore";
-import { sameMeaning, type PathParam } from "../urlParams";
+import { sameMeaning } from "../urlParams";
 
 interface Props {
   value: string;
-  pathVars: PathParam[]; // ":id" values (hover; an empty one is marked)
   onChange: (text: string) => void;
   onEnter: () => void;
 }
@@ -27,13 +26,11 @@ export default function UrlEditor(props: Props) {
       onChange: (text) => props.onChange(text),
       onEnter: () => props.onEnter(),
       getEnv: envDisplay,
-      pathVars: () => props.pathVars,
     });
     setReady(true);
   });
   createEffect(() => {
     envDisplay();
-    props.pathVars.forEach((p) => p.value); // a value set / cleared re-marks its ":key"
     if (ready()) editor?.refreshVars();
   });
   // Params-tab edits change the displayed URL: apply them in place (a dispatched

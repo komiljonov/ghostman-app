@@ -5,8 +5,7 @@ import AuthHint from "./AuthHint";
 import CodegenPanel from "./CodegenPanel";
 import Icon from "./Icon";
 import { Row } from "../rows";
-import { applyUrlInput, reconcilePathParams, serializeUrl } from "../urlParams";
-import PathVarsTable from "./PathVarsTable";
+import { applyUrlInput, serializeUrl } from "../urlParams";
 import { TabsController, TabState } from "../tabsController";
 import BodyEditor from "./BodyEditor";
 import KeyValueEditor from "./KeyValueEditor";
@@ -94,7 +93,7 @@ export default function RequestEditor(props: Props) {
   };
 
   const sections = [
-    { id: "params" as const, label: "Params", count: () => countRows(props.tab.draft.query_params) + props.tab.draft.path_params.length },
+    { id: "params" as const, label: "Params", count: () => countRows(props.tab.draft.query_params) },
     { id: "headers" as const, label: "Headers", count: () => countRows(props.tab.draft.headers) },
     { id: "body" as const, label: "Body", count: () => 0 },
     { id: "auth" as const, label: "Auth", count: () => 0 },
@@ -127,13 +126,11 @@ export default function RequestEditor(props: Props) {
               <For each={METHODS}>{(m) => <option value={m}>{m}</option>}</For>
             </select>
             {/* Shows base url + enabled params; typing updates both (urlParams.ts). */}
-            <UrlEditor value={serializeUrl(props.tab.draft.url, props.tab.draft.query_params)} pathVars={props.tab.draft.path_params}
+            <UrlEditor value={serializeUrl(props.tab.draft.url, props.tab.draft.query_params)}
               onChange={(text) => edit((d) => {
                 const next = applyUrlInput(text, d.query_params);
                 d.url = next.url;
                 if (next.rows !== d.query_params) d.query_params = next.rows;
-                const path = reconcilePathParams(d.path_params, next.url);
-                if (path !== d.path_params) d.path_params = path;
               })}
               onEnter={() => {
                 if (!props.tab.sending) void props.controller.send(id());
@@ -181,11 +178,6 @@ export default function RequestEditor(props: Props) {
               <div class="section-content">
                 <Switch>
                   <Match when={props.tab.section === "params"}>
-                    <Show when={props.tab.draft.path_params.length > 0}>
-                      <PathVarsTable rows={props.tab.draft.path_params}
-                        onChange={(rows) => edit((d) => (d.path_params = rows))} />
-                      <h4 class="params-heading">Query params</h4>
-                    </Show>
                     <KeyValueEditor kind="params" rows={props.tab.draft.query_params}
                       onChange={(rows) => edit((d) => (d.query_params = rows))} />
                   </Match>

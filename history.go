@@ -87,10 +87,9 @@ func (a *App) recordHistory(r historyRecord) {
 		EnvID:       nullText(r.envID),
 		EnvName:     nullText(r.envName),
 
-		ReqHeadersJson:    jsonText(nonNilKV(r.draft.Headers)),
-		ReqParamsJson:     jsonText(nonNilKV(r.draft.QueryParams)),
-		ReqPathParamsJson: jsonText(api.NormalizePathParams(r.draft.PathParams)),
-		ReqBodyJson:       jsonText(r.draft.Body),
+		ReqHeadersJson: jsonText(nonNilKV(r.draft.Headers)),
+		ReqParamsJson:  jsonText(nonNilKV(r.draft.QueryParams)),
+		ReqBodyJson:    jsonText(r.draft.Body),
 
 		ReqHeadersResolvedJson: jsonText(engine.SentHeaders(r.resolved)),
 	}
@@ -254,14 +253,12 @@ type historyAuth struct {
 
 // HistoryRequestForm is the request in one form (template or resolved).
 type HistoryRequestForm struct {
-	URL     string         `json:"url"`
-	Headers []api.KeyValue `json:"headers"`
-	Params  []api.KeyValue `json:"params"` // template only (resolved params are in the URL)
-	// PathParams: template only (the resolved URL has them substituted).
-	PathParams  []api.PathParam `json:"path_params"`
-	Body        string          `json:"body"` // text as authored (template) / as sent (resolved)
-	BodyType    string          `json:"body_type"`
-	ContentType string          `json:"content_type"`
+	URL         string         `json:"url"`
+	Headers     []api.KeyValue `json:"headers"`
+	Params      []api.KeyValue `json:"params"` // template only (resolved params are in the URL)
+	Body        string         `json:"body"`   // text as authored (template) / as sent (resolved)
+	BodyType    string         `json:"body_type"`
+	ContentType string         `json:"content_type"`
 }
 
 // HistoryResponse is the stored response, previewed like a live one.
@@ -354,11 +351,10 @@ func (a *App) GetHistoryEntry(id int64) HistoryEntryResult {
 		Template: HistoryRequestForm{
 			URL: h.UrlTemplate, Headers: unmarshalOr(h.ReqHeadersJson, []api.KeyValue{}),
 			Params: unmarshalOr(h.ReqParamsJson, []api.KeyValue{}), Body: bodyText,
-			PathParams: unmarshalOr(h.ReqPathParamsJson, []api.PathParam{}),
-			BodyType:   body.Type, ContentType: body.ContentType,
+			BodyType: body.Type, ContentType: body.ContentType,
 		},
 		Resolved: HistoryRequestForm{
-			URL: h.UrlResolved.String, Headers: resolvedHeaders, Params: []api.KeyValue{}, PathParams: []api.PathParam{},
+			URL: h.UrlResolved.String, Headers: resolvedHeaders, Params: []api.KeyValue{},
 			Body: h.ReqBodyResolved.String, BodyType: body.Type, ContentType: body.ContentType,
 		},
 		Hops:  unmarshalOr(h.TimingsJson, []engine.Hop{}),
@@ -516,7 +512,6 @@ func (a *App) RestoreHistoryEntry(id int64, projectID string) RequestSummaryResu
 		URL:         h.UrlTemplate,
 		Headers:     unmarshalOr(h.ReqHeadersJson, []api.KeyValue{}),
 		QueryParams: unmarshalOr(h.ReqParamsJson, []api.KeyValue{}),
-		PathParams:  unmarshalOr(h.ReqPathParamsJson, []api.PathParam{}),
 		Body:        unmarshalOr(h.ReqBodyJson, api.RequestBody{Type: api.BodyNone}),
 		Auth:        restoredAuth(h.ReqAuthJson),
 	}

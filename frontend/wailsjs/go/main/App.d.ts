@@ -42,6 +42,8 @@ export function CreateFolder(arg1:string,arg2:string,arg3:string):Promise<main.F
 
 export function CreateInvitation(arg1:string,arg2:string):Promise<main.InvitationResult>;
 
+export function CreateMissingVariables(arg1:string,arg2:Array<string>):Promise<main.CreateMissingResult>;
+
 export function CreateProject(arg1:string,arg2:string):Promise<main.ProjectResult>;
 
 export function CreateProxy(arg1:string,arg2:main.ProxyInput):Promise<main.ProxyResult>;
@@ -197,6 +199,8 @@ export function Login(arg1:string,arg2:string):Promise<session.Result>;
 export function Logout():Promise<session.AuthState>;
 
 export function MigrateLegacyRequestSettings():Promise<main.LegacyMigrationResult>;
+
+export function MissingVariables(arg1:string,arg2:string):Promise<main.MissingVariablesResult>;
 
 export function MoveFolder(arg1:string,arg2:string):Promise<main.FolderResult>;
 

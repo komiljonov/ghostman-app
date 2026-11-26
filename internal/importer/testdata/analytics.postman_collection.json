@@ -1,0 +1,126 @@
+{
+  "info": {
+    "name": "rb analytics",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j.tokens) {",
+                  "  pm.collectionVariables.set('access_token', j.tokens.access);",
+                  "  pm.collectionVariables.set('refresh_token', j.tokens.refresh);",
+                  "  console.log('Saved access/refresh tokens');",
+                  "}",
+                  "if (j.otp_token) {",
+                  "  pm.collectionVariables.set('otp_token', j.otp_token);",
+                  "  console.log('Verification required: saved otp_token. Now call Auth > Verify with the code.');",
+                  "}",
+                  "if (j.reset_token) {",
+                  "  pm.collectionVariables.set('reset_token', j.reset_token);",
+                  "  console.log('Saved reset_token. Now call Auth > Reset password.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"contact\": \"{{contact}}\", \"password\": \"{{password}}\"}" },
+            "url": { "raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api", "v1", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Signed",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const ts = String(Date.now());",
+                  "const sig = CryptoJS.HmacSHA256(ts, pm.environment.get('b2b_api_key')).toString();",
+                  "pm.request.headers.add({ key: 'X-Signature', value: sig });",
+                  "pm.request.headers.upsert({ key: 'X-Ts', value: ts });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "console.log(pm.response.code);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/b2b/ping", "host": ["{{base_url}}"], "path": ["api", "v1", "b2b", "ping"] }
+          }
+        },
+        {
+          "name": "Old hooks",
+          "event": [
+            { "listen": "prerequest", "disabled": true, "script": { "exec": ["pm.environment.set('x', 1);"] } },
+            { "listen": "test", "disabled": true, "script": { "exec": ["pm.test('x', () => {});"] } }
+          ],
+          "request": { "method": "GET", "url": "{{base_url}}/old" }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get Prices",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/products/:product_id/prices",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products", ":product_id", "prices"],
+              "variable": [{ "key": "product_id", "value": "{{product_id}}" }]
+            }
+          }
+        },
+        {
+          "name": "Seller Product",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "https://api.example.com:8443/api/v1/sellers/:seller_id/products/:sku",
+              "variable": [{ "key": "seller_id", "value": "{{seller_id}}" }, { "key": "sku", "value": "" }]
+            }
+          }
+        },
+        {
+          "name": "Fixed id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/products/:product_id",
+              "variable": [{ "key": "product_id", "value": "123" }]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

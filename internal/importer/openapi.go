@@ -58,7 +58,6 @@ const (
 const (
 	CodeOANameLong       = "openapi.name_long"
 	CodeOATrace          = "openapi.trace"
-	CodeOAPathParams     = "openapi.path_params"
 	CodeOACookieParams   = "openapi.cookie_params"
 	CodeOADeprecated     = "openapi.deprecated"
 	CodeOASynthesized    = "openapi.synthesized_bodies"
@@ -84,6 +83,7 @@ type oaMapper struct {
 	rep        *Report
 	title      string
 	optional   int // optional parameters / fields imported disabled
+	pathParams int // {p} path parameters that became {{p}}
 	altContent []string
 	synth      []string            // requests with generated bodies
 	cycles     map[string][]string // schema $ref → requests
@@ -281,18 +281,11 @@ func (m *oaMapper) request(parentPath string, op oaOperation, globalReq []any) (
 	d := &rp.Draft
 	d.Method = strings.ToUpper(op.method)
 
-	// URL: {{BASE_URL}} + the path, {p} → {{p}}.
-	var converted []string
+	// URL: {{BASE_URL}} + the path, {p} → {{p}} (counted for ONE info line).
 	d.URL = "{{" + baseURLVariable + "}}" + pathParam.ReplaceAllStringFunc(op.path, func(s string) string {
-		converted = append(converted, s[1:len(s)-1])
+		m.pathParams++
 		return "{{" + s[1:len(s)-1] + "}}"
 	})
-	if len(converted) > 0 {
-		m.rep.add(warn(CodeOAPathParams, path, fmt.Sprintf("%s %s converted to %s %s.",
-			word(len(converted), "path parameter", "path parameters"), quoteList(wrapAll(converted, "{", "}")),
-			word(len(converted), "the Ghostman variable", "Ghostman variables"), strings.Join(wrapAll(converted, "{{", "}}"), ", ")),
-			fmt.Sprintf("Define %s in an environment or replace %s inline.", itThem(len(converted)), itThem(len(converted)))))
-	}
 
 	var notes []Entry
 	d.QueryParams, d.Headers, notes = m.parameters(path, op)
@@ -1050,6 +1043,10 @@ func (m *oaMapper) finish(descriptions int) {
 	if descriptions > 0 {
 		m.rep.add(drop(CodeDescriptions, "", plural(descriptions, "description", "descriptions")+
 			" not imported: Ghostman has no description field yet.", ""))
+	}
+	if m.pathParams > 0 {
+		m.rep.Notes = append(m.rep.Notes, fmt.Sprintf("%s became {{variables}} — create them via Add missing variables in an environment tab.",
+			plural(m.pathParams, "path parameter", "path parameters")))
 	}
 	if m.optional > 0 {
 		m.rep.Notes = append(m.rep.Notes, "Optional query, header and form parameters were imported disabled; required "+

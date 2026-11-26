@@ -21,8 +21,6 @@ import (
 //  7. A key starting with "$" is a GENERATED variable (dynamic.go), never read from
 //     the map: known ones get a value fresh per send (one per distinct token text),
 //     unknown ones stay literal and are reported like rule 4.
-//  8. Path variables (pathvars.go): after resolution, each ":key" URL path
-//     segment is replaced by its row's resolved value, path-escaped.
 
 // Token is one {{key}} occurrence: Start and End are byte offsets of the whole
 // token in the input (End exclusive).
@@ -102,13 +100,9 @@ func resolveWith(s string, look func(string) (string, bool)) (string, []string) 
 }
 
 // DescribeUnresolved words one unresolved entry of ResolveSpec for a warning:
-// "{{KEY}} has no value here", "{{$x}} is not a generated variable", "path
-// variable :id has no value".
+// "{{KEY}} has no value here", "{{$x}} is not a generated variable".
 func DescribeUnresolved(k string) string {
-	switch {
-	case strings.HasPrefix(k, ":"):
-		return "path variable " + k + " has no value"
-	case IsDynamicKey(k):
+	if IsDynamicKey(k) {
 		return "{{" + k + "}} is not a generated variable"
 	}
 	return "{{" + k + "}} has no value here"
@@ -119,8 +113,8 @@ func DescribeUnresolved(k string) string {
 // keys/values, and the auth config's values. Disabled rows are not sent, so they are left as they are and their
 // tokens are not reported. Unresolved keys are collected across all parts.
 // Generated variables ({{$uuid}} …) get fresh values (one generator per call =
-// per send); path variables are substituted into the URL last (one with an
-// empty value is sent as written and reported as ":key").
+// per send). Values are inserted as typed — in a URL path too (no escaping:
+// URL-encode a path value yourself or in the variable).
 func ResolveSpec(spec RequestSpec, vars map[string]string) (RequestSpec, []string) {
 	return ResolveSpecWith(spec, vars, NewGenerator(time.Now()))
 }
@@ -156,17 +150,6 @@ func ResolveSpecWith(spec RequestSpec, vars map[string]string, gen *Generator) (
 
 	out := spec
 	out.URL = res(spec.URL)
-	if hasPathVars(out.URL) {
-		values := make(map[string]string, len(spec.PathParams))
-		for _, p := range spec.PathParams {
-			if _, dup := values[p.Key]; !dup { // first row wins (the UI keeps keys unique)
-				values[p.Key] = res(p.Value)
-			}
-		}
-		var empty []string
-		out.URL, empty = SubstitutePath(out.URL, values)
-		report(empty)
-	}
 	out.Headers = rows(spec.Headers)
 	out.QueryParams = rows(spec.QueryParams)
 	switch spec.Body.Type {

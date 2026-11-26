@@ -6,7 +6,9 @@ import { handleProblem } from "../authStore";
 import { envContext, refreshEnvContext } from "../envStore";
 import { createRowDrag } from "../rowDrag";
 import { saveOrder } from "../rowOrder";
+import { currentProjectId } from "../workspaceStore";
 import FormError from "./FormError";
+import MissingVariablesModal from "./MissingVariablesModal";
 import NewVariableRow from "./NewVariableRow";
 import RowDragLayer from "./RowDragLayer";
 import VariableRow from "./VariableRow";
@@ -25,6 +27,7 @@ interface Props {
 // saved as the full order (ReorderVariables), then re-fetched.
 export default function EnvVariablesView(props: Props) {
   const [tick, setTick] = createSignal(0);
+  const [missingOpen, setMissingOpen] = createSignal(false);
   const env = () => envContext()?.environments.find((e) => e.id === props.envId);
 
   const [variables] = createResource(() => ({ id: props.envId, tick: tick() }), async (src) => {
@@ -72,7 +75,15 @@ export default function EnvVariablesView(props: Props) {
         <div class="team-title">
           <h2>{env()?.name ?? "Environment"}</h2>
           <Show when={envContext()?.active_id === props.envId}><span class="badge">active</span></Show>
+          <span class="row-spacer" />
+          <button type="button" class="small" disabled={!currentProjectId()}
+            title="Create the {{variables}} this project uses that this environment doesn't define"
+            onClick={() => setMissingOpen(true)}>Add missing variables</button>
         </div>
+        <Show when={missingOpen()}>
+          <MissingVariablesModal projectId={currentProjectId()} envId={props.envId} envName={env()?.name ?? "this environment"}
+            onCreated={structureChanged} onClose={() => setMissingOpen(false)} />
+        </Show>
         <p class="muted small">
           Use variables as <code>{"{{KEY}}"}</code> in the URL, headers, params and body. Secret values stay on
           this machine and are never sent to the server.

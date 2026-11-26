@@ -4,8 +4,8 @@ INSERT INTO history (
     env_id, env_name, req_headers_json, req_params_json, req_body_json,
     req_headers_resolved_json, req_body_resolved, status, duration_ms, error,
     resp_headers_json, resp_body, resp_body_size, resp_truncated, timings_json, req_auth_json, console_json,
-    proxy_label, req_path_params_json
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    proxy_label
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id;
 
 -- name: ListHistoryPage :many
@@ -55,3 +55,11 @@ DELETE FROM history WHERE created_at < ?;
 
 -- name: DeleteHistoryForProject :execrows
 DELETE FROM history WHERE project_id = ?;
+
+-- name: CachedPathParams :many
+-- Retired path variables: the rows cached in history (migration 00014, no
+-- longer written), newest first, for the one-time URL sweep (path_sweep.go).
+SELECT request_id, req_path_params_json
+FROM history
+WHERE project_id = ? AND request_id IS NOT NULL AND req_path_params_json IS NOT NULL
+ORDER BY created_at DESC, id DESC;
