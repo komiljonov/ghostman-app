@@ -17,7 +17,7 @@ import {
   pickedCompletion,
 } from "@codemirror/autocomplete";
 import {
-  applyCompletion, completionSpot, EMPTY_LINE, enterAction, groupLabel, OptionGroup, tabAction, varOptions,
+  applyCompletion, completionSpot, EMPTY_LINE, enterAction, generatedOptions, groupLabel, groupRank, OptionGroup, tabAction, varOptions,
 } from "./varComplete";
 import { LOCK_PATH } from "./iconPaths";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
@@ -26,7 +26,8 @@ import { json } from "@codemirror/lang-json";
 import { completionPath, javascript, javascriptLanguage } from "@codemirror/lang-javascript";
 import { buildMembers, envKeySpot, hoverDoc, insertion, Member, memberAt, memberOptions, Phase } from "./scriptComplete";
 import { scriptDocs } from "./scriptDocs";
-import { classify, createFromTooltip, EnvDisplay, maskRanges, saveFromTooltip, tooltipActions, tooltipModel } from "./vars";
+import { classify, createFromTooltip, EnvDisplay, findTokens, maskRanges, previewResolved, saveFromTooltip, tooltipActions, tooltipModel } from "./vars";
+import { pathVarSpans, type PathParam } from "./urlParams";
 import { runShortcut } from "./shortcuts";
 import type { ShortcutAction } from "./tabModel";
 import { varEditApi } from "./varEdit";
@@ -110,13 +111,14 @@ export const appShortcuts = Prec.highest(keymap.of([
 const refreshVars = StateEffect.define<null>();
 const resolvedMark = Decoration.mark({ class: "cm-var cm-var-resolved" });
 const unresolvedMark = Decoration.mark({ class: "cm-var cm-var-unresolved" });
+const dynamicMark = Decoration.mark({ class: "cm-var cm-var-dynamic" }); // {{$uuid}} & co., JWT time claims
 
 function buildDecorations(view: EditorView, getEnv: () => EnvDisplay): DecorationSet {
   const builder = new RangeSetBuilder<Decoration>();
   const env = getEnv();
   for (const { from, to } of view.visibleRanges) {
     for (const t of classify(view.state.doc.sliceString(from, to), env)) {
-      builder.add(from + t.from, from + t.to, t.resolved ? resolvedMark : unresolvedMark);
+      builder.add(from + t.from, from + t.to, t.dynamic ? dynamicMark : t.resolved ? resolvedMark : unresolvedMark);
     }
   }
   return builder.finish();
@@ -155,8 +157,10 @@ function hoverCard(view: EditorView, key: string, pos: number, end: number, getE
   const m = tooltipModel(key, env);
   const actions = tooltipActions(key, env);
   const root = cardHead(key, m.secret, m.resolved);
+  if (m.dynamic) root.classList.add("is-dynamic");
   const value = el("div", "var-tooltip-value", m.display);
   root.append(value);
+  if (m.example !== undefined) root.append(el("div", "var-tooltip-example", `e.g. ${m.example}`));
   const error = el("div", "var-tooltip-error");
 
   const buttons = el("div", "var-tooltip-actions");
@@ -193,6 +197,7 @@ function hoverCard(view: EditorView, key: string, pos: number, end: number, getE
   if (buttons.childElementCount > 0) root.append(buttons);
   root.append(error);
   if (m.envName !== null) root.append(el("div", "var-tooltip-source", m.tag ? `${m.envName} · ${m.tag}` : m.envName));
+  else if (m.dynamic && m.tag) root.append(el("div", "var-tooltip-source", m.tag));
   return root;
 }
 
@@ -300,6 +305,59 @@ export function varHighlighting(getEnv: () => EnvDisplay, onPin?: PinListener): 
   });
 
   return [decorations, pinField, hover];
+}
+
+// ---- Path variables in the URL bar (":id"; rules in urlParams.ts) ----
+// Highlighted in their own style (an empty value is marked like an unresolved
+// var); the hover shows the value — with a resolved preview when it holds
+// {{vars}} — or the "no value" state. Values are edited in Params only.
+
+function pathVarDecorations(view: EditorView, getValues: () => PathParam[]): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  const values = getValues();
+  for (const s of pathVarSpans(view.state.doc.toString())) {
+    const empty = !values.find((p) => p.key === s.key)?.value;
+    builder.add(s.from, s.to, Decoration.mark({ class: empty ? "cm-path-var is-empty" : "cm-path-var" }));
+  }
+  return builder.finish();
+}
+
+function pathVarCard(key: string, value: string, env: EnvDisplay): HTMLElement {
+  const root = el("div", `var-tooltip path-var-tooltip ${value ? "is-resolved" : "is-unresolved"}`);
+  const head = el("div", "var-tooltip-key", `:${key}`);
+  head.append(" ", el("span", "var-tooltip-tag", "path variable"));
+  root.append(head);
+  if (!value) {
+    root.append(el("div", "var-tooltip-value", `no value — sent as :${key}`));
+  } else {
+    root.append(el("div", "var-tooltip-value", value));
+    if (findTokens(value).length > 0) root.append(el("div", "var-tooltip-example", `→ ${previewResolved(value, env)}`));
+  }
+  root.append(el("div", "var-tooltip-source", "edit in Params › Path variables"));
+  return root;
+}
+
+export function pathVarHighlighting(getValues: () => PathParam[], getEnv: () => EnvDisplay): Extension {
+  const decorations = ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+      constructor(view: EditorView) {
+        this.decorations = pathVarDecorations(view, getValues);
+      }
+      update(u: ViewUpdate) {
+        const refreshed = u.transactions.some((tr) => tr.effects.some((e) => e.is(refreshVars)));
+        if (u.docChanged || refreshed) this.decorations = pathVarDecorations(u.view, getValues);
+      }
+    },
+    { decorations: (v) => v.decorations },
+  );
+  const hover = hoverTooltip((view, pos) => {
+    const span = pathVarSpans(view.state.doc.toString()).find((s) => pos >= s.from && pos <= s.to);
+    if (!span) return null;
+    const value = getValues().find((p) => p.key === span.key)?.value ?? "";
+    return { pos: span.from, end: span.to, above: true, create: () => ({ dom: pathVarCard(span.key, value, getEnv()) }) };
+  });
+  return [decorations, hover];
 }
 
 // ---- Raw body editor ----
@@ -625,22 +683,20 @@ export function varSource(getEnv: () => EnvDisplay) {
     const spot = completionSpot(line.text.slice(0, at), line.text.slice(at), ctx.pos);
     if (!spot) return null;
     const env = getEnv();
-    const { options, empty } = varOptions({ env, keys: env.keys ?? [] }, spot.prefix);
-    if (empty) {
-      const none: VarCompletion = { label: EMPTY_LINE, empty: true, apply: () => undefined };
-      return { from: spot.from, to: spot.to, filter: false, options: [none] };
-    }
-    if (options.length === 0) return null;
+    const { options: envOptions, empty } = varOptions({ env, keys: env.keys ?? [] }, spot.prefix);
+    const options = [...envOptions, ...generatedOptions(spot.prefix)]; // "Generated" always last
+    const none: VarCompletion[] = empty ? [{ label: EMPTY_LINE, empty: true, apply: () => undefined }] : [];
+    if (options.length === 0 && none.length === 0) return null;
     return {
       from: spot.from,
       to: spot.to,
       filter: false,
-      options: options.map((o): VarCompletion => ({
+      options: [...none, ...options.map((o): VarCompletion => ({
         label: o.key,
         detail: o.detail,
         group: o.group,
         secret: o.secret,
-        section: { name: groupLabel(o.group, env.envName), rank: o.group === "available" ? 0 : 1 },
+        section: { name: groupLabel(o.group, env.envName), rank: groupRank(o.group) },
         apply: (view, completion, from, to) => {
           const { insert } = applyCompletion(spot, o.key);
           view.dispatch({
@@ -650,7 +706,7 @@ export function varSource(getEnv: () => EnvDisplay) {
             userEvent: "input.complete",
           });
         },
-      })),
+      }))],
     };
   };
 }
@@ -697,7 +753,7 @@ export function varCompletion(getEnv: () => EnvDisplay, extra: CompletionSource[
       icons: false,
       maxRenderedOptions: 200,
       tooltipClass: () => "cm-var-complete",
-      optionClass: (c) => ((c as VarCompletion).empty ? "cm-var-opt-empty" : (c as VarCompletion).group === "unavailable" ? "cm-var-opt-unavailable" : ""),
+      optionClass: (c) => ((c as VarCompletion).empty ? "cm-var-opt-empty" : (c as VarCompletion).group === "unavailable" ? "cm-var-opt-unavailable" : (c as VarCompletion).group === "generated" ? "cm-var-opt-generated" : ""),
       addToOptions: [{ render: lockIcon, position: 45 }],
     }),
     completionTab,
@@ -897,6 +953,7 @@ export interface LineEditorOptions {
   masked?: boolean; // password-style: literal text as bullets ({{vars}} stay visible)
   disabled?: boolean;
   completions?: CompletionSource[]; // beside {{var}} completion (table cells: headerKeySource …)
+  pathVars?: () => PathParam[]; // the URL bar: ":id" highlight + hover (values from the draft)
 }
 
 // One factory for every single-line field: newlines are stripped (a pasted multi-line
@@ -951,6 +1008,7 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
         off.of(opts.disabled ? disabledExt : []),
         theme,
         varHighlighting(opts.getEnv, opts.onPin),
+        opts.pathVars ? pathVarHighlighting(opts.pathVars, opts.getEnv) : [],
         varCompletion(opts.getEnv, opts.completions),
         lineToggleKeymap, // Ctrl+/: a no-op here (not a bulk editor)
         mask.of(opts.masked ? maskPlugin : []),

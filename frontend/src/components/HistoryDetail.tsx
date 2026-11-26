@@ -217,6 +217,10 @@ export default function HistoryDetail(props: Props) {
               <p class="settings-hint">Resolved as sent, secret values included. Stored only on this computer.</p>
               <p class="history-proxy muted small">Proxy: {props.entry.proxy || "none (direct)"}</p>
             </Show>
+            <Show when={req().pathParams.length > 0}>
+              <h4>Path variables</h4>
+              <HistoryKVTable rows={req().pathParams} />
+            </Show>
             <Show when={req().params.length > 0}>
               <h4>Query params</h4>
               <HistoryKVTable rows={req().params} />

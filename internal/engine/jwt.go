@@ -7,8 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -54,40 +52,24 @@ var jwtMethods = map[string]jwt.SigningMethod{
 	"HS512": jwt.SigningMethodHS512,
 }
 
-// dynamicRe is the exact form of a dynamic time claim: {{$now}}, {{$now+N}},
-// {{$now-N}} (N integer seconds), and nothing around it.
-var dynamicRe = regexp.MustCompile(`^\{\{\$now(?:([+-])(\d+))?\}\}$`)
-
 // DynamicClaim reports whether a payload STRING value is a dynamic time claim
 // and, if so, its value: unix seconds of now, plus or minus N. Only an exact
 // match counts — "{{$now}} ", "x{{$now}}", "{{$now+1.5}}", "{{ $now }}" are not
 // special and stay as written.
+// The time rules are the generated variables' ones (dynamic.go: NowOffset).
 func DynamicClaim(s string, now time.Time) (int64, bool) {
-	m := dynamicRe.FindStringSubmatch(s)
-	if m == nil {
+	if len(s) < 4 || s[:2] != "{{" || s[len(s)-2:] != "}}" {
 		return 0, false
 	}
-	t := now.Unix()
-	if m[1] != "" {
-		n, err := strconv.ParseInt(m[2], 10, 64)
-		if err != nil {
-			return 0, false // out of range: not a claim
-		}
-		if m[1] == "+" {
-			t += n
-		} else {
-			t -= n
-		}
-	}
-	return t, true
+	return NowOffset(s[2:len(s)-2], now)
 }
 
-// isDynamicKey: the key of a {{$now…}} token (resolution leaves those alone).
-func isDynamicKey(key string) bool { return dynamicRe.MatchString("{{" + key + "}}") }
+// isTimeKey: the key of a {{$now…}} token (payload resolution leaves those alone).
+func isTimeKey(key string) bool { return nowKeyRe.MatchString(key) }
 
 // resolvePayload resolves a JWT payload template: every {{var}} like anywhere
-// else, except the {{$now…}} family, which stays for SignJWT (and is not
-// reported as unresolved).
+// else (other generated variables like {{$uuid}} included), except the
+// {{$now…}} family, which stays for SignJWT (and is not reported as unresolved).
 func resolvePayload(s string, res func(string) string) string {
 	tokens := FindTokens(s)
 	if len(tokens) == 0 {
@@ -98,7 +80,7 @@ func resolvePayload(s string, res func(string) string) string {
 	for _, t := range tokens {
 		b.WriteString(s[last:t.Start])
 		tok := s[t.Start:t.End]
-		if isDynamicKey(t.Key) {
+		if isTimeKey(t.Key) {
 			b.WriteString(tok)
 		} else {
 			b.WriteString(res(tok))

@@ -3,6 +3,7 @@ package envs
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -289,6 +290,22 @@ func TestSecretToRegularWithoutLocalValueSendsNull(t *testing.T) {
 	}
 	if !f.sawAnywhere(`{"type":"regular","value":null}`) || f.vars[v.ID].Value != nil {
 		t.Fatalf("bodies %q", f.bodies)
+	}
+}
+
+// {{$name}} is a generated variable: a key starting with "$" could never be read.
+func TestDollarKeysRefused(t *testing.T) {
+	ctx := context.Background()
+	m, _, _, c := setup(t)
+	if _, err := m.CreateVariable(ctx, c, "dev", "$uuid", api.VarRegular); !errors.Is(err, ErrDollarKey) {
+		t.Fatalf("create $uuid: %v", err)
+	}
+	if _, err := m.CreateVariable(ctx, c, "dev", " $x", api.VarSecret); !errors.Is(err, ErrDollarKey) {
+		t.Fatalf("create ' $x': %v", err)
+	}
+	v := mustCreate(t, m, c, "dev", "A$B", api.VarRegular) // "$" later in the key is fine
+	if err := m.SetKey(ctx, c, "dev", v.ID, "$A"); !errors.Is(err, ErrDollarKey) {
+		t.Fatalf("rename to $A: %v", err)
 	}
 }
 

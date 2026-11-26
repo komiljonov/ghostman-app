@@ -1,6 +1,9 @@
 package engine
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 // Variable resolution — THE single source of truth for {{var}} semantics.
 // (frontend/src/vars.ts mirrors the token grammar for highlighting only; keep the
@@ -15,6 +18,11 @@ import "strings"
 //  5. No recursion: a value that itself contains "{{other}}" is inserted as-is and
 //     not resolved again.
 //  6. Text that is not a complete token ("{{", "{{}}", "{{a", "{{a{b}}") is literal.
+//  7. A key starting with "$" is a GENERATED variable (dynamic.go), never read from
+//     the map: known ones get a value fresh per send (one per distinct token text),
+//     unknown ones stay literal and are reported like rule 4.
+//  8. Path variables (pathvars.go): after resolution, each ":key" URL path
+//     segment is replaced by its row's resolved value, path-escaped.
 
 // Token is one {{key}} occurrence: Start and End are byte offsets of the whole
 // token in the input (End exclusive).
@@ -52,6 +60,22 @@ func FindTokens(s string) []Token {
 // Resolve replaces the tokens of s found in vars and returns the result plus the
 // keys left unresolved (in order of first appearance, without duplicates).
 func Resolve(s string, vars map[string]string) (string, []string) {
+	return resolveWith(s, func(k string) (string, bool) { v, ok := vars[k]; return v, ok })
+}
+
+// lookupFor is the key lookup of one send: generated variables for "$…" keys,
+// the environment map for the rest.
+func lookupFor(vars map[string]string, gen *Generator) func(string) (string, bool) {
+	return func(k string) (string, bool) {
+		if IsDynamicKey(k) {
+			return gen.Value(k)
+		}
+		v, ok := vars[k]
+		return v, ok
+	}
+}
+
+func resolveWith(s string, look func(string) (string, bool)) (string, []string) {
 	tokens := FindTokens(s)
 	if len(tokens) == 0 {
 		return s, nil
@@ -62,7 +86,7 @@ func Resolve(s string, vars map[string]string) (string, []string) {
 	last := 0
 	for _, t := range tokens {
 		b.WriteString(s[last:t.Start])
-		if v, ok := vars[t.Key]; ok {
+		if v, ok := look(t.Key); ok {
 			b.WriteString(v)
 		} else {
 			b.WriteString(s[t.Start:t.End])
@@ -77,21 +101,46 @@ func Resolve(s string, vars map[string]string) (string, []string) {
 	return b.String(), unresolved
 }
 
+// DescribeUnresolved words one unresolved entry of ResolveSpec for a warning:
+// "{{KEY}} has no value here", "{{$x}} is not a generated variable", "path
+// variable :id has no value".
+func DescribeUnresolved(k string) string {
+	switch {
+	case strings.HasPrefix(k, ":"):
+		return "path variable " + k + " has no value"
+	case IsDynamicKey(k):
+		return "{{" + k + "}} is not a generated variable"
+	}
+	return "{{" + k + "}} has no value here"
+}
+
 // ResolveSpec resolves every part of a request that is sent: the URL, enabled
 // header and query-param keys/values, a raw body's content and enabled form field
 // keys/values, and the auth config's values. Disabled rows are not sent, so they are left as they are and their
 // tokens are not reported. Unresolved keys are collected across all parts.
+// Generated variables ({{$uuid}} …) get fresh values (one generator per call =
+// per send); path variables are substituted into the URL last (one with an
+// empty value is sent as written and reported as ":key").
 func ResolveSpec(spec RequestSpec, vars map[string]string) (RequestSpec, []string) {
+	return ResolveSpecWith(spec, vars, NewGenerator(time.Now()))
+}
+
+// ResolveSpecWith is ResolveSpec with a given generator (tests; one send).
+func ResolveSpecWith(spec RequestSpec, vars map[string]string, gen *Generator) (RequestSpec, []string) {
+	look := lookupFor(vars, gen)
 	var all []string
 	seen := map[string]bool{}
-	res := func(s string) string {
-		out, missing := Resolve(s, vars)
+	report := func(missing []string) {
 		for _, k := range missing {
 			if !seen[k] {
 				seen[k] = true
 				all = append(all, k)
 			}
 		}
+	}
+	res := func(s string) string {
+		out, missing := resolveWith(s, look)
+		report(missing)
 		return out
 	}
 	rows := func(in []Header) []Header {
@@ -107,6 +156,17 @@ func ResolveSpec(spec RequestSpec, vars map[string]string) (RequestSpec, []strin
 
 	out := spec
 	out.URL = res(spec.URL)
+	if hasPathVars(out.URL) {
+		values := make(map[string]string, len(spec.PathParams))
+		for _, p := range spec.PathParams {
+			if _, dup := values[p.Key]; !dup { // first row wins (the UI keeps keys unique)
+				values[p.Key] = res(p.Value)
+			}
+		}
+		var empty []string
+		out.URL, empty = SubstitutePath(out.URL, values)
+		report(empty)
+	}
 	out.Headers = rows(spec.Headers)
 	out.QueryParams = rows(spec.QueryParams)
 	switch spec.Body.Type {
@@ -128,7 +188,7 @@ func ResolveSpec(spec RequestSpec, vars map[string]string) (RequestSpec, []strin
 		out.Body.Parts = parts
 	}
 	if spec.Auth != nil { // {{vars}} inside auth values, same map (auth.go)
-		a := resolveAuth(*spec.Auth, res, vars)
+		a := resolveAuth(*spec.Auth, res, func(s string) (string, []string) { return resolveWith(s, look) })
 		out.Auth = &a
 	}
 	return out, all

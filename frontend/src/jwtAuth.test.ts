@@ -101,6 +101,8 @@ describe("time claims in the payload editor", () => {
     expect(tooltipActions("user_id", w).edit).toBe(true);
     // Without an environment too; and the plain env is not touched.
     expect(tooltipModel("$now", withTimeClaims(NO_ENV)).resolved).toBe(true);
-    expect(classify("{{$now}}", env)[0].resolved).toBe(false);
+    // Outside the payload {{$now}} is a generated variable now (unix seconds as text).
+    expect(classify("{{$now}}", env)[0]).toMatchObject({ resolved: true, dynamic: true });
+    expect(tooltipModel("$now", env).tag).not.toBe("time claim");
   });
 });

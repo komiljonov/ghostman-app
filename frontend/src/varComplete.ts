@@ -11,8 +11,11 @@
 //                    no preview — the hover's masking rule)
 //   2. unavailable — only in other envs (or no active env): dimmed, no value,
 //                    an env hint ("in prod", "in prod, staging", "in a, b +2")
+//   3. generated   — {{$uuid}} & co. (dynamicVars.ts), always LAST, with their
+//                    descriptions; matched with or without the "$", in list order
 // Group order is absolute; within a group prefix matches come before substring
 // matches, then alphabetical (case-insensitive). The inserted key keeps its case.
+import { GENERATED } from "./dynamicVars";
 import type { EnvDisplay } from "./vars";
 
 export interface CompletionSpot {
@@ -52,7 +55,7 @@ export interface KeyInfo {
   secret: boolean;
 }
 
-export type OptionGroup = "available" | "unavailable";
+export type OptionGroup = "available" | "unavailable" | "generated";
 
 export interface VarOption {
   key: string;
@@ -115,8 +118,21 @@ export function varOptions(data: CompletionData, query: string): { options: VarO
   return { options: ranked.map((x) => x.o), empty };
 }
 
+// The "Generated" group: every generated variable matching the query ("uu",
+// "$uu" and "$" all find $uuid), prefix matches first, else in list order.
+export function generatedOptions(query: string): VarOption[] {
+  const q = query.startsWith("$") ? query.slice(1) : query;
+  return GENERATED
+    .map((g, i) => ({ g, i, rank: matchRank(g.key.slice(1), q) }))
+    .filter((x) => x.rank >= 0)
+    .sort((a, b) => a.rank - b.rank || a.i - b.i)
+    .map(({ g }) => ({ key: g.key, group: "generated" as const, secret: false, detail: g.description }));
+}
+
 export const groupLabel = (g: OptionGroup, envName: string | null) =>
-  g === "available" ? `In ${envName}` : envName === null ? "No environment selected" : "Other environments";
+  g === "generated" ? "Generated" : g === "available" ? `In ${envName}` : envName === null ? "No environment selected" : "Other environments";
+
+export const groupRank = (g: OptionGroup) => (g === "available" ? 0 : g === "unavailable" ? 1 : 2);
 
 export const EMPTY_LINE = "No variables in this project";
 

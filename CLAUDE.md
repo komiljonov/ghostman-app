@@ -254,6 +254,22 @@ Postman-style shell, logged in:
   to onChange, not in undo history), and only when its text does not already mean the same
   (`sameMeaning`), so typing is never rewritten. A legacy `url` with a query has its pairs
   moved into the rows on load (persisted with the next edit, never on open).
+  **Path variables** (Postman-style; derivation `pathVarKeys` in `src/urlParams.ts` ↔ Go `engine.PathVarKeys` in
+  `internal/engine/pathvars.go`, the SAME test table in `pathVars.test.ts` / `pathvars_test.go`): the URL text
+  before "?" split on "/"; a segment that is exactly `:` + `[A-Za-z_][A-Za-z0-9_]*` is one. Rows = the request's
+  `path_params` [{key, value}] on the server (GET single only; PATCH full replacement — `BuildRequestPatch`
+  diffs them; duplicate / restore carry them). `reconcilePathParams` (URL edits and on load): values persist BY
+  KEY, a key that left the URL drops its row, a new key appends empty; nothing changed → the same array. Params
+  tab: a "Path variables" section (`PathVarsTable`) above "Query params", only while the URL has any: read-only
+  key · VarCell value; no checkbox / add / remove / reorder (the keys never write back into the URL — no loop).
+  URL bar: `:id` in its own token style (`--path-var*`; an empty value is marked like an unresolved var), hover =
+  the value (+ "→ resolved preview" via `previewResolved` when it has {{vars}}) or "no value — sent as :id";
+  not editable there. **Send** (`ResolveSpec`, so codegen's resolved mode too): after {{vars}} resolve in the URL
+  and the values, each `:key` segment of the RESOLVED URL becomes `url.PathEscape(value)` — one segment: "/" →
+  %2F (deliberate; `parseSendURL` keeps RawPath). Empty value / no row → the segment stays literal and `:key`
+  joins the unresolved list (banner "Path variable without a value: :id", codegen warning). History: resolved
+  URL substituted; the template keeps `:id` + the rows (`req_path_params_json`, migration 00014). Codegen
+  template mode keeps `:id`.
 - **Autosave is the save model** (no dirty tabs, no Save button): 600 ms debounce per tab,
   one PATCH with only the changed fields (built in Go: `api.BuildRequestPatch`, which drops
   keyless rows), one save in flight per tab with last write winning, flushed on tab
@@ -501,7 +517,18 @@ Postman-style shell, logged in:
 - **`{{var}}` resolution** happens in Go at send time (`internal/engine/resolve.go` is the
   single source of truth, with its spec comment and table test): exact, case-sensitive
   keys; unknown keys and secrets without a local value stay literal and are reported
-  (response banner); no recursion. Map = active env's regular values + local secret values.
+  (response banner); no recursion. **Generated variables** (`internal/engine/dynamic.go`, ONE implementation:
+  `NowOffset` also backs the JWT `DynamicClaim`): a key starting with "$" is never read from the env map —
+  `$uuid`, `$now` / `$now±N` (unix s), `$timestamp` (= $now), `$isoTimestamp` (RFC 3339 UTC), `$date` (local
+  YYYY-MM-DD), `$randomInt` (0–999999), `$randomHex` (16 hex); exact keys; an unknown `$name` stays literal and is
+  reported. One `Generator` per `ResolveSpec` call = per send: fresh per send, ONE value per distinct token
+  text (deliberate deviation from Postman; `$now` and `$now+60` share one clock). Everywhere vars resolve (auth
+  and JWT secret included); the JWT payload still leaves the `$now…` family to `SignJWT` (numbers, unchanged).
+  `internal/envs.CheckKey` refuses variable keys starting with "$" (create + rename; scripts' new keys too).
+  UI (display only, `src/dynamicVars.ts`, tested): own token style `.cm-var-dynamic` (`--var-dynamic*`; the JWT
+  time claims use it too), hover = description + an example value + "generated at send time · one value per
+  send", no edit actions; the `{{` popup's "Generated" group always last (`generatedOptions`, matched with or
+  without "$"); the response banner names unknown generated vars and empty path vars apart (`unresolvedBanner`). Map = active env's regular values + local secret values.
   `src/vars.ts` mirrors only the token grammar for highlighting (keep both test tables in
   step). URL and raw body are CodeMirror editors with the shared highlight/hover extension
   (`src/codemirror.ts`); hover reads the Solid env store (`src/envStore.ts`), never the bridge.

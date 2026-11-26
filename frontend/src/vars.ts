@@ -4,6 +4,9 @@
 //   a token is "{{" + key + "}}", key = 1+ chars without "{" or "}", matched exactly
 //   (case-sensitive, no trimming), left to right, non-overlapping.
 // Keep vars.test.ts in step with internal/engine/resolve_test.go.
+// A "$…" key is a GENERATED variable (dynamicVars.ts): never read from an
+// environment; known ones are "dynamic", unknown ones unresolved.
+import { GENERATED_NOTE, generatedInfo, isGeneratedKey } from "./dynamicVars";
 
 export interface VarInfo {
   id?: string; // the variable's id (needed to edit it from a tooltip)
@@ -51,12 +54,17 @@ export function findTokens(text: string): VarToken[] {
 
 // Resolved = Go would replace it: the key is defined, and a secret has a local value.
 export function isResolved(key: string, env: EnvDisplay): boolean {
+  if (isGeneratedKey(key)) return !!env.vars.get(key)?.dynamic || generatedInfo(key) !== undefined;
   const v = env.vars.get(key);
   return !!v && (!v.secret || v.hasValue);
 }
 
-export function classify(text: string, env: EnvDisplay): (VarToken & { resolved: boolean })[] {
-  return findTokens(text).map((t) => ({ ...t, resolved: isResolved(t.key, env) }));
+// dynamic = a generated variable that will get a value (its own style).
+export function classify(text: string, env: EnvDisplay): (VarToken & { resolved: boolean; dynamic: boolean })[] {
+  return findTokens(text).map((t) => {
+    const resolved = isResolved(t.key, env);
+    return { ...t, resolved, dynamic: resolved && isGeneratedKey(t.key) };
+  });
 }
 
 export const MASK = "••••••";
@@ -71,11 +79,18 @@ export interface TooltipModel {
   revealValue?: string;
   envName: string | null;
   tag?: string; // "local" for secret values (they exist only on this machine)
+  example?: string; // generated variables: an illustrative value
+  dynamic?: boolean; // a generated variable / time claim (own style, no env)
 }
 
 export function tooltipModel(key: string, env: EnvDisplay): TooltipModel {
   const v = env.vars.get(key);
-  if (v?.dynamic) return { key, resolved: true, secret: false, display: v.value, envName: env.envName, tag: "time claim" };
+  if (v?.dynamic) return { key, resolved: true, secret: false, display: v.value, envName: null, tag: "time claim", dynamic: true };
+  if (isGeneratedKey(key)) {
+    const g = generatedInfo(key);
+    if (!g) return { key, resolved: false, secret: false, display: "unknown generated variable — sent literally", envName: null, dynamic: true };
+    return { key, resolved: true, secret: false, display: g.description, example: g.example, envName: null, tag: GENERATED_NOTE, dynamic: true };
+  }
   if (env.envName === null) {
     return { key, resolved: false, secret: false, display: "unresolved — no environment selected", envName: null };
   }
@@ -97,7 +112,7 @@ export const NO_ENV: EnvDisplay = { envName: null, vars: new Map() };
 
 export interface Segment {
   text: string;
-  kind: "plain" | "resolved" | "unresolved";
+  kind: "plain" | "resolved" | "unresolved" | "dynamic";
 }
 
 // Splits text into plain runs and {{tokens}} classified like the editor does.
@@ -106,7 +121,7 @@ export function segments(text: string, env: EnvDisplay): Segment[] {
   let last = 0;
   for (const t of classify(text, env)) {
     if (t.from > last) out.push({ text: text.slice(last, t.from), kind: "plain" });
-    out.push({ text: text.slice(t.from, t.to), kind: t.resolved ? "resolved" : "unresolved" });
+    out.push({ text: text.slice(t.from, t.to), kind: t.dynamic ? "dynamic" : t.resolved ? "resolved" : "unresolved" });
     last = t.to;
   }
   if (last < text.length) out.push({ text: text.slice(last), kind: "plain" });
@@ -123,7 +138,7 @@ export interface TooltipActions {
 
 export function tooltipActions(key: string, env: EnvDisplay): TooltipActions {
   const v = env.vars.get(key);
-  if (v?.dynamic) return { edit: false, editAfterReveal: false };
+  if (v?.dynamic || isGeneratedKey(key)) return { edit: false, editAfterReveal: false };
   if (env.envName === null || !env.envId) return { edit: false, editAfterReveal: false };
   if (!v) return { edit: false, editAfterReveal: false, createIn: env.envName };
   if (v.secret) return { edit: !v.hasValue, editAfterReveal: v.hasValue }; // an unset secret can be set directly
@@ -168,4 +183,22 @@ export function maskRanges(text: string): [number, number][] {
   }
   if (pos < text.length) out.push([pos, text.length]);
   return out;
+}
+
+// A value as it would be sent, for previews (the path-variable hover): regular
+// values inserted, secrets masked, generated variables as <$name>, unresolved
+// tokens kept. Display only — Go resolves at send time.
+export function previewResolved(text: string, env: EnvDisplay): string {
+  let out = "";
+  let last = 0;
+  for (const t of findTokens(text)) {
+    out += text.slice(last, t.from);
+    const v = env.vars.get(t.key);
+    if (isGeneratedKey(t.key)) out += generatedInfo(t.key) ? `<${t.key}>` : text.slice(t.from, t.to);
+    else if (env.envName !== null && v && !v.secret) out += v.value;
+    else if (env.envName !== null && v?.secret && v.hasValue) out += MASK;
+    else out += text.slice(t.from, t.to);
+    last = t.to;
+  }
+  return out + text.slice(last);
 }

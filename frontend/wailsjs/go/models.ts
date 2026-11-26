@@ -526,6 +526,20 @@ export namespace api {
 		}
 	}
 	
+	export class PathParam {
+	    key: string;
+	    value: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PathParam(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.value = source["value"];
+	    }
+	}
 	export class Project {
 	    id: string;
 	    team_id: string;
@@ -681,6 +695,7 @@ export namespace api {
 	    updated_at: string;
 	    headers: KeyValue[];
 	    query_params: KeyValue[];
+	    path_params: PathParam[];
 	    body: RequestBody;
 	    pre_script: string;
 	    post_script: string;
@@ -707,6 +722,7 @@ export namespace api {
 	        this.updated_at = source["updated_at"];
 	        this.headers = this.convertValues(source["headers"], KeyValue);
 	        this.query_params = this.convertValues(source["query_params"], KeyValue);
+	        this.path_params = this.convertValues(source["path_params"], PathParam);
 	        this.body = this.convertValues(source["body"], RequestBody);
 	        this.pre_script = source["pre_script"];
 	        this.post_script = source["post_script"];
@@ -736,6 +752,7 @@ export namespace api {
 	    url: string;
 	    headers: KeyValue[];
 	    query_params: KeyValue[];
+	    path_params: PathParam[];
 	    body: RequestBody;
 	    auth: Auth;
 	    response_filter: string;
@@ -752,6 +769,7 @@ export namespace api {
 	        this.url = source["url"];
 	        this.headers = this.convertValues(source["headers"], KeyValue);
 	        this.query_params = this.convertValues(source["query_params"], KeyValue);
+	        this.path_params = this.convertValues(source["path_params"], PathParam);
 	        this.body = this.convertValues(source["body"], RequestBody);
 	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.response_filter = source["response_filter"];
@@ -783,6 +801,7 @@ export namespace api {
 	    url?: string;
 	    headers?: KeyValue[];
 	    query_params?: KeyValue[];
+	    path_params?: PathParam[];
 	    body?: RequestBody;
 	    follow_redirects?: string;
 	    auth?: AuthPatch;
@@ -801,6 +820,7 @@ export namespace api {
 	        this.url = source["url"];
 	        this.headers = this.convertValues(source["headers"], KeyValue);
 	        this.query_params = this.convertValues(source["query_params"], KeyValue);
+	        this.path_params = this.convertValues(source["path_params"], PathParam);
 	        this.body = this.convertValues(source["body"], RequestBody);
 	        this.follow_redirects = source["follow_redirects"];
 	        this.auth = this.convertValues(source["auth"], AuthPatch);
@@ -2339,6 +2359,7 @@ export namespace main {
 	    url: string;
 	    headers: api.KeyValue[];
 	    params: api.KeyValue[];
+	    path_params: api.PathParam[];
 	    body: string;
 	    body_type: string;
 	    content_type: string;
@@ -2352,6 +2373,7 @@ export namespace main {
 	        this.url = source["url"];
 	        this.headers = this.convertValues(source["headers"], api.KeyValue);
 	        this.params = this.convertValues(source["params"], api.KeyValue);
+	        this.path_params = this.convertValues(source["path_params"], api.PathParam);
 	        this.body = source["body"];
 	        this.body_type = source["body_type"];
 	        this.content_type = source["content_type"];

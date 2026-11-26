@@ -19,7 +19,17 @@ they are never sent to the server. `{{KEY}}` tokens are highlighted in the URL, 
 params/headers/form tables; hovering one shows its value and lets you edit it in place (secrets
 after Reveal, saved locally only) or create a missing one in the active environment.
 Typing `{{` suggests the project's variables: those of the active environment first (with a value
-preview; secrets show a lock), then keys that exist only in other environments (dimmed, "in prod").
+preview; secrets show a lock), then keys that exist only in other environments (dimmed, "in prod"),
+then **generated variables**: `{{$uuid}}`, `{{$timestamp}}` (= `{{$now}}`, unix seconds; `{{$now+3600}}` /
+`{{$now-60}}` shift it), `{{$isoTimestamp}}` (UTC), `{{$date}}` (local YYYY-MM-DD), `{{$randomInt}}`
+(0–999999) and `{{$randomHex}}` (16 hex chars). They work everywhere `{{variables}}` do and get fresh values
+for every send — but, unlike Postman, ONE value per distinct token per send: `{{$uuid}}` in a header and in
+the body is the same UUID (handy for correlation ids; `{{$now}}` and `{{$now+60}}` share one clock reading).
+An unknown `{{$name}}` is sent literally and named in the response banner. Variable names can't start with
+`$`. History shows the generated values in the resolved (as sent) form. **Path variables**: a URL path
+segment like `:id` (`/users/:id`) gets a row in Params → Path variables; its value (may use `{{variables}}`)
+replaces the segment at send time, URL-escaped as ONE segment — a `/` in a value is sent as `%2F`, never as
+an extra path level. A path variable without a value is sent literally (`:id`) and named in the banner.
 Keyboard: Ctrl+Enter (Cmd+Enter on macOS) sends the active request, Ctrl+Tab / Ctrl+Shift+Tab
 switch tabs in the focused group, Ctrl+W closes the active tab, Ctrl+\ splits it to the right,
 Ctrl+1..9 focuses editor group N. In the sidebar tree: arrow keys select, Enter opens,
