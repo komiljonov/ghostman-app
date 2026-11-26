@@ -22,6 +22,7 @@ export default function ScriptHelp() {
                       <div class="script-help-item">
                         <div class="script-help-usage">
                           <code>{d.usage}</code>
+                          <Show when={d.returns}><span class="muted script-help-returns">→ {d.returns}</span></Show>
                           <Show when={whereLabel(d.where)}><span class="script-help-where">{whereLabel(d.where)}</span></Show>
                         </div>
                         <p class="muted small">{d.summary}</p>

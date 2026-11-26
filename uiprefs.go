@@ -15,6 +15,12 @@ const (
 	// ui_bulk_mode_<kind>: whether that kind of key/value table (params, headers,
 	// form) shows the bulk text view — global, not per request.
 	settingBulkModePrefix = "ui_bulk_mode_"
+	// ui_script_height_<pre|post>: a script editor's height in CSS px (request
+	// Scripts sub-tab and folder Settings… alike; global, not per request). 0 /
+	// unset = the default height. The upper bound (60 % of the pane) is the UI's.
+	settingScriptHeightPrefix = "ui_script_height_"
+	MinScriptHeight           = 80
+	maxScriptHeight           = 4000
 
 	// DefaultSidebarWidth is the sidebar width in CSS px until the user drags it.
 	DefaultSidebarWidth = 260
@@ -31,6 +37,9 @@ type UIPrefs struct {
 	BulkParams   bool `json:"bulk_params"`
 	BulkHeaders  bool `json:"bulk_headers"`
 	BulkForm     bool `json:"bulk_form"`
+	// Script editor heights in px; 0 = the default.
+	ScriptHeightPre  int `json:"script_height_pre"`
+	ScriptHeightPost int `json:"script_height_post"`
 }
 
 // bulkKinds are the tables with a bulk view.
@@ -58,7 +67,28 @@ func (a *App) GetUIPrefs() UIPrefs {
 		return ok && err == nil && b
 	}
 	prefs.BulkParams, prefs.BulkHeaders, prefs.BulkForm = bulk("params"), bulk("headers"), bulk("form")
+	height := func(kind string) int {
+		v, _ := a.setting(settingScriptHeightPrefix + kind)
+		n, err := strconv.Atoi(v)
+		if err != nil || n < MinScriptHeight || n > maxScriptHeight {
+			return 0
+		}
+		return n
+	}
+	prefs.ScriptHeightPre, prefs.ScriptHeightPost = height("pre"), height("post")
 	return prefs
+}
+
+// SetScriptEditorHeight saves a script editor kind's height (pre | post) in CSS
+// px; 0 resets it to the default (a double-click on the handle).
+func (a *App) SetScriptEditorHeight(kind string, px int) EmptyResult {
+	if kind != "pre" && kind != "post" {
+		return EmptyResult{Error: &session.Problem{Kind: session.KindInvalid, Message: "unknown script editor"}}
+	}
+	if px != 0 && (px < MinScriptHeight || px > maxScriptHeight) {
+		return EmptyResult{Error: &session.Problem{Kind: session.KindInvalid, Message: "script editor height out of range"}}
+	}
+	return a.putSetting(settingScriptHeightPrefix+kind, strconv.Itoa(px))
 }
 
 // SetSidebarWidth saves the sidebar width in CSS px.

@@ -3794,6 +3794,8 @@ export namespace main {
 	    bulk_params: boolean;
 	    bulk_headers: boolean;
 	    bulk_form: boolean;
+	    script_height_pre: number;
+	    script_height_post: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new UIPrefs(source);
@@ -3806,6 +3808,8 @@ export namespace main {
 	        this.bulk_params = source["bulk_params"];
 	        this.bulk_headers = source["bulk_headers"];
 	        this.bulk_form = source["bulk_form"];
+	        this.script_height_pre = source["script_height_pre"];
+	        this.script_height_post = source["script_height_post"];
 	    }
 	}
 	export class VariableResult {
@@ -4068,6 +4072,7 @@ export namespace scripting {
 	    summary: string;
 	    example: string;
 	    where: string;
+	    returns: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Doc(source);
@@ -4081,6 +4086,7 @@ export namespace scripting {
 	        this.summary = source["summary"];
 	        this.example = source["example"];
 	        this.where = source["where"];
+	        this.returns = source["returns"];
 	    }
 	}
 

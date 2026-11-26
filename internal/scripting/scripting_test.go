@@ -325,3 +325,13 @@ func TestDocsMatchTheAPI(t *testing.T) {
 		t.Fatalf("API and docs differ:\n api  %v\n docs %v", actual, documented)
 	}
 }
+
+// Every entry documents what it gives back (the editors' completion detail, hover
+// and the ? popover show it).
+func TestDocsHaveReturnShapes(t *testing.T) {
+	for _, d := range APIDocs {
+		if d.Returns == "" || d.Usage == "" || d.Summary == "" || d.Example == "" {
+			t.Errorf("%s: incomplete doc %+v", d.Name, d)
+		}
+	}
+}

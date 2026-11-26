@@ -590,6 +590,10 @@ export function SetResponseWrap(arg1) {
   return window['go']['main']['App']['SetResponseWrap'](arg1);
 }
 
+export function SetScriptEditorHeight(arg1, arg2) {
+  return window['go']['main']['App']['SetScriptEditorHeight'](arg1, arg2);
+}
+
 export function SetSecretValue(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetSecretValue'](arg1, arg2, arg3);
 }
