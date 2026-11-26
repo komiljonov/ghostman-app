@@ -40,12 +40,13 @@ describe("example cache: lazy, once, invalidated by change", () => {
     expect(load).toHaveBeenCalledTimes(2);
   });
 
-  it("refresh re-fetches now (a save / rename / delete); invalidateAll drops lists and late answers", async () => {
+  it("refresh re-fetches now (a save / rename / delete); refreshAll keeps the rows and drops late answers", async () => {
     let names = ["a"];
     let release!: () => void;
     const load = vi.fn(async () => {
-      if (names[0] === "slow") await new Promise<void>((r) => (release = r));
-      return names.map((n) => ex(n));
+      const snap = names; // the server's answer at request time
+      if (snap[0] === "slow") await new Promise<void>((r) => (release = r));
+      return snap.map((n) => ex(n));
     });
     const c = createExampleCache(load);
     await c.ensure("r1");
@@ -54,13 +55,16 @@ describe("example cache: lazy, once, invalidated by change", () => {
     expect(c.list("r1")?.map((e) => e.id)).toEqual(["a", "b"]);
     expect(c.count("r1")).toBe(2);
     names = ["slow"];
-    const late = c.ensure("r2");
-    c.invalidateAll(); // ↻ while r2 loads
-    expect(c.list("r1")).toBeUndefined();
-    release();
+    const late = c.ensure("r2"); // still loading when the user hits ↻
+    names = ["a", "b", "c"];
+    c.refreshAll();
+    expect(c.list("r1")?.map((e) => e.id)).toEqual(["a", "b"]); // still shown: no "Loading…" flicker
+    await vi.waitFor(() => expect(c.list("r1")?.map((e) => e.id)).toEqual(["a", "b", "c"]));
+    expect(c.list("r2")?.map((e) => e.id)).toEqual(["a", "b", "c"]); // the loading one was re-requested
+    release(); // r2's answer from BEFORE the refresh arrives last …
     await late;
-    expect(c.list("r2")).toBeUndefined(); // the answer from before the refresh is dropped
-    expect(c.count("r1")).toBe(2); // counts stay: the chevron does not flicker
+    expect(c.list("r2")?.map((e) => e.id)).toEqual(["a", "b", "c"]); // … and is dropped
+    expect(c.count("r1")).toBe(3);
   });
 });
 

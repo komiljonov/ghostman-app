@@ -6,7 +6,9 @@
 // until they are known to be stale:
 //   - a newer count disagrees with the cached list (a teammate added / deleted),
 //   - an example of that request changed here (refresh),
-//   - an explicit refresh (↻ / window focus: invalidateAll).
+//   - an explicit refresh (↻ / window focus: refreshAll — every loaded or loading
+//     list is re-fetched, the shown rows stay until the answer arrives, so the
+//     tree never flickers through "Loading…" nor shifts under an open menu).
 // Nothing is patched locally: every value is a server answer.
 import { createSignal } from "solid-js";
 
@@ -24,7 +26,7 @@ export interface ExampleCache<T extends ExampleSummaryLike> {
   setList: (requestId: string, list: readonly T[]) => void; // a fresh server list (count follows)
   ensure: (requestId: string) => Promise<void>; // load once
   refresh: (requestId: string) => Promise<void>; // re-fetch now
-  invalidateAll: () => void;
+  refreshAll: () => void;
   // The request an example belongs to, among the loaded lists.
   ownerOf: (exampleId: string) => string | undefined;
 }
@@ -35,7 +37,7 @@ export function createExampleCache<T extends ExampleSummaryLike>(
   const [counts, setCountsMap] = createSignal<ReadonlyMap<string, number>>(new Map());
   const [lists, setLists] = createSignal<ReadonlyMap<string, readonly T[]>>(new Map());
   const inflight = new Map<string, Promise<void>>();
-  let generation = 0; // bumped by invalidateAll: answers from before are dropped
+  let generation = 0; // bumped by refreshAll: answers from before are dropped
 
   const dropList = (ids: string[]) => {
     const cur = lists();
@@ -84,10 +86,11 @@ export function createExampleCache<T extends ExampleSummaryLike>(
     setList,
     ensure: (id) => (lists().has(id) ? Promise.resolve() : inflight.get(id) ?? fetch(id)),
     refresh: (id) => fetch(id),
-    invalidateAll: () => {
+    refreshAll: () => {
+      const ids = new Set([...lists().keys(), ...inflight.keys()]);
       generation++;
       inflight.clear();
-      setLists(new Map());
+      for (const id of ids) void fetch(id);
     },
     ownerOf: (exampleId) => {
       for (const [rid, l] of lists()) if (l.some((e) => e.id === exampleId)) return rid;

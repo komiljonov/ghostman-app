@@ -1,5 +1,5 @@
 import { createSignal, For, Show } from "solid-js";
-import { CreateProxy, DeleteProxy, UpdateProxy } from "../../wailsjs/go/main/App";
+import { CreateProxy, DeleteProxy, ReorderProxies, UpdateProxy } from "../../wailsjs/go/main/App";
 import { api, main } from "../../wailsjs/go/models";
 import { handleProblem } from "../authStore";
 import { createAction } from "../action";
@@ -9,6 +9,9 @@ import ConfirmDialog from "./ConfirmDialog";
 import ContextMenu, { MenuEntry } from "./ContextMenu";
 import FormError from "./FormError";
 import Icon from "./Icon";
+import RowDragLayer from "./RowDragLayer";
+import { createRowDrag } from "../rowDrag";
+import { saveOrder } from "../rowOrder";
 
 interface Props {
   projectId: string;
@@ -32,6 +35,24 @@ export default function ProxiesSection(props: Props) {
   const [creating, setCreating] = createSignal(false);
   const [newName, setNewName] = createSignal("");
   const [renamingId, setRenamingId] = createSignal<string>();
+  // Rows drag to reorder (rowDrag.ts): the full order is saved on the server
+  // (ReorderProxies, shared with the team), then the list re-fetched.
+  let list: HTMLUListElement | undefined;
+  const [orderError, setOrderError] = createSignal<string>();
+  const drag = createRowDrag({
+    list: () => list,
+    ignore: "input, button",
+    label: (id) => proxies().find((x) => x.id === id)?.name ?? "",
+    onDrop: (order) => void saveOrder(order, {
+      save: async (ids) => {
+        const r = await ReorderProxies(props.projectId, ids);
+        handleProblem(r.error);
+        return r;
+      },
+      reload: reloadProxies,
+      onError: setOrderError,
+    }),
+  });
   const [renameDraft, setRenameDraft] = createSignal("");
   const [rowError, setRowError] = createSignal<string>();
   const [deleting, setDeleting] = createSignal<api.Proxy>();
@@ -137,11 +158,13 @@ export default function ProxiesSection(props: Props) {
                 </p>
               </Show>
             }>
-              <ul class="hooks-list" aria-label="Proxies">
+              <FormError message={orderError()} />
+              <ul class="hooks-list" aria-label="Proxies" ref={list} onPointerDown={drag.onPointerDown}>
                 <For each={proxies()}>
                   {(p) => (
-                    <li classList={{ "hooks-row": true, "proxy-item-row": true, open: props.isOpen(p.id) }}
-                      onClick={() => renamingId() !== p.id && props.onOpen(p.id, p.name)}
+                    <li classList={{ "hooks-row": true, "proxy-item-row": true, open: props.isOpen(p.id), "drag-source": drag.isDragging(p.id) }}
+                      data-drag-id={p.id}
+                      onClick={() => !drag.consumeClick() && renamingId() !== p.id && props.onOpen(p.id, p.name)}
                       onContextMenu={(e) => {
                         e.preventDefault();
                         setMenu({ proxy: p, x: e.clientX, y: e.clientY });
@@ -178,6 +201,7 @@ export default function ProxiesSection(props: Props) {
                   )}
                 </For>
               </ul>
+              <RowDragLayer view={drag.view()} />
             </Show>
           </Show>
         </div>

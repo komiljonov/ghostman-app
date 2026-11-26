@@ -38,7 +38,8 @@ import ImportReport from "./ImportReport";
 import SidebarPanels from "./SidebarPanels";
 import WebhookView from "./WebhookView";
 import { flushWebhookEdits, markSeen, reloadWebhooks, resetWebhooks, syncFeeds, webhooks, webhooksLoaded } from "../webhookStore";
-import { invalidateExampleLists } from "../examplesStore";
+import { refreshExampleLists } from "../examplesStore";
+import { loadRecentHeaderKeys } from "../headerKeysStore";
 import { DEFAULT_BODY_CHOICE, DEFAULT_HISTORY_CHOICE } from "../viewChoice";
 
 interface Props {
@@ -97,6 +98,7 @@ export default function MainScreen(props: Props) {
     publishProjectId(id);
     void loadEnvContext(id);
     void loadProxies(id);
+    void loadRecentHeaderKeys(id); // header key completion: this project's recent keys
   }));
   // Proxy tabs follow the proxy list: renames relabel, deletes close.
   createEffect(() => {
@@ -258,7 +260,7 @@ export default function MainScreen(props: Props) {
   };
 
   const refresh = async () => {
-    invalidateExampleLists(); // expanded tree requests re-fetch their examples
+    refreshExampleLists(); // the tree's loaded example rows re-fetch (shown until the answer)
     setRefreshTick((n) => n + 1);
     await Promise.all([reloadWorkspace(), refreshInvitations(), refreshEnvContext(), reloadProxies()]);
   };
@@ -309,6 +311,7 @@ export default function MainScreen(props: Props) {
           <ProjectSwitcher
             teamId={teamId()}
             projects={ws()?.projects ?? []}
+            isOwner={!!ws()?.teams.find((t) => t.id === teamId())?.is_owner}
             currentId={projectId()}
             onOpen={refresh}
             onSelect={selectProject}

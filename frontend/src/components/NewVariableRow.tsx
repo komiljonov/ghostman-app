@@ -10,8 +10,8 @@ interface Props {
   onCreated: () => void;
 }
 
-// The trailing append row: complete from the start (key · type · value · the
-// actions, disabled), like a saved row. It is a draft until committed as a whole
+// The trailing append row: complete from the start (grip · key · type · value ·
+// the actions, all inert until it exists), like a saved row. It is a draft until committed as a whole
 // (rules in envRows.ts): Enter, or Tab from the value, creates the variable with
 // its value (one bound call; a secret's value stays local) and puts focus on the
 // next — new, empty — row's key; focus leaving the row creates it too. Creates
@@ -64,6 +64,9 @@ export default function NewVariableRow(props: Props) {
         const to = e.relatedTarget as Node | null;
         if (commitOnLeave(draft(), !!to && !!row?.contains(to))) commit(false);
       }}>
+      <td class="var-drag">
+        <span class="drag-handle off" aria-hidden="true"><Icon name="grip" /></span>
+      </td>
       <td>
         <input ref={keyInput} type="text" class="var-key" spellcheck={false} placeholder="New variable" aria-label="New variable key"
           value={draft().key} onInput={(e) => edit({ key: e.currentTarget.value })} onKeyDown={onKey("key")} />
@@ -87,8 +90,6 @@ export default function NewVariableRow(props: Props) {
         </span>
       </td>
       <td class="var-actions">
-        <button type="button" class="small-button" aria-label="Move up" tabIndex={-1} disabled>↑</button>
-        <button type="button" class="small-button" aria-label="Move down" tabIndex={-1} disabled>↓</button>
         <button type="button" class="icon-button" aria-label="Delete variable" tabIndex={-1} disabled><Icon name="trash" size={14} /></button>
         <Show when={error()}><div class="inline-error">{error()}</div></Show>
       </td>

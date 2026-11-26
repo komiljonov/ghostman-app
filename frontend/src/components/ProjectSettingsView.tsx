@@ -1,11 +1,15 @@
 import { createResource, createSignal, For, Show } from "solid-js";
-import { DeleteProject, GetTeam, MoveProject, UpdateProjectName } from "../../wailsjs/go/main/App";
+import { DeleteProject, GetTeam, ReorderProjects, UpdateProjectName } from "../../wailsjs/go/main/App";
 import { api } from "../../wailsjs/go/models";
 import { authState, handleProblem } from "../authStore";
 import { createAction } from "../action";
 import ConfirmButton from "./ConfirmButton";
 import FormError from "./FormError";
 import ProjectAccessModal from "./ProjectAccessModal";
+import Icon from "./Icon";
+import RowDragLayer from "./RowDragLayer";
+import { createRowDrag } from "../rowDrag";
+import { saveOrder } from "../rowOrder";
 
 interface Props {
   teamId: string;
@@ -34,7 +38,23 @@ export default function ProjectSettingsView(props: Props) {
   const [name, setName] = createSignal("");
   const [accessOpen, setAccessOpen] = createSignal(false);
   const rename = createAction(UpdateProjectName);
-  const move = createAction(MoveProject);
+  // The project order: rows drag to reorder (rowDrag.ts); the full team order is
+  // saved, then the workspace re-fetched.
+  let orderList: HTMLUListElement | undefined;
+  const [orderError, setOrderError] = createSignal<string>();
+  const drag = createRowDrag({
+    list: () => orderList,
+    label: (id) => props.projects.find((p) => p.id === id)?.name ?? "",
+    onDrop: (order) => void saveOrder(order, {
+      save: async (ids) => {
+        const r = await ReorderProjects(props.teamId, ids);
+        handleProblem(r.error);
+        return r;
+      },
+      reload: props.onChanged,
+      onError: setOrderError,
+    }),
+  });
 
   const submitRename = async (e: SubmitEvent) => {
     e.preventDefault();
@@ -43,11 +63,6 @@ export default function ProjectSettingsView(props: Props) {
       setEditing(false);
       props.onChanged();
     }
-  };
-
-  const doMove = async (id: string, offset: number) => {
-    const result = await move.run(props.teamId, id, offset);
-    if (result && !result.error) props.onChanged();
   };
 
   return (
@@ -93,21 +108,20 @@ export default function ProjectSettingsView(props: Props) {
       <Show when={canReorder()} fallback={
         <p class="muted small">Only the team owner and members with access to all projects can reorder.</p>
       }>
-        <ul class="rows">
+        <p class="muted small">Drag a project to reorder (also in the project switcher).</p>
+        <ul class="rows" ref={orderList} onPointerDown={drag.onPointerDown}>
           <For each={props.projects}>
-            {(p, i) => (
-              <li classList={{ "row-item": true, current: p.id === props.project.id }}>
+            {(p) => (
+              <li classList={{ "row-item": true, current: p.id === props.project.id, "drag-source": drag.isDragging(p.id) }}
+                data-drag-id={p.id}>
+                <span class="drag-handle" aria-hidden="true"><Icon name="grip" /></span>
                 <span>{p.name}</span>
-                <span class="row-spacer" />
-                <button type="button" class="small-button" title="Move up" aria-label={`Move ${p.name} up`}
-                  disabled={i() === 0 || move.pending()} onClick={() => doMove(p.id, -1)}>↑</button>
-                <button type="button" class="small-button" title="Move down" aria-label={`Move ${p.name} down`}
-                  disabled={i() === props.projects.length - 1 || move.pending()} onClick={() => doMove(p.id, 1)}>↓</button>
               </li>
             )}
           </For>
         </ul>
-        <FormError message={move.error()} />
+        <FormError message={orderError()} />
+        <RowDragLayer view={drag.view()} />
       </Show>
 
       <Show when={canManage()}>

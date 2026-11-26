@@ -1158,6 +1158,42 @@ button.danger-outline {
   text-align: center;
 }
 
+/* The "use the Auth tab" hint (AuthHint.tsx): at the end of a header row's value. */
+.kv-table td:has(> .auth-hint) {
+  position: relative;
+}
+
+.auth-hint {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--client);
+  cursor: pointer;
+}
+
+.auth-hint:hover,
+.auth-hint[aria-expanded="true"] {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.kv-table .kv-drag {
+  width: 18px;
+  padding-right: 0;
+  padding-left: 0;
+  text-align: center;
+}
+
 .kv-table .kv-remove {
   width: 32px;
 }
@@ -1656,8 +1692,14 @@ button.danger-outline {
 }
 
 .var-table .var-actions {
-  width: 130px;
+  width: 44px;
   white-space: nowrap;
+}
+
+.var-table .var-drag {
+  width: 22px;
+  padding: 2px 0;
+  vertical-align: middle;
 }
 
 .var-table input[type="text"],
@@ -2322,6 +2364,47 @@ input:disabled {
 
 .tree-row.drag-source {
   opacity: 0.45;
+}
+
+/* ---- Row drag and drop (rowDrag.ts, RowDragLayer.tsx): every flat list ---- */
+
+.row-dragging,
+.row-dragging * {
+  cursor: grabbing !important;
+  user-select: none !important;
+}
+
+.drag-source {
+  opacity: 0.45;
+}
+
+.row-drag-ghost span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The handle of rows with editable cells (variables, key/value rows): only it
+   starts a drag, so selecting text in a cell never turns into one. */
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 24px;
+  color: var(--muted);
+  cursor: grab;
+  opacity: 0.55;
+}
+
+.drag-handle:hover {
+  opacity: 1;
+  color: var(--text);
+}
+
+.drag-handle.off {
+  cursor: default;
+  opacity: 0.2;
 }
 
 .tree-row.drop-into {
@@ -5467,7 +5550,7 @@ body.tab-dragging * {
 
 .examples-row {
   display: grid;
-  grid-template-columns: 52px minmax(80px, 1fr) minmax(0, 180px) 70px 70px auto 28px;
+  grid-template-columns: 52px minmax(80px, 1fr) minmax(0, 180px) 70px 70px 28px;
   align-items: center;
   gap: 10px;
   min-height: 34px;
@@ -5492,18 +5575,6 @@ body.tab-dragging * {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.examples-move {
-  display: inline-flex;
-  gap: 2px;
-}
-
-.small-move {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  font-size: 12px;
 }
 
 .example-detail {

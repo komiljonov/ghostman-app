@@ -170,31 +170,3 @@ func (c *APIClient) LoadMemberAccess(ctx context.Context, teamID, userID string)
 	}
 	return view, nil
 }
-
-// MoveProject moves a project up (offset -1) or down (+1) in the team order. It
-// reads the current order from the server first (nothing is cached) and sends the
-// full list; if the caller cannot see every team project, the server rejects it
-// with its "must list all" message.
-func (c *APIClient) MoveProject(ctx context.Context, teamID, projectID string, offset int) error {
-	projects, err := c.ListProjects(ctx, teamID)
-	if err != nil {
-		return err
-	}
-	ids := make([]string, len(projects))
-	from := -1
-	for i, p := range projects {
-		ids[i] = p.ID
-		if p.ID == projectID {
-			from = i
-		}
-	}
-	if from < 0 {
-		return &APIError{Status: http.StatusNotFound, Code: "not_found", Message: "project not found"}
-	}
-	to := from + offset
-	if to < 0 || to >= len(ids) {
-		return nil // already at the edge
-	}
-	ids[from], ids[to] = ids[to], ids[from]
-	return c.ReorderProjects(ctx, teamID, ids)
-}

@@ -341,22 +341,3 @@ func (m *Manager) DeleteEnvironment(ctx context.Context, c Client, projectID, en
 	}
 	return m.store.DeleteSecrets(ctx, envID)
 }
-
-// Move returns ids with id moved one place up (-1) or down (+1), and whether
-// anything changed (false at the edges or for an unknown id). Reorder endpoints
-// want the full list, so callers read it fresh and send the result.
-func Move(ids []string, id string, offset int) ([]string, bool) {
-	from := -1
-	for i, x := range ids {
-		if x == id {
-			from = i
-		}
-	}
-	to := from + offset
-	if from < 0 || to < 0 || to >= len(ids) || offset == 0 {
-		return ids, false
-	}
-	out := append([]string{}, ids...)
-	out[from], out[to] = out[to], out[from]
-	return out, true
-}

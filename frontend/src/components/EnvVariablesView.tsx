@@ -1,10 +1,14 @@
 import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
-import { ListVariables } from "../../wailsjs/go/main/App";
+import { ListVariables, ReorderVariables } from "../../wailsjs/go/main/App";
 import { envs } from "../../wailsjs/go/models";
 import { handleProblem } from "../authStore";
 import { envContext, refreshEnvContext } from "../envStore";
+import { createRowDrag } from "../rowDrag";
+import { saveOrder } from "../rowOrder";
+import FormError from "./FormError";
 import NewVariableRow from "./NewVariableRow";
+import RowDragLayer from "./RowDragLayer";
 import VariableRow from "./VariableRow";
 
 interface Props {
@@ -17,6 +21,8 @@ interface Props {
 // the rows BY ID, so a re-fetch after a rename / retype / create updates rows in
 // place: no row remounts, and keyboard focus (Tab from a just-committed key) stays.
 // Tab order per row: key → type → value → the next row's key (actions are mouse-only).
+// Rows reorder by drag and drop on their grip (handle-only: the cells are inputs),
+// saved as the full order (ReorderVariables), then re-fetched.
 export default function EnvVariablesView(props: Props) {
   const [tick, setTick] = createSignal(0);
   const env = () => envContext()?.environments.find((e) => e.id === props.envId);
@@ -38,6 +44,27 @@ export default function EnvVariablesView(props: Props) {
     void refreshEnvContext();
   };
 
+  let body: HTMLTableSectionElement | undefined;
+  let scroll: HTMLDivElement | undefined;
+  let head: HTMLTableSectionElement | undefined;
+  const [orderError, setOrderError] = createSignal<string>();
+  const drag = createRowDrag({
+    list: () => body,
+    handle: ".drag-handle:not(.off)",
+    scroller: () => scroll,
+    stickyTop: () => head?.getBoundingClientRect().height ?? 0,
+    label: (id) => rows.find((v) => v.id === id)?.key ?? "",
+    onDrop: (order) => void saveOrder(order, {
+      save: async (ids) => {
+        const r = await ReorderVariables(props.envId, ids);
+        handleProblem(r.error);
+        return r;
+      },
+      reload: structureChanged,
+      onError: setOrderError,
+    }),
+  });
+
   return (
     <div class="env-manage">
       <div class="pane-kicker">Environment</div>
@@ -54,19 +81,19 @@ export default function EnvVariablesView(props: Props) {
           {(res) => (
             <Show when={!res().error} fallback={<p class="form-error">{res().error?.message}</p>}>
               {/* The table scrolls under the fixed header (name, hint); its column heads stick. */}
-              <div class="env-var-scroll">
+              <FormError message={orderError()} />
+              <div class="env-var-scroll" ref={scroll}>
                 <table class="var-table">
-                  <thead>
-                    <tr><th>Key</th><th class="var-type">Type</th><th>Value</th><th class="var-actions" /></tr>
+                  <thead ref={head}>
+                    <tr><th class="var-drag" /><th>Key</th><th class="var-type">Type</th><th>Value</th><th class="var-actions" /></tr>
                   </thead>
-                  <tbody>
+                  <tbody ref={body} onPointerDown={drag.onPointerDown}>
                     <For each={rows}>
-                      {(v, i) => (
+                      {(v) => (
                         <VariableRow
                           envId={props.envId}
                           variable={v}
-                          first={i() === 0}
-                          last={i() === rows.length - 1}
+                          dragging={drag.isDragging(v.id)}
                           onStructureChanged={structureChanged}
                           onValueSaved={() => void refreshEnvContext()}
                         />
@@ -76,6 +103,7 @@ export default function EnvVariablesView(props: Props) {
                   </tbody>
                 </table>
               </div>
+              <RowDragLayer view={drag.view()} />
             </Show>
           )}
         </Show>

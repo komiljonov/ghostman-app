@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 
@@ -107,7 +109,58 @@ func (a *App) ListWebhooks(projectID string) WebhookListResult {
 	v, p := call(a, func(ctx context.Context, c *api.APIClient) ([]api.Webhook, error) {
 		return c.ListWebhooks(ctx, projectID)
 	})
+	if p == nil {
+		v = orderByIDs(v, func(w api.Webhook) string { return w.ID }, a.webhookOrder(projectID))
+	}
 	return WebhookListResult{Data: v, Error: p}
+}
+
+// The server has no order for webhook endpoints, so the sidebar's drag and drop
+// order is LOCAL (this machine, per project): settings ui_webhook_order_<project>.
+const settingWebhookOrderPrefix = "ui_webhook_order_"
+
+func (a *App) webhookOrder(projectID string) []string {
+	var ids []string
+	if a.store == nil || projectID == "" {
+		return ids
+	}
+	if v, ok := a.setting(settingWebhookOrderPrefix + projectID); ok {
+		_ = json.Unmarshal([]byte(v), &ids)
+	}
+	return ids
+}
+
+// SetWebhookOrder stores the sidebar order of the project's webhook endpoints
+// (every id, in the new order). Local only: teammates keep their own order.
+func (a *App) SetWebhookOrder(projectID string, ids []string) EmptyResult {
+	b, _ := json.Marshal(ids)
+	return a.putSetting(settingWebhookOrderPrefix+projectID, string(b))
+}
+
+// orderByIDs returns list in the saved order: items named in order first, in that
+// order; then the rest (new or unknown) in their original order. Ids in order that
+// are no longer in list are ignored.
+func orderByIDs[T any](list []T, id func(T) string, order []string) []T {
+	if len(order) == 0 {
+		return list
+	}
+	rank := make(map[string]int, len(order))
+	for i, x := range order {
+		if _, dup := rank[x]; !dup {
+			rank[x] = i
+		}
+	}
+	ranked := make([]T, 0, len(list))
+	var rest []T
+	for _, it := range list {
+		if _, ok := rank[id(it)]; ok {
+			ranked = append(ranked, it)
+		} else {
+			rest = append(rest, it)
+		}
+	}
+	sort.SliceStable(ranked, func(i, j int) bool { return rank[id(ranked[i])] < rank[id(ranked[j])] })
+	return append(ranked, rest...)
 }
 
 // GetWebhook returns one endpoint with its configured response.

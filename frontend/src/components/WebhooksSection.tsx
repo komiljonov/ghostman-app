@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, For, on, onCleanup, Show } from "solid-js";
-import { CreateWebhook, DeleteWebhook, UpdateWebhook } from "../../wailsjs/go/main/App";
+import { CreateWebhook, DeleteWebhook, SetWebhookOrder, UpdateWebhook } from "../../wailsjs/go/main/App";
 import { api, main } from "../../wailsjs/go/models";
 import { ClipboardSetText } from "../../wailsjs/runtime/runtime";
 import { handleProblem } from "../authStore";
@@ -12,6 +12,9 @@ import ConfirmDialog from "./ConfirmDialog";
 import ContextMenu, { MenuEntry } from "./ContextMenu";
 import FormError from "./FormError";
 import Icon from "./Icon";
+import RowDragLayer from "./RowDragLayer";
+import { createRowDrag } from "../rowDrag";
+import { saveOrder } from "../rowOrder";
 
 interface Props {
   projectId: string;
@@ -32,6 +35,24 @@ export default function WebhooksSection(props: Props) {
   const [newName, setNewName] = createSignal("");
   const [notConfigured, setNotConfigured] = createSignal(false);
   const [renamingId, setRenamingId] = createSignal<string>();
+  // Rows drag to reorder (rowDrag.ts): the server has no webhook order, so it is
+  // LOCAL to this machine (SetWebhookOrder; ListWebhooks applies it), then re-fetched.
+  let list: HTMLUListElement | undefined;
+  const [orderError, setOrderError] = createSignal<string>();
+  const drag = createRowDrag({
+    list: () => list,
+    ignore: "input, button",
+    label: (id) => webhooks().find((x) => x.id === id)?.name ?? "",
+    onDrop: (order) => void saveOrder(order, {
+      save: async (ids) => {
+        const r = await SetWebhookOrder(props.projectId, ids);
+        handleProblem(r.error);
+        return r;
+      },
+      reload: reloadWebhooks,
+      onError: setOrderError,
+    }),
+  });
   const [renameDraft, setRenameDraft] = createSignal("");
   const [rowError, setRowError] = createSignal<string>();
   const [deleting, setDeleting] = createSignal<api.Webhook>();
@@ -169,14 +190,16 @@ export default function WebhooksSection(props: Props) {
                 </p>
               </Show>
             }>
-              <ul class="hooks-list" aria-label="Webhook endpoints">
+              <FormError message={orderError()} />
+              <ul class="hooks-list" aria-label="Webhook endpoints" ref={list} onPointerDown={drag.onPointerDown}>
                 <For each={webhooks()}>
                   {(h) => {
                     const state = () => listenState(h.id);
                     const unseen = () => feedOf(h.id)?.unseen ?? 0;
                     return (
-                      <li classList={{ "hooks-row": true, open: props.isOpen(h.id) }}
-                        onClick={() => renamingId() !== h.id && props.onOpen(h.id, h.name)}
+                      <li classList={{ "hooks-row": true, open: props.isOpen(h.id), "drag-source": drag.isDragging(h.id) }}
+                        data-drag-id={h.id}
+                        onClick={() => !drag.consumeClick() && renamingId() !== h.id && props.onOpen(h.id, h.name)}
                         onContextMenu={(e) => {
                           e.preventDefault();
                           setMenu({ hook: h, x: e.clientX, y: e.clientY });
@@ -217,6 +240,7 @@ export default function WebhooksSection(props: Props) {
                   }}
                 </For>
               </ul>
+              <RowDragLayer view={drag.view()} />
             </Show>
           </Show>
         </div>

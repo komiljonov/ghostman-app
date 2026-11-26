@@ -14,6 +14,19 @@ const SHAPES = {
     </>
   ),
   plus: () => <path d="M8 3v10M3 8h10" />,
+  // Drag handle (2 × 3 dots): rows reordered by drag and drop.
+  grip: () => (
+    <g fill="currentColor" stroke="none">
+      <circle cx="6" cy="4" r="1.1" />
+      <circle cx="10" cy="4" r="1.1" />
+      <circle cx="6" cy="8" r="1.1" />
+      <circle cx="10" cy="8" r="1.1" />
+      <circle cx="6" cy="12" r="1.1" />
+      <circle cx="10" cy="12" r="1.1" />
+    </g>
+  ),
+  // A key: the "use the Auth tab" hint on a hand-typed Authorization header.
+  key: () => <path d="M6.25 9.75a3.25 3.25 0 1 1 2.6-1.3L13.75 13.4M11.5 11.15l1.5-1.5M10 9.65l1.25-1.25M4.75 6.5h.01" />,
   dots: () => (
     <g fill="currentColor" stroke="none">
       <circle cx="3.5" cy="8" r="1.25" />

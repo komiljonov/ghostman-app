@@ -1,5 +1,5 @@
 import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
-import { DeleteVariable, MoveVariable, SetVariableKey, SetVariableType, SetVariableValue } from "../../wailsjs/go/main/App";
+import { DeleteVariable, SetVariableKey, SetVariableType, SetVariableValue } from "../../wailsjs/go/main/App";
 import { envs } from "../../wailsjs/go/models";
 import { createAction } from "../action";
 import { createAutosaver, SaveState } from "../autosave";
@@ -11,8 +11,7 @@ import Icon from "./Icon";
 interface Props {
   envId: string;
   variable: envs.VariableView;
-  first: boolean;
-  last: boolean;
+  dragging: boolean; // this row is being dragged (EnvVariablesView's row drag)
   onStructureChanged: () => void; // key/type/order/delete: re-fetch the table
   onValueSaved: () => void; // value saved: refresh highlighting
 }
@@ -22,8 +21,8 @@ interface Props {
 // The row stays mounted across re-fetches (EnvVariablesView reconciles by id), so
 // it adopts fresh server state itself: a key while its field is not being edited,
 // a value while no local edit is pending. Tab order: key → type → value; the
-// action buttons are left out (tabIndex -1), so Tab from the value reaches the
-// next row's key.
+// grip (drag to reorder) and the delete button are left out (mouse-only), so Tab
+// from the value reaches the next row's key.
 export default function VariableRow(props: Props) {
   const isSecret = () => props.variable.type === "secret";
   const [key, setKey] = createSignal(props.variable.key);
@@ -55,9 +54,8 @@ export default function VariableRow(props: Props) {
 
   const rename = createAction(SetVariableKey);
   const retype = createAction(SetVariableType);
-  const move = createAction(MoveVariable);
   const del = createAction(DeleteVariable);
-  const error = () => rename.error() || retype.error() || move.error() || del.error() || saveError();
+  const error = () => rename.error() || retype.error() || del.error() || saveError();
 
   const commitKey = async () => {
     const next = key().trim();
@@ -81,11 +79,6 @@ export default function VariableRow(props: Props) {
     if (result && !result.error) props.onStructureChanged();
   };
 
-  const doMove = async (offset: number) => {
-    const result = await move.run(props.envId, props.variable.id, offset);
-    if (result && !result.error) props.onStructureChanged();
-  };
-
   const doDelete = async () => {
     saver.dispose();
     const result = await del.run(props.variable.id);
@@ -93,7 +86,10 @@ export default function VariableRow(props: Props) {
   };
 
   return (
-    <tr classList={{ "var-row": true, secret: isSecret() }}>
+    <tr classList={{ "var-row": true, secret: isSecret(), "drag-source": props.dragging }} data-drag-id={props.variable.id}>
+      <td class="var-drag">
+        <span class="drag-handle" title="Drag to reorder"><Icon name="grip" /></span>
+      </td>
       <td>
         <input ref={keyInput} type="text" class="var-key" spellcheck={false} aria-label="Variable key" value={key()}
           onInput={(e) => setKey(e.currentTarget.value)}
@@ -136,10 +132,6 @@ export default function VariableRow(props: Props) {
         </span>
       </td>
       <td class="var-actions">
-        <button type="button" class="small-button" title="Move up" aria-label="Move up" tabIndex={-1}
-          disabled={props.first || move.pending()} onClick={() => void doMove(-1)}>↑</button>
-        <button type="button" class="small-button" title="Move down" aria-label="Move down" tabIndex={-1}
-          disabled={props.last || move.pending()} onClick={() => void doMove(1)}>↓</button>
         <button type="button" class="icon-button" title="Delete variable" aria-label="Delete variable" tabIndex={-1}
           disabled={del.pending()} onClick={() => void doDelete()}><Icon name="trash" size={14} /></button>
         <Show when={error()}><div class="inline-error">{error()}</div></Show>

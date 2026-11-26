@@ -167,28 +167,6 @@ export function buildTree(
   return { root: sortAll(root), folders, requests, requestCount: requests.size };
 }
 
-// The nodes at the same level as `node` (same kind), in order.
-function siblings(tree: Tree, node: TreeNode): TreeNode[] {
-  const parentId = node.kind === "folder" ? node.parentId : node.folderId;
-  const level = parentId === null ? tree.root : tree.folders.get(parentId)?.children ?? [];
-  return level.filter((n) => n.kind === node.kind);
-}
-
-// The full sibling id list after moving `node` one step up (-1) or down (+1), or
-// null when it is already at that edge. The reorder endpoints want exactly this list.
-export function reorderedSiblingIds(tree: Tree, node: TreeNode, offset: -1 | 1): string[] | null {
-  const ids = siblings(tree, node).map((n) => n.id);
-  const from = ids.indexOf(node.id);
-  const to = from + offset;
-  if (from < 0 || to < 0 || to >= ids.length) return null;
-  [ids[from], ids[to]] = [ids[to], ids[from]];
-  return ids;
-}
-
-export function canMove(tree: Tree, node: TreeNode, offset: -1 | 1): boolean {
-  return reorderedSiblingIds(tree, node, offset) !== null;
-}
-
 // A folder and all folders below it: invalid targets when moving that folder.
 export function folderAndDescendantIds(folder: FolderNode): Set<string> {
   const out = new Set<string>([folder.id]);

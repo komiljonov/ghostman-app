@@ -83,13 +83,6 @@ func (a *App) ReorderProjects(teamID string, projectIDs []string) EmptyResult {
 	})
 }
 
-// MoveProject moves a project one place up (offset -1) or down (+1) in the team order.
-func (a *App) MoveProject(teamID, projectID string, offset int) EmptyResult {
-	return callEmpty(a, func(ctx context.Context, c *api.APIClient) error {
-		return c.MoveProject(ctx, teamID, projectID, offset)
-	})
-}
-
 // GetProjectAccess returns a project's explicit grant list.
 func (a *App) GetProjectAccess(id string) ProjectAccessUserListResult {
 	v, p := call(a, func(ctx context.Context, c *api.APIClient) ([]api.ProjectAccessUser, error) {

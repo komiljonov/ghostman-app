@@ -16,7 +16,7 @@ export const setExampleCount = cache.setCount;
 export const setExampleCounts = cache.setCounts; // from every request list (ProjectTree)
 export const setExampleList = cache.setList; // a panel's own fetch
 export const ensureExamples = cache.ensure; // the tree's first expand
-export const invalidateExampleLists = cache.invalidateAll; // ↻ / window focus
+export const refreshExampleLists = cache.refreshAll; // ↻ / window focus
 export const exampleOwner = cache.ownerOf;
 
 // A request's examples changed elsewhere: open panels re-fetch.

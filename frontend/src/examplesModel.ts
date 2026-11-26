@@ -28,8 +28,6 @@ export const exampleMeta = (e: ExampleRow, now: number) => ({
   updated: relativeTime(e.updated_at, now),
 });
 
-// ↑ / ↓ on a row (the first can't go up, the last can't go down).
-export const moveState = (index: number, count: number) => ({ up: index > 0, down: index < count - 1 });
 
 // ---- Save as example (response pane, history detail) ----
 

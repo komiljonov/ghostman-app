@@ -1,4 +1,7 @@
-import { For, Match, Show, Switch } from "solid-js";
+import { createEffect, createSignal, For, Match, on, Show, Switch } from "solid-js";
+import { DismissAuthHint, IsAuthHintDismissed } from "../../wailsjs/go/main/App";
+import { convertToApiKey, convertToBearer, showAuthHint } from "../authHint";
+import AuthHint from "./AuthHint";
 import { Row } from "../rows";
 import { applyUrlInput, serializeUrl } from "../urlParams";
 import { TabsController, TabState } from "../tabsController";
@@ -38,6 +41,32 @@ export default function RequestEditor(props: Props) {
   const id = () => props.tab.id;
   const edit = (fn: Parameters<TabsController["edit"]>[1]) => props.controller.edit(id(), fn);
   const view = (fn: (t: TabState) => void) => props.controller.view(id(), fn);
+
+  // "Use the Auth tab" on a hand-typed Authorization header (authHint.ts): shown
+  // while the request's own auth is inherit / none and nothing resolved adds that
+  // header; dismissed per request (local). A conversion is one draft edit — the
+  // autosave PATCHes auth + the disabled header row together.
+  const [hintDismissed, setHintDismissed] = createSignal(false);
+  createEffect(on(id, (rid) => {
+    setHintDismissed(false);
+    void IsAuthHintDismissed(rid).then((d) => rid === id() && setHintDismissed(d));
+  }));
+  const resolvedAuth = () => effectiveAuthOf(currentTree(), props.tab.id, props.tab.draft.auth).config;
+  const authHint = (row: () => Row, index: number) => (
+    <Show when={showAuthHint(row(), props.tab.draft.auth, resolvedAuth(), hintDismissed())}>
+      <AuthHint value={row().value}
+        onConvert={(kind) => edit((d) => {
+          const next = (kind === "bearer" ? convertToBearer : convertToApiKey)(d.auth, d.headers, index);
+          if (!next) return;
+          d.auth = next.auth;
+          d.headers = next.headers;
+        })}
+        onDismiss={() => {
+          setHintDismissed(true);
+          void DismissAuthHint(id());
+        }} />
+    </Show>
+  );
 
   const startDrag = (e: PointerEvent) => {
     e.preventDefault();
@@ -143,7 +172,7 @@ export default function RequestEditor(props: Props) {
                   </Match>
                   <Match when={props.tab.section === "headers"}>
                     <KeyValueEditor kind="headers" rows={props.tab.draft.headers} keyPlaceholder="Header"
-                      onChange={(rows) => edit((d) => (d.headers = rows))} />
+                      onChange={(rows) => edit((d) => (d.headers = rows))} rowAside={authHint} />
                   </Match>
                   <Match when={props.tab.section === "body"}>
                     <BodyEditor requestId={props.tab.id} body={props.tab.draft.body} onChange={(fn) => edit((d) => fn(d.body))} />

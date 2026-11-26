@@ -354,27 +354,10 @@ func (a *App) DeleteExample(id string) EmptyResult {
 	return p
 }
 
-// MoveExample moves an example one place up (-1) or down (+1) in its request's
-// list: the server's full current order with the two swapped.
-func (a *App) MoveExample(requestID, id string, delta int) EmptyResult {
+// ReorderExamples sets a request's example order (the Examples sub-tab's drag and
+// drop; every example id of the request, in the new order).
+func (a *App) ReorderExamples(requestID string, ids []string) EmptyResult {
 	return callEmpty(a, func(ctx context.Context, c *api.APIClient) error {
-		list, err := c.ListExamples(ctx, requestID)
-		if err != nil {
-			return err
-		}
-		ids := make([]string, len(list))
-		at := -1
-		for i, e := range list {
-			ids[i] = e.ID
-			if e.ID == id {
-				at = i
-			}
-		}
-		to := at + delta
-		if at < 0 || to < 0 || to >= len(ids) {
-			return nil // already at the edge, or gone: nothing to do
-		}
-		ids[at], ids[to] = ids[to], ids[at]
 		return c.ReorderExamples(ctx, requestID, ids)
 	})
 }

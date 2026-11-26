@@ -1,11 +1,14 @@
 import { createEffect, createSignal, For, on, onCleanup, onMount, Show } from "solid-js";
 import {
-  DeleteExample, GetExampleDetail, ListExamples, MoveExample, RenameExample, SaveExampleBodyToFile,
+  DeleteExample, GetExampleDetail, ListExamples, RenameExample, ReorderExamples, SaveExampleBodyToFile,
 } from "../../wailsjs/go/main/App";
 import { api, main } from "../../wailsjs/go/models";
 import { SaveState } from "../autosave";
 import { handleProblem } from "../authStore";
-import { exampleMeta, moveState } from "../examplesModel";
+import { exampleMeta } from "../examplesModel";
+import { createRowDrag } from "../rowDrag";
+import { saveOrder } from "../rowOrder";
+import RowDragLayer from "./RowDragLayer";
 import { examplesTick, setExampleList } from "../examplesStore";
 import type { BodyChoice } from "../viewChoice";
 import ConfirmDialog from "./ConfirmDialog";
@@ -28,7 +31,7 @@ interface Props {
 
 // The request editor's Examples sub-tab: the request's saved response examples
 // (server, shared with the team) as a list — name · status · type · size ·
-// updated, ↑ / ↓, a row menu (Open, Rename inline, Delete) — or one example's
+// updated, drag to reorder, a row menu (Open, Rename inline, Delete) — or one example's
 // detail in View (the response viewer) or Edit (autosaved form) mode. Every
 // mutation re-fetches; the list also re-fetches on mount, on window focus and
 // after a save elsewhere (examplesTick), so teammates' edits show up.
@@ -115,12 +118,22 @@ export default function ExamplesPanel(props: Props) {
     setError(r.error?.message);
     await reload();
   };
-  const move = async (e: api.ExampleSummary, delta: number) => {
-    const r = await MoveExample(props.requestId, e.id, delta);
-    handleProblem(r.error);
-    setError(r.error?.message);
-    await reload();
-  };
+  // Rows drag to reorder: the full order is saved (ReorderExamples), then re-fetched.
+  let listEl: HTMLUListElement | undefined;
+  const drag = createRowDrag({
+    list: () => listEl,
+    ignore: "input, button",
+    label: (id) => list()?.find((e) => e.id === id)?.name ?? "",
+    onDrop: (order) => void saveOrder(order, {
+      save: async (ids) => {
+        const r = await ReorderExamples(props.requestId, ids);
+        handleProblem(r.error);
+        return r;
+      },
+      reload,
+      onError: setError,
+    }),
+  });
   const saveBody = async (id: string) => {
     const r = await SaveExampleBodyToFile(id);
     handleProblem(r.error);
@@ -152,13 +165,13 @@ export default function ExamplesPanel(props: Props) {
                   response toolbar (or from a History entry).
                 </p>
               }>
-                <ul class="examples-list" aria-label="Examples">
+                <ul class="examples-list" aria-label="Examples" ref={listEl} onPointerDown={drag.onPointerDown}>
                   <For each={l()}>
-                    {(e, i) => {
+                    {(e) => {
                       const m = () => exampleMeta(e, now());
-                      const mv = () => moveState(i(), l().length);
                       return (
-                        <li class="examples-row" onClick={() => renaming() !== e.id && props.onOpen(e.id)}
+                        <li classList={{ "examples-row": true, "drag-source": drag.isDragging(e.id) }} data-drag-id={e.id}
+                          onClick={() => !drag.consumeClick() && renaming() !== e.id && props.onOpen(e.id)}
                           onContextMenu={(ev) => {
                             ev.preventDefault();
                             setMenu({ e, x: ev.clientX, y: ev.clientY });
@@ -181,12 +194,6 @@ export default function ExamplesPanel(props: Props) {
                           <span class="examples-meta muted small" title={e.content_type}>{m().contentType}</span>
                           <span class="examples-meta muted small">{m().size}</span>
                           <span class="examples-meta muted small" title={new Date(e.updated_at).toLocaleString()}>{m().updated}</span>
-                          <span class="examples-move" onClick={(ev) => ev.stopPropagation()}>
-                            <button type="button" class="icon-button small-move" aria-label={`Move ${e.name} up`} title="Move up"
-                              disabled={!mv().up} onClick={() => void move(e, -1)}>↑</button>
-                            <button type="button" class="icon-button small-move" aria-label={`Move ${e.name} down`} title="Move down"
-                              disabled={!mv().down} onClick={() => void move(e, 1)}>↓</button>
-                          </span>
                           <button type="button" class="row-menu-trigger" aria-label={`Actions for ${e.name}`} aria-haspopup="menu"
                             onClick={(ev) => {
                               ev.stopPropagation();
@@ -200,6 +207,7 @@ export default function ExamplesPanel(props: Props) {
                     }}
                   </For>
                 </ul>
+                <RowDragLayer view={drag.view()} />
               </Show>
             )}
           </Show>
