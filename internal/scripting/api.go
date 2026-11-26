@@ -260,11 +260,20 @@ func (a *api) rows(what string, list *[]engine.Header, foldCase bool) goja.Value
 		out := []any{}
 		for _, r := range *list {
 			if r.Enabled && r.Key != "" {
-				out = append(out, map[string]any{"key": r.Key, "value": r.Value})
+				out = append(out, a.pair(r.Key, r.Value))
 			}
 		}
 		return a.vm.ToValue(out)
 	}))
+	return o
+}
+
+// pair is one {key, value} entry of an all() list. Built property by property:
+// a Go map would give the object a random key order (visible in console.log).
+func (a *api) pair(key, value string) *goja.Object {
+	o := a.vm.NewObject()
+	_ = o.Set("key", key)
+	_ = o.Set("value", value)
 	return o
 }
 
@@ -312,7 +321,7 @@ func (a *api) response() goja.Value {
 	_ = headers.Set("all", a.fn(func(goja.FunctionCall) goja.Value {
 		out := []any{}
 		for _, h := range a.resp.Headers {
-			out = append(out, map[string]any{"key": h.Key, "value": h.Value})
+			out = append(out, a.pair(h.Key, h.Value))
 		}
 		return a.vm.ToValue(out)
 	}))
