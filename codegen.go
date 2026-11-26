@@ -133,9 +133,12 @@ func (a *App) generate(projectID, requestID string, draft api.RequestDraft, opts
 			}
 		}
 	} else {
-		spec = engine.WithJWTPlaceholder(template)
+		spec = engine.WithBasicTemplate(engine.WithJWTPlaceholder(template))
 		if spec.Auth != nil && spec.Auth.Type == engine.AuthJWT {
 			notes = append(notes, "JWT: "+engine.JWTPlaceholder)
+		}
+		if spec.Auth != nil && spec.Auth.Type == engine.AuthBasic {
+			notes = append(notes, "Basic auth: the header is Base64 of user:password — shown in template form")
 		}
 		if hasFileParts(spec) {
 			notes = append(notes, "file paths are placeholders (template values)")

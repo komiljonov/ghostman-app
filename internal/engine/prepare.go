@@ -46,6 +46,19 @@ func WithJWTPlaceholder(spec RequestSpec) RequestSpec {
 	return spec
 }
 
+// WithBasicTemplate makes a Basic auth produce a READABLE row for template
+// snippets — "Basic <base64 of {{login}}:{{password}}>" — instead of encoding
+// the unresolved text. Other auth types are returned as they are.
+func WithBasicTemplate(spec RequestSpec) RequestSpec {
+	if spec.Auth == nil || spec.Auth.Type != AuthBasic {
+		return spec
+	}
+	a := *spec.Auth
+	a.basicTemplate = true
+	spec.Auth = &a
+	return spec
+}
+
 // parseSendURL validates a request URL as Send does.
 func parseSendURL(raw string) (*url.URL, error) {
 	raw = strings.TrimSpace(raw)

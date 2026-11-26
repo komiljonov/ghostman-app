@@ -96,6 +96,30 @@ func TestGenerateCodeResolvedVsTemplate(t *testing.T) {
 	}
 }
 
+// Template mode never Base64-encodes unresolved Basic credentials (that hid the
+// variables: "e3tsb2dpbn19Ont7cGFzc3dvcmR9fQ==" is "{{login}}:{{password}}").
+func TestGenerateCodeBasicTemplate(t *testing.T) {
+	a := codegenApp(t)
+	draft := api.RequestDraft{Method: "GET", URL: "{{BASE_URL}}/me"}
+	opts := SendOptions{FollowRedirects: true, Auth: &api.Auth{Type: api.AuthBasic, BasicUsername: "{{login}}", BasicPassword: "{{password}}"}}
+	for _, target := range []string{"curl", "fetch", "python", "go"} {
+		r := a.GenerateCode("p1", "r1", draft, opts, CodegenOptions{Target: target, Resolved: false})
+		if r.Error != nil {
+			t.Fatal(r.Error.Message)
+		}
+		s := r.Data.Snippet
+		if !strings.Contains(s, "Basic <base64 of {{login}}:{{password}}>") || strings.Contains(s, "e3tsb2dpbn19Ont7cGFzc3dvcmR9fQ==") {
+			t.Errorf("%s template basic:\n%s", target, s)
+		}
+	}
+	// Resolved: the real credentials, encoded as Send sends them.
+	opts.Auth = &api.Auth{Type: api.AuthBasic, BasicUsername: "u", BasicPassword: "{{API_TOKEN}}"}
+	r := a.GenerateCode("p1", "r1", draft, opts, CodegenOptions{Target: "curl", Resolved: true})
+	if r.Error != nil || !strings.Contains(r.Data.Snippet, "Authorization: Basic dTpzay1saXZlLVNFQ1JFVC05ZjhlN2Q=") {
+		t.Errorf("resolved basic: %v\n%s", r.Error, r.Data.Snippet)
+	}
+}
+
 func TestGenerateCodeJWT(t *testing.T) {
 	a := codegenApp(t)
 	draft := api.RequestDraft{Method: "GET", URL: "{{BASE_URL}}/me"}

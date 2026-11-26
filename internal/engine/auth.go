@@ -63,6 +63,9 @@ type Auth struct {
 	// token (SignJWT).
 	jwtSecretMissing string
 	jwtToken         string
+	// Template snippets (WithBasicTemplate): Basic credentials are shown, not
+	// Base64-encoded — encoding "{{login}}:{{password}}" would hide the variables.
+	basicTemplate bool
 }
 
 // resolveAuth resolves {{vars}} inside the values (not the type / placement).
@@ -107,6 +110,9 @@ func derivedAuth(a Auth) (h *Header, q *Header) {
 		}
 	case AuthBasic:
 		if a.BasicUsername != "" || a.BasicPassword != "" {
+			if a.basicTemplate {
+				return &Header{Key: "Authorization", Value: "Basic <base64 of " + a.BasicUsername + ":" + a.BasicPassword + ">", Enabled: true}, nil
+			}
 			return &Header{Key: "Authorization", Value: BasicCredentials(a.BasicUsername, a.BasicPassword), Enabled: true}, nil
 		}
 	case AuthAPIKey:
