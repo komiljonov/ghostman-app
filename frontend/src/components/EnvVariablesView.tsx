@@ -42,26 +42,29 @@ export default function EnvVariablesView(props: Props) {
         <Show when={variables()} fallback={<p class="placeholder">Loading variables…</p>}>
           {(res) => (
             <Show when={!res().error} fallback={<p class="form-error">{res().error?.message}</p>}>
-              <table class="var-table">
-                <thead>
-                  <tr><th>Key</th><th class="var-type">Type</th><th>Value</th><th class="var-actions" /></tr>
-                </thead>
-                <tbody>
-                  <For each={res().data}>
-                    {(v, i) => (
-                      <VariableRow
-                        envId={props.envId}
-                        variable={v}
-                        first={i() === 0}
-                        last={i() === res().data.length - 1}
-                        onStructureChanged={structureChanged}
-                        onValueSaved={() => void refreshEnvContext()}
-                      />
-                    )}
-                  </For>
-                  <NewVariableRow envId={props.envId} onCreated={structureChanged} />
-                </tbody>
-              </table>
+              {/* The table scrolls under the fixed header (name, hint); its column heads stick. */}
+              <div class="env-var-scroll">
+                <table class="var-table">
+                  <thead>
+                    <tr><th>Key</th><th class="var-type">Type</th><th>Value</th><th class="var-actions" /></tr>
+                  </thead>
+                  <tbody>
+                    <For each={res().data}>
+                      {(v, i) => (
+                        <VariableRow
+                          envId={props.envId}
+                          variable={v}
+                          first={i() === 0}
+                          last={i() === res().data.length - 1}
+                          onStructureChanged={structureChanged}
+                          onValueSaved={() => void refreshEnvContext()}
+                        />
+                      )}
+                    </For>
+                    <NewVariableRow envId={props.envId} onCreated={structureChanged} />
+                  </tbody>
+                </table>
+              </div>
             </Show>
           )}
         </Show>

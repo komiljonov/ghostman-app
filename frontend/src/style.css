@@ -359,6 +359,9 @@ code {
   justify-content: center;
   padding: 16px;
   background: var(--backdrop);
+  /* Above everything in the page (sticky table heads, drop overlay, toasts ≤ 21),
+     below what a modal can open (dropdowns 50, context menus 60). */
+  z-index: 40;
 }
 
 .modal-actions {
@@ -1517,11 +1520,14 @@ button.danger-outline {
 
 /* ---- Manage environments ---- */
 
+/* Env tabs fill the group and never scroll as a whole: their header stays put and
+   the unbounded part (variables table, environment list) scrolls inside. */
 .env-manage {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 12px;
-  padding: 20px 24px;
+  padding: 20px 24px 12px;
   min-height: 0;
 }
 
@@ -1605,6 +1611,20 @@ button.danger-outline {
   gap: 8px;
   flex: 1;
   min-width: 0;
+  min-height: 0;
+}
+
+.env-var-scroll {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.env-var-scroll .var-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg);
 }
 
 .env-vars h2 {
@@ -1750,7 +1770,20 @@ button.danger-outline {
 }
 
 .env-list.wide {
+  flex-shrink: 1;
   width: min(520px, 100%);
+  min-height: 0;
+}
+
+/* The list scrolls; "+ New environment" and the hint below it stay reachable. */
+.env-list.wide > ul {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.env-list.wide > :not(ul) {
+  flex-shrink: 0;
 }
 
 /* ---- Refinements 2: table cells as editors, tooltip editing, tab menu ---- */
@@ -2799,6 +2832,27 @@ input:disabled {
 .modal {
   max-height: calc(100vh - 32px);
   overflow-y: auto;
+}
+
+/* A modal taller than the window scrolls inside; its title and its action row stay
+   in view (sticky over the modal's 24 px padding, so at rest nothing moves). */
+.modal > h2:first-child,
+.modal .modal-actions:last-child {
+  position: sticky;
+  z-index: 2;
+  background: var(--panel);
+}
+
+.modal > h2:first-child {
+  top: -24px;
+  margin: -24px -24px 0;
+  padding: 24px 24px 4px;
+}
+
+.modal .modal-actions:last-child {
+  bottom: -24px;
+  margin: 0 -24px -24px;
+  padding: 10px 24px 24px;
 }
 
 .history-view {
@@ -4693,12 +4747,14 @@ body.tab-dragging * {
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  overflow-y: auto; /* last resort only: below head + 120 + 200 px of window */
   container-type: inline-size;
 }
 
 .webhook-head {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   gap: 6px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
@@ -4808,10 +4864,14 @@ body.tab-dragging * {
   border-bottom: 1px solid var(--border);
 }
 
+/* Open, the section shrinks before the captures do (its body scrolls): the captures
+   keep at least 200 px, so a short window never pushes them off-screen. */
 .webhook-response.open {
   display: flex;
+  flex: 0 1 auto;
   flex-direction: column;
   max-height: 55%;
+  min-height: 120px;
 }
 
 .webhook-response-body {
@@ -4827,7 +4887,9 @@ body.tab-dragging * {
   flex-shrink: 0; /* the section scrolls; its parts keep their height */
 }
 
-.webhook-response-body .bulk-editor {
+/* The headers editor keeps its height here (its own rule makes it flex: 1 0 0%,
+   which collapsed it to nothing and drew it over the Body heading). */
+.webhook-response-body > .kv-editor {
   flex: 0 0 auto;
   min-height: 96px;
 }
@@ -4869,7 +4931,7 @@ body.tab-dragging * {
 .webhook-captures {
   display: flex;
   flex: 1;
-  min-height: 0;
+  min-height: 200px;
 }
 
 .capture-list-pane {
