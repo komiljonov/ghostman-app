@@ -414,6 +414,23 @@ Postman-style shell, logged in:
   heads, drop overlay, toasts) < `.modal-backdrop` 40 < dropdowns 50 < context menu 60. Checked at
   700 px with overflowing content (env, env list, proxy, webhook, history, examples, request
   Settings, folder Settings…, Settings).
+- **View-mode choices (sub-views, template/resolved, Pretty/Raw) are container state, not item state:
+  changing the selected item never resets them; fall back only when the item can't support the mode,
+  return when it can. Deliberate exceptions (response view auto-default on a new send) must be
+  commented as such.** Rules in `src/viewChoice.ts` (tested): the choice lives in the tab's `TabState`
+  (`historyView` History tab: section · Template | Resolved · Body | Headers · Pretty | Raw;
+  `captureView` webhook tab; `exampleView` + `exampleMode` request tab), set through
+  `controller.view` / `viewByKey`; details only COMPUTE what they show (`shownHistorySection`,
+  `shownPart`, `shownTextView`, `effectiveView`, `shownResponseSection`) and never write a fallback
+  back. The live pane keeps Body | Headers | Console across sends (Console without output shows Body).
+- **Env variables table rows** (`VariableRow`, `NewVariableRow`, rules `src/envRows.ts`, tested): rows
+  are reconciled BY ID (`EnvVariablesView` store), so a re-fetch never remounts a row and focus
+  survives a key commit. Tab order per row: key → type → value → next row's key (row actions are
+  mouse-only, `tabIndex -1`; the secret reveal toggle too). The append row is COMPLETE from the start
+  (key · type · value · disabled actions) and a draft until committed as a whole: Enter or Tab from
+  its value → `CreateVariableWithValue` (one bound call: create + value through `internal/envs`, a
+  secret's value stays local) and focus on the new empty row's key; focus leaving the row commits;
+  Escape clears. Creates are queued in order (typing ahead is safe).
 - **Icons**: inline SVGs on a 16 px grid in `components/Icon.tsx` (one component, `currentColor`,
   no icon font or package). Add shapes there; no text glyphs as icons.
 - **`{{var}}` resolution** happens in Go at send time (`internal/engine/resolve.go` is the

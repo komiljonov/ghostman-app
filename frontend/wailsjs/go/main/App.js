@@ -86,6 +86,10 @@ export function CreateVariable(arg1, arg2, arg3) {
   return window['go']['main']['App']['CreateVariable'](arg1, arg2, arg3);
 }
 
+export function CreateVariableWithValue(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CreateVariableWithValue'](arg1, arg2, arg3, arg4);
+}
+
 export function CreateWebhook(arg1, arg2) {
   return window['go']['main']['App']['CreateWebhook'](arg1, arg2);
 }

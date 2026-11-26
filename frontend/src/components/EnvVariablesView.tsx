@@ -1,5 +1,7 @@
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, Show } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import { ListVariables } from "../../wailsjs/go/main/App";
+import { envs } from "../../wailsjs/go/models";
 import { handleProblem } from "../authStore";
 import { envContext, refreshEnvContext } from "../envStore";
 import NewVariableRow from "./NewVariableRow";
@@ -11,7 +13,10 @@ interface Props {
 
 // An environment tab: its variables table (key / type / value, secrets local-only,
 // values autosaved). Rows flush pending edits when this view unmounts, i.e. when
-// the tab is closed or another tab becomes active.
+// the tab is closed or another tab becomes active. Every fetch is reconciled into
+// the rows BY ID, so a re-fetch after a rename / retype / create updates rows in
+// place: no row remounts, and keyboard focus (Tab from a just-committed key) stays.
+// Tab order per row: key → type → value → the next row's key (actions are mouse-only).
 export default function EnvVariablesView(props: Props) {
   const [tick, setTick] = createSignal(0);
   const env = () => envContext()?.environments.find((e) => e.id === props.envId);
@@ -20,6 +25,12 @@ export default function EnvVariablesView(props: Props) {
     const result = await ListVariables(src.id);
     handleProblem(result.error);
     return result;
+  });
+
+  const [rows, setRows] = createStore<envs.VariableView[]>([]);
+  createEffect(() => {
+    const data = variables()?.data;
+    if (data) setRows(reconcile(data, { key: "id" }));
   });
 
   const structureChanged = () => {
@@ -49,13 +60,13 @@ export default function EnvVariablesView(props: Props) {
                     <tr><th>Key</th><th class="var-type">Type</th><th>Value</th><th class="var-actions" /></tr>
                   </thead>
                   <tbody>
-                    <For each={res().data}>
+                    <For each={rows}>
                       {(v, i) => (
                         <VariableRow
                           envId={props.envId}
                           variable={v}
                           first={i() === 0}
-                          last={i() === res().data.length - 1}
+                          last={i() === rows.length - 1}
                           onStructureChanged={structureChanged}
                           onValueSaved={() => void refreshEnvContext()}
                         />

@@ -39,6 +39,7 @@ import SidebarPanels from "./SidebarPanels";
 import WebhookView from "./WebhookView";
 import { flushWebhookEdits, markSeen, reloadWebhooks, resetWebhooks, syncFeeds, webhooks, webhooksLoaded } from "../webhookStore";
 import { invalidateExampleLists } from "../examplesStore";
+import { DEFAULT_BODY_CHOICE, DEFAULT_HISTORY_CHOICE } from "../viewChoice";
 
 interface Props {
   onOpenSettings: () => void;
@@ -446,13 +447,17 @@ export default function MainScreen(props: Props) {
                           <EnvListView projectId={projectId()} onOpenEnv={openEnvTab} />
                         </Match>
                         <Match when={tab.kind === "history"}>
-                          <HistoryView projectId={projectId()} requestIds={requestIds()} onOpenRequest={openRequest} />
+                          <HistoryView projectId={projectId()} requestIds={requestIds()} onOpenRequest={openRequest}
+                            view={tab.historyView ?? DEFAULT_HISTORY_CHOICE}
+                            onView={(patch) => controller().viewByKey(tab.key, (t) => (t.historyView = { ...(t.historyView ?? DEFAULT_HISTORY_CHOICE), ...patch }))} />
                         </Match>
                         <Match when={tab.kind === "proxy"}>
                           <ProxyView proxyId={tab.id} />
                         </Match>
                         <Match when={tab.kind === "webhook"}>
-                          <WebhookView webhookId={tab.id} onOpenRequest={openRequest} />
+                          <WebhookView webhookId={tab.id} onOpenRequest={openRequest}
+                            view={tab.captureView ?? DEFAULT_BODY_CHOICE}
+                            onView={(patch) => controller().viewByKey(tab.key, (t) => (t.captureView = { ...(t.captureView ?? DEFAULT_BODY_CHOICE), ...patch }))} />
                         </Match>
                       </Switch>
                   )} />

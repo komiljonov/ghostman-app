@@ -12,6 +12,7 @@ import {
   allHeadersText, BODY_VIEWS, bodyText, effectiveView, hasStructure, headerLine, prettyFallback, previewFrameAttrs,
   responseMenuKind, toolbarControls, viewAvailability,
 } from "../responseView";
+import { shownResponseSection } from "../viewChoice";
 import { TabState } from "../tabsController";
 import { isEditableTarget } from "../treeNav";
 import { responseWrap, setResponseWrap } from "../uiPrefs";
@@ -50,6 +51,9 @@ export default function ResponseView(props: Props) {
   // The response the toolbar describes: none while sending or after a failure.
   const shown = () => (props.tab.sending || props.tab.responseError ? undefined : props.tab.response);
   const consoleInfo = () => consoleBadge(props.tab.console);
+  // The chosen Body | Headers | Console, or Body while the last send has no script
+  // output (the choice is kept: viewChoice.ts).
+  const shownSection = () => shownResponseSection(props.tab.responseSection, consoleInfo().count);
   const view = () => {
     const r = shown();
     return r ? effectiveView(r, props.tab.responseView) : props.tab.responseView;
@@ -63,7 +67,7 @@ export default function ResponseView(props: Props) {
     return !!r && hasStructure(r);
   };
   const controls = () => toolbarControls({
-    hasResponse: !!shown(), section: props.tab.responseSection, view: view(), structured: structured(),
+    hasResponse: !!shown(), section: shownSection(), view: view(), structured: structured(),
   });
   const views = () => viewAvailability(shown());
 
@@ -152,20 +156,20 @@ export default function ResponseView(props: Props) {
       <div class="response-toolbar">
         <div class="segmented small" role="tablist" aria-label="Response part" title={controls().sections.title}>
           <button type="button" role="tab" disabled={!controls().sections.enabled}
-            aria-selected={props.tab.responseSection === "body"}
-            classList={{ active: props.tab.responseSection === "body" }}
+            aria-selected={shownSection() === "body"}
+            classList={{ active: shownSection() === "body" }}
             onClick={() => props.onView((t) => (t.responseSection = "body"))}>Body</button>
           <button type="button" role="tab" disabled={!controls().sections.enabled}
-            aria-selected={props.tab.responseSection === "headers"}
-            classList={{ active: props.tab.responseSection === "headers" }}
+            aria-selected={shownSection() === "headers"}
+            classList={{ active: shownSection() === "headers" }}
             onClick={() => props.onView((t) => (t.responseSection = "headers"))}>
             Headers <span class="muted resp-count">{shown()?.headers.length ?? ""}</span>
           </button>
           {/* Enabled whenever a send produced script output — also when a pre-script aborted it. */}
           <button type="button" role="tab" disabled={consoleInfo().count === 0}
             title={consoleInfo().count === 0 ? CONSOLE_EMPTY : "Script output of the last send"}
-            aria-selected={props.tab.responseSection === "console"}
-            classList={{ active: props.tab.responseSection === "console" }}
+            aria-selected={shownSection() === "console"}
+            classList={{ active: shownSection() === "console" }}
             onClick={() => props.onView((t) => (t.responseSection = "console"))}>
             Console
             <span classList={{ "console-badge": true, error: consoleInfo().error, empty: consoleInfo().count === 0 }}
@@ -257,7 +261,7 @@ export default function ResponseView(props: Props) {
           <Match when={props.tab.sending}>
             <p class="placeholder response-empty">Sending…</p>
           </Match>
-          <Match when={props.tab.responseSection === "console" && consoleInfo().count > 0}>
+          <Match when={shownSection() === "console" && consoleInfo().count > 0}>
             <ConsoleView console={props.tab.console} />
           </Match>
           <Match when={props.tab.responseError}>
@@ -273,7 +277,7 @@ export default function ResponseView(props: Props) {
                   <p class="notice">Body truncated: showing the first 256 KB of {formatBytes(resp().bodySize)}.</p>
                 </Show>
                 <Switch>
-                  <Match when={props.tab.responseSection === "headers"}>
+                  <Match when={shownSection() === "headers"}>
                     <div class="response-headers" onContextMenu={(e) => {
                       if (responseMenuKind({ hasResponse: true, section: "headers", view: view() }) !== "headers") return;
                       e.preventDefault();

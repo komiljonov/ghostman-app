@@ -1,4 +1,4 @@
-import { createSignal, For, Match, Show, Switch } from "solid-js";
+import { For, Match, Show, Switch } from "solid-js";
 import { main } from "../../wailsjs/go/models";
 import { formatBytes } from "../historyModel";
 import {
@@ -6,6 +6,7 @@ import {
   toolbarControls, viewAvailability,
 } from "../responseView";
 import { responseWrap, setResponseWrap } from "../uiPrefs";
+import type { BodyChoice } from "../viewChoice";
 import HistoryKVTable from "./HistoryKVTable";
 import Icon from "./Icon";
 import MediaPreview from "./MediaPreview";
@@ -13,6 +14,8 @@ import ResponseBody, { ResponseBodyApi } from "./ResponseBody";
 
 interface Props {
   detail: main.ExampleDetail;
+  view: BodyChoice; // the request tab's (viewChoice.ts): another example keeps it
+  onView: (patch: Partial<BodyChoice>) => void;
   onSave: () => void; // the body to a file (any type)
 }
 
@@ -24,8 +27,12 @@ const NO_BODY = { enabled: false, title: "This example has no body" };
 // video (streamed from /example-media/{id}); pdf / binary → a file card with
 // Save. Controls that do not apply are disabled, never hidden.
 export default function ExampleView(props: Props) {
-  const [part, setPart] = createSignal<"body" | "headers">("body");
-  const [chosen, setChosen] = createSignal<BodyView>();
+  // Body | Headers and Pretty | Raw | Preview are the tab's choices; effectiveView
+  // falls back to this example's default when it can't show the chosen view.
+  const part = () => props.view.part;
+  const setPart = (part: "body" | "headers") => props.onView({ part });
+  const chosen = () => props.view.body;
+  const setChosen = (body: BodyView) => props.onView({ body });
   let body: ResponseBodyApi | undefined;
 
   const d = () => props.detail;

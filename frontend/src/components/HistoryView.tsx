@@ -17,11 +17,14 @@ import HistoryDetail from "./HistoryDetail";
 import Icon from "./Icon";
 import MethodBadge from "./MethodBadge";
 import SaveExampleDialog from "./SaveExampleDialog";
+import { HistoryChoice } from "../viewChoice";
 
 interface Props {
   projectId: string;
   requestIds: Set<string>; // the current project's tree (for "Open original request")
   onOpenRequest: (id: string) => void;
+  view: HistoryChoice; // the tab's detail view choices (kept across entries)
+  onView: (patch: Partial<HistoryChoice>) => void;
 }
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -276,6 +279,7 @@ export default function HistoryView(props: Props) {
         <Show when={entry()} keyed fallback={<p class="placeholder">{selected() === undefined ? "Select an entry to see the request and response." : "Loading…"}</p>}>
           {(e) => (
             <HistoryDetail entry={e} busy={busy()} openOriginal={original(e.summary)} saveExample={exampleSave(e.summary)}
+              view={props.view} onView={props.onView}
               onRestore={() => void restore(e.summary.id)}
               onOpenOriginal={() => props.onOpenRequest(e.summary.request_id)}
               onCopyURL={() => copyURL(e.summary)}

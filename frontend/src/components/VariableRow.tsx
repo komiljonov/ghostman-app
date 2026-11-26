@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, Show } from "solid-js";
+import { createEffect, createSignal, on, onCleanup, Show } from "solid-js";
 import { DeleteVariable, MoveVariable, SetVariableKey, SetVariableType, SetVariableValue } from "../../wailsjs/go/main/App";
 import { envs } from "../../wailsjs/go/models";
 import { createAction } from "../action";
@@ -19,6 +19,11 @@ interface Props {
 
 // One variable. Values autosave (600 ms debounce) — on the server for regular
 // variables, on this machine only for secrets (Go decides by the server's type).
+// The row stays mounted across re-fetches (EnvVariablesView reconciles by id), so
+// it adopts fresh server state itself: a key while its field is not being edited,
+// a value while no local edit is pending. Tab order: key → type → value; the
+// action buttons are left out (tabIndex -1), so Tab from the value reaches the
+// next row's key.
 export default function VariableRow(props: Props) {
   const isSecret = () => props.variable.type === "secret";
   const [key, setKey] = createSignal(props.variable.key);
@@ -39,6 +44,14 @@ export default function VariableRow(props: Props) {
     },
   });
   onCleanup(() => void saver.flush());
+
+  let keyInput: HTMLInputElement | undefined;
+  createEffect(on(() => props.variable.key, (k) => {
+    if (document.activeElement !== keyInput) setKey(k);
+  }, { defer: true }));
+  createEffect(on(() => props.variable.value, (v) => {
+    if (!saver.hasUnsaved()) setValue(v);
+  }, { defer: true }));
 
   const rename = createAction(SetVariableKey);
   const retype = createAction(SetVariableType);
@@ -82,7 +95,7 @@ export default function VariableRow(props: Props) {
   return (
     <tr classList={{ "var-row": true, secret: isSecret() }}>
       <td>
-        <input type="text" class="var-key" spellcheck={false} aria-label="Variable key" value={key()}
+        <input ref={keyInput} type="text" class="var-key" spellcheck={false} aria-label="Variable key" value={key()}
           onInput={(e) => setKey(e.currentTarget.value)}
           onBlur={() => void commitKey()}
           onKeyDown={(e) => {
@@ -123,12 +136,12 @@ export default function VariableRow(props: Props) {
         </span>
       </td>
       <td class="var-actions">
-        <button type="button" class="small-button" title="Move up" aria-label="Move up" disabled={props.first || move.pending()}
-          onClick={() => void doMove(-1)}>↑</button>
-        <button type="button" class="small-button" title="Move down" aria-label="Move down" disabled={props.last || move.pending()}
-          onClick={() => void doMove(1)}>↓</button>
-        <button type="button" class="icon-button" title="Delete variable" aria-label="Delete variable" disabled={del.pending()}
-          onClick={() => void doDelete()}><Icon name="trash" size={14} /></button>
+        <button type="button" class="small-button" title="Move up" aria-label="Move up" tabIndex={-1}
+          disabled={props.first || move.pending()} onClick={() => void doMove(-1)}>↑</button>
+        <button type="button" class="small-button" title="Move down" aria-label="Move down" tabIndex={-1}
+          disabled={props.last || move.pending()} onClick={() => void doMove(1)}>↓</button>
+        <button type="button" class="icon-button" title="Delete variable" aria-label="Delete variable" tabIndex={-1}
+          disabled={del.pending()} onClick={() => void doDelete()}><Icon name="trash" size={14} /></button>
         <Show when={error()}><div class="inline-error">{error()}</div></Show>
       </td>
       <Show when={confirmRegular()}>
