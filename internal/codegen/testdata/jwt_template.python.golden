@@ -1,0 +1,12 @@
+import requests
+
+# JWT: <signed at send time>
+response = requests.request(
+    "GET",
+    "https://api.example.com/me",
+    headers={
+        "Authorization": "Bearer <signed at send time>",
+    },
+)
+print(response.status_code)
+print(response.text)

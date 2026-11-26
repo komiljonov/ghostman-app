@@ -5,6 +5,7 @@ import MethodBadge from "./MethodBadge";
 import ContextMenu, { MenuEntry } from "./ContextMenu";
 import Icon from "./Icon";
 import { feedOf } from "../webhookStore";
+import { copyAsCurl } from "../codegenStore";
 
 interface Props {
   controller: TabsController;
@@ -31,7 +32,12 @@ export default function TabBar(props: Props) {
     const close = (mode: CloseMode) => () => void c.closeMany(key, mode);
     const groups = c.groups();
     const others = groups.map((g, i) => ({ g, n: i + 1 })).filter(({ g }) => g.id !== props.groupId);
+    const t = c.tabByKey(key);
+    const curl: MenuEntry[] = t?.kind === "request"
+      ? [{ label: "Copy as curl", icon: "code", onSelect: () => void copyAsCurl((gen) => c.generateCode(t.id, gen)) }, "separator"]
+      : [];
     return [
+      ...curl,
       { label: "Close", icon: "close", hint: "Ctrl+W", onSelect: close("close") },
       { label: "Close Others", onSelect: close("others"), disabled: keys().length < 2 },
       { label: "Close All", onSelect: close("all") },

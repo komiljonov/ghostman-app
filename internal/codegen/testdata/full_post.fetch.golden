@@ -1,0 +1,13 @@
+const response = await fetch("https://api.example.com/items?existing=1&tag=a&tag=b+c", {
+  method: "POST",
+  headers: {
+    "X-Trace": "abc",
+    "X-Empty": "",
+    "Accept": "application/json",
+    "Authorization": "Bearer tok-123",
+    "Content-Type": "application/json",
+  },
+  body: "{\"name\": \"it's \\\"quoted\\\"\", \"cost\": \"$HOME ${PATH} $(whoami) `id`\",\n\"path\": \"C:\\\\temp\\\\x\", \"tab\":\"\t\", \"crlf\": \"a\r\nb\",\n\"uni\": \"üñí ✓ 😀 \u2028\"}\n",
+  signal: AbortSignal.timeout(30000),
+});
+console.log(response.status, await response.text());

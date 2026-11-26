@@ -111,6 +111,9 @@ type Engine struct {
 	proxies proxyClients  // one client per proxy config (proxy.go)
 }
 
+// Timeout is the bound of a whole send (code snippets carry it).
+func (e *Engine) Timeout() time.Duration { return e.timeout }
+
 // New returns an Engine whose sends (all hops together) are bounded by timeout.
 func New(timeout time.Duration) *Engine {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -393,19 +396,9 @@ func buildRequest(ctx context.Context, spec RequestSpec) (*http.Request, error) 
 		method = http.MethodGet
 	}
 
-	raw := strings.TrimSpace(spec.URL)
-	if raw == "" {
-		return nil, errors.New("enter a URL")
-	}
-	u, err := url.Parse(raw)
+	u, err := parseSendURL(spec.URL) // the same validation as Prepare (code generation)
 	if err != nil {
-		return nil, fmt.Errorf("invalid URL: %w", unwrapURLError(err))
-	}
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return nil, fmt.Errorf("invalid URL %q: must start with http:// or https://", raw)
-	}
-	if u.Host == "" {
-		return nil, fmt.Errorf("invalid URL %q: missing host", raw)
+		return nil, err
 	}
 
 	appendQuery(u, spec.QueryParams)

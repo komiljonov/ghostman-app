@@ -2651,6 +2651,68 @@ input:disabled {
   overflow-wrap: anywhere;
 }
 
+/* ---- Code snippets (CodegenPanel.tsx) ---- */
+
+.modal.codegen-modal {
+  width: min(880px, 100%);
+}
+
+.codegen-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+/* One fixed row: present (empty) when nothing is secret, so nothing moves. */
+.codegen-secrets {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+  margin: -4px 0;
+  color: var(--client);
+}
+
+.codegen-preview {
+  height: min(380px, 50vh);
+  overflow: auto;
+  border: 1px solid var(--field-border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.codegen-preview .cm-editor {
+  min-height: 100%;
+}
+
+.codegen-preview.loading {
+  opacity: 0.6;
+}
+
+.codegen-warnings {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.codegen-warnings:empty {
+  display: none;
+}
+
+.codegen-button {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+}
+
+/* The app-wide notice (AppNotice.tsx): fixed, not inside a pane. */
+.response-toast.app-notice {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 30;
+}
+
 .response-toast.error {
   border-color: var(--server);
   color: var(--server);

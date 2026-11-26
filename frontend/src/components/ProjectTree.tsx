@@ -29,6 +29,7 @@ interface Props {
   selectedRequestId: string | undefined;
   onOpenRequest: (id: string) => void;
   onOpenExample: (requestId: string, exampleId: string) => void; // its tab, Examples sub-tab
+  onCopyAsCurl: (requestId: string) => void;
   // After every successful load: lets open tabs follow renames and deletions.
   onLoaded: (projectId: string, requests: Map<string, { name: string }>) => void;
 }
@@ -172,6 +173,7 @@ export default function ProjectTree(props: Props) {
     askDelete: setDeleting,
     openExample: props.onOpenExample,
     askDeleteExample: (requestId, example) => setDeletingExample({ requestId, example }),
+    copyAsCurl: (id) => props.onCopyAsCurl(id),
     create: async (kind, parentId) => {
       const problem = await createAndOpen(kind, parentId, {
         create: () => kind === "folder"

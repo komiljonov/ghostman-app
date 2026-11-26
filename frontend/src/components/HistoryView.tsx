@@ -1,6 +1,6 @@
 import { createEffect, createSignal, For, on, onCleanup, Show } from "solid-js";
 import {
-  CopyHistoryFilteredResult, DeleteHistoryEntry, GetHistoryEntry, ListHistory, RestoreHistoryEntry, SaveHistoryFilteredToFile,
+  CopyHistoryFilteredResult, DeleteHistoryEntry, GetHistoryEntry, HistoryCurl, ListHistory, RestoreHistoryEntry, SaveHistoryFilteredToFile,
   SaveHistoryResponseToFile,
 } from "../../wailsjs/go/main/App";
 import { main } from "../../wailsjs/go/models";
@@ -17,6 +17,8 @@ import HistoryDetail from "./HistoryDetail";
 import Icon from "./Icon";
 import MethodBadge from "./MethodBadge";
 import SaveExampleDialog from "./SaveExampleDialog";
+import { copyAsCurl } from "../codegenStore";
+import { HISTORY_CURL_TITLE } from "../codegenModel";
 import { HistoryChoice } from "../viewChoice";
 
 interface Props {
@@ -181,6 +183,7 @@ export default function HistoryView(props: Props) {
       { label: "Restore to new request", icon: "plus", disabled: busy(), onSelect: () => void restore(s.id) },
       { label: "Open original request", disabled: !orig.ok, onSelect: () => props.onOpenRequest(s.request_id) },
       { label: "Copy resolved URL", disabled: !s.url_resolved, onSelect: () => copyURL(s) },
+      { label: "Copy as curl", icon: "code", title: HISTORY_CURL_TITLE, onSelect: () => void copyAsCurl((gen) => HistoryCurl(s.id, gen.one_line)) },
       { label: "Save response…", disabled: !!s.error, onSelect: () => void save(s.id) },
       { label: "Save as example…", icon: "bookmark", disabled: !exampleSave(s).ok, title: exampleSave(s).why || undefined,
         onSelect: () => setSavingExample(s.id) },
@@ -283,6 +286,7 @@ export default function HistoryView(props: Props) {
               onRestore={() => void restore(e.summary.id)}
               onOpenOriginal={() => props.onOpenRequest(e.summary.request_id)}
               onCopyURL={() => copyURL(e.summary)}
+              onCopyCurl={() => void copyAsCurl((gen) => HistoryCurl(e.summary.id, gen.one_line))}
               onDelete={() => void remove(e.summary.id)}
               onSave={() => void save(e.summary.id)}
               onSaveFiltered={(q) => void saveFiltered(e.summary.id, q)}

@@ -1,0 +1,3 @@
+curl 'https://api.example.com/me' \
+  -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYWRtaW4iLCJzdWIiOiI0MiJ9.Co4UbUrPDBO3uJCgxujimje-21e-U80axdTGrFvNE8Y' \
+  -L

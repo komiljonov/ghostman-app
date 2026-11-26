@@ -1084,6 +1084,27 @@ export namespace api {
 
 }
 
+export namespace codegen {
+	
+	export class Target {
+	    id: string;
+	    label: string;
+	    language: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Target(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.label = source["label"];
+	        this.language = source["language"];
+	    }
+	}
+
+}
+
 export namespace engine {
 	
 	export class Header {
@@ -1593,6 +1614,74 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+	export class CodeSnippet {
+	    snippet: string;
+	    language: string;
+	    warnings: string[];
+	    secrets: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new CodeSnippet(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.snippet = source["snippet"];
+	        this.language = source["language"];
+	        this.warnings = source["warnings"];
+	        this.secrets = source["secrets"];
+	    }
+	}
+	export class CodeSnippetResult {
+	    data?: CodeSnippet;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new CodeSnippetResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], CodeSnippet);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CodegenOptions {
+	    target: string;
+	    resolved: boolean;
+	    one_line: boolean;
+	    proxy: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new CodegenOptions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.target = source["target"];
+	        this.resolved = source["resolved"];
+	        this.one_line = source["one_line"];
+	        this.proxy = source["proxy"];
+	    }
 	}
 	export class DeletedResult {
 	    data: number;

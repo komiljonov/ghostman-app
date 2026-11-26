@@ -101,6 +101,7 @@ export default function TreeItem(props: Props) {
     items.push({ label: "Rename", icon: "pencil", hint: "Ctrl+E", onSelect: () => tree.setRenamingId(node.id) });
     if (!isFolder()) {
       items.push({ label: "Duplicate", icon: "duplicate", hint: "Ctrl+D", onSelect: () => void tree.duplicate(node.id) });
+      items.push({ label: "Copy as curl", icon: "code", onSelect: () => tree.copyAsCurl(node.id) });
     }
     items.push(
       "separator",

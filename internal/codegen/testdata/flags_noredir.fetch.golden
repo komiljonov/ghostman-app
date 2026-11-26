@@ -1,0 +1,6 @@
+const response = await fetch("https://api.example.com/items/7", {
+  method: "DELETE",
+  redirect: "manual",
+  signal: AbortSignal.timeout(2000),
+});
+console.log(response.status, await response.text());

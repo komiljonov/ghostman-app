@@ -14,6 +14,8 @@ const SHAPES = {
     </>
   ),
   plus: () => <path d="M8 3v10M3 8h10" />,
+  // "</>": generate code (the request editor's top row).
+  code: () => <path d="M5.75 4.5L2.25 8l3.5 3.5M10.25 4.5l3.5 3.5-3.5 3.5M9.25 2.75l-2.5 10.5" />,
   // Drag handle (2 × 3 dots): rows reordered by drag and drop.
   grip: () => (
     <g fill="currentColor" stroke="none">

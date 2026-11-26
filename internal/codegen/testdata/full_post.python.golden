@@ -1,0 +1,17 @@
+import requests
+
+response = requests.request(
+    "POST",
+    "https://api.example.com/items?existing=1&tag=a&tag=b+c",
+    headers={
+        "X-Trace": "abc",
+        "X-Empty": "",
+        "Accept": "application/json",
+        "Authorization": "Bearer tok-123",
+        "Content-Type": "application/json",
+    },
+    data="{\"name\": \"it's \\\"quoted\\\"\", \"cost\": \"$HOME ${PATH} $(whoami) `id`\",\n\"path\": \"C:\\\\temp\\\\x\", \"tab\":\"\t\", \"crlf\": \"a\r\nb\",\n\"uni\": \"üñí ✓ 😀 \u2028\"}\n".encode("utf-8"),
+    timeout=30,
+)
+print(response.status_code)
+print(response.text)

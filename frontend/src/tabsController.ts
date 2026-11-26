@@ -1,7 +1,8 @@
 import { setExampleCount } from "./examplesStore";
 import { createStore, produce, unwrap } from "solid-js/store";
 import {
-  CancelRequest, EvalResponseFilter, GetLayout, GetRequest, ReleaseResponse, SaveRequest, SendRequest, SetLayout,
+  CancelRequest, EvalResponseFilter, GenerateCode, GenerateCodeForRequest, GetLayout, GetRequest, ReleaseResponse, SaveRequest,
+  SendRequest, SetLayout,
 } from "../wailsjs/go/main/App";
 import { api, engine, main, scripting } from "../wailsjs/go/models";
 import type { ScriptFolder } from "./scriptChain";
@@ -210,6 +211,17 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
         return true;
       },
     });
+
+  // A send's options from the cascades (follow redirects, auth, folder scripts,
+  // proxy): Send and the code generator use the same.
+  const sendOptions = (id: string, ownAuth: AuthConfig, name: string) => {
+    const auth = hooks.auth(id, ownAuth);
+    return main.SendOptions.createFrom({
+      follow_redirects: hooks.followRedirects(id), request_name: name,
+      auth: auth.config, auth_source: sourceLabel(auth.source), folders: hooks.scriptFolders(id),
+      proxy_id: hooks.proxy(id) ?? "",
+    });
+  };
 
   // Loads a tab's request; false when it is gone (404) so restore can drop it.
   const load = async (id: string): Promise<boolean> => {
@@ -488,17 +500,7 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       });
       await savers.get(id)?.flush(); // send what is saved
       const snapshot = clone(unwrap(tab(id)!.draft));
-      const auth = hooks.auth(id, snapshot.auth);
-      const result = await SendRequest(
-        projectId,
-        id,
-        api.RequestDraft.createFrom(snapshot),
-        main.SendOptions.createFrom({
-          follow_redirects: hooks.followRedirects(id), request_name: tab(id)!.name,
-          auth: auth.config, auth_source: sourceLabel(auth.source), folders: hooks.scriptFolders(id),
-          proxy_id: hooks.proxy(id) ?? "",
-        }),
-      );
+      const result = await SendRequest(projectId, id, api.RequestDraft.createFrom(snapshot), sendOptions(id, snapshot.auth, tab(id)!.name));
       handleProblem(result.error);
       historyChanged(); // every send is a new history entry (Go writes it)
       // A file field's file may have moved since: the cells show what is on disk now.
@@ -531,6 +533,20 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     },
 
     cancel: (id: string) => void CancelRequest(id),
+
+    // A code snippet (codegen.go) of an open tab's CURRENT draft — unsaved edits
+    // included, the same options as its Send — or, for a request without a tab
+    // (the tree's "Copy as curl"), of its saved state; ownAuth is then the
+    // request's own auth from the tree.
+    generateCode(id: string, gen: main.CodegenOptions, ownAuth?: AuthConfig) {
+      const t = tab(id);
+      if (t?.status === "ready") {
+        return GenerateCode(projectId, id, api.RequestDraft.createFrom(clone(unwrap(t.draft))), sendOptions(id, t.draft.auth, t.name), gen);
+      }
+      return GenerateCodeForRequest(projectId, id, sendOptions(id, ownAuth ?? normalizeAuth(), ""), gen);
+    },
+    // The proxy a request resolves to (null = direct): the panel's proxy option.
+    proxyOf: (id: string) => hooks.proxy(id),
 
     // Keeps tabs in line with the tree: renames relabel, deleted requests close.
     syncWithTree(requests: Map<string, { name: string }>) {

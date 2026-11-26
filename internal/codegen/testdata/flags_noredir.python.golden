@@ -1,0 +1,10 @@
+import requests
+
+response = requests.request(
+    "DELETE",
+    "https://api.example.com/items/7",
+    timeout=2,
+    allow_redirects=False,
+)
+print(response.status_code)
+print(response.text)

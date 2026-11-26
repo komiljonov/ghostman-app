@@ -1,0 +1,27 @@
+package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+)
+
+func main() {
+	req, err := http.NewRequest("GET", "https://api.example.com/me", nil)
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Add("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYWRtaW4iLCJzdWIiOiI0MiJ9.Co4UbUrPDBO3uJCgxujimje-21e-U80axdTGrFvNE8Y")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	out, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(resp.Status)
+	fmt.Println(string(out))
+}

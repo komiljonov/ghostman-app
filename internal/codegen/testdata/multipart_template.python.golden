@@ -1,0 +1,13 @@
+import requests
+
+# file paths are placeholders (template values)
+response = requests.request(
+    "POST",
+    "https://api.example.com/upload",
+    files=[
+        ("title", (None, "@not-a-file <neither")),
+        ("avatar", ("avatar.png", open("<path to avatar.png>", "rb"))),
+    ],
+)
+print(response.status_code)
+print(response.text)

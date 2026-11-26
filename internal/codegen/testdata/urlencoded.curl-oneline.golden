@@ -1,0 +1,1 @@
+curl 'https://api.example.com/login' -H 'Content-Type: application/x-www-form-urlencoded' --data-raw 'user=a+b%26c%3Dd&pass=p%27w%22%24&user=second' -L

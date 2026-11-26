@@ -1,0 +1,5 @@
+# file paths are placeholders (template values)
+curl 'https://api.example.com/upload' \
+  --form-string 'title=@not-a-file <neither' \
+  -F 'avatar=@"<path to avatar.png>";filename="avatar.png"' \
+  -L

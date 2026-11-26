@@ -1,0 +1,1 @@
+curl -X DELETE 'https://api.example.com/items/7' --max-time 2 --max-redirs 0

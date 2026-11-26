@@ -1,0 +1,1 @@
+curl 'https://api.example.com/upload' --form-string 'title=@not-a-file <neither' -F 'avatar=@"/home/me/pics/a b.png";filename="avatar.png"' -L

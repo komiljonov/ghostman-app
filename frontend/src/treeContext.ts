@@ -35,6 +35,7 @@ export interface TreeCtx {
   // A request's saved examples (child rows): open in its tab's Examples sub-tab, delete (confirm).
   openExample: (requestId: string, exampleId: string) => void;
   askDeleteExample: (requestId: string, example: api.ExampleSummary) => void;
+  copyAsCurl: (requestId: string) => void; // the request as curl, to the clipboard
 }
 
 export const TreeContext = createContext<TreeCtx>();
