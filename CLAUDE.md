@@ -403,6 +403,17 @@ Postman-style shell, logged in:
 - **Controls never vanish or move on a mode/type switch**: what does not apply is disabled
   (muted, tooltip says why), not hidden — response toolbar, body content-type controls,
   Send/Cancel slot. New UI follows the same rule.
+- **Any tab/modal content area that can grow unbounded must scroll within itself; headers and toolbars
+  stay fixed; nothing may become unreachable at small window sizes.** `.group-content` clips
+  (`overflow: hidden`), so a tab view fills it (`flex: 1; min-height: 0`) and gives its unbounded part
+  its own `overflow-y: auto` box: env tab = fixed name/hint, the table in `.env-var-scroll` (sticky
+  column heads, the append row last inside it); env list = the `<ul>` scrolls, "+ New environment"
+  stays below; webhook tab = the open response section shrinks first (its body scrolls, ≥ 120 px),
+  captures keep ≥ 200 px, the whole view scrolls only as a last resort. Modals scroll inside
+  (`max-height`), their `h2` and last `.modal-actions` sticky. Layers: page content ≤ 21 (sticky
+  heads, drop overlay, toasts) < `.modal-backdrop` 40 < dropdowns 50 < context menu 60. Checked at
+  700 px with overflowing content (env, env list, proxy, webhook, history, examples, request
+  Settings, folder Settings…, Settings).
 - **Icons**: inline SVGs on a 16 px grid in `components/Icon.tsx` (one component, `currentColor`,
   no icon font or package). Add shapes there; no text glyphs as icons.
 - **`{{var}}` resolution** happens in Go at send time (`internal/engine/resolve.go` is the
