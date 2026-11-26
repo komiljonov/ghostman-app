@@ -1,0 +1,11 @@
+import requests
+
+# pre/post scripts are not represented
+# sent through the proxy Local squid (http://localhost:3128) — not represented in this snippet
+# the proxy needs credentials (stored on this machine only, never in snippets)
+response = requests.request(
+    "GET",
+    "https://api.example.com/%7B%7Bunresolved%7D%7D",
+)
+print(response.status_code)
+print(response.text)

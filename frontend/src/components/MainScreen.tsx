@@ -40,6 +40,8 @@ import WebhookView from "./WebhookView";
 import { flushWebhookEdits, markSeen, reloadWebhooks, resetWebhooks, syncFeeds, webhooks, webhooksLoaded } from "../webhookStore";
 import { refreshExampleLists } from "../examplesStore";
 import { loadRecentHeaderKeys } from "../headerKeysStore";
+import { copyAsCurl } from "../codegenStore";
+import AppNotice from "./AppNotice";
 import { DEFAULT_BODY_CHOICE, DEFAULT_HISTORY_CHOICE } from "../viewChoice";
 
 interface Props {
@@ -384,6 +386,11 @@ export default function MainScreen(props: Props) {
                 selectedRequestId={pane() === "editor" ? tabs()?.activeRequestId() : undefined}
                 onOpenRequest={openRequest}
                 onOpenExample={openExample}
+                onCopyAsCurl={(id) => {
+                  const c = tabs();
+                  // An open tab: its current draft; else the saved request with its own auth.
+                  if (c) void copyAsCurl((gen) => c.generateCode(id, gen, currentTree().requests.get(id)?.auth));
+                }}
                 onLoaded={(pid, requests) => {
                   if (pid === projectId()) tabs()?.syncWithTree(requests);
                 }}
@@ -470,6 +477,7 @@ export default function MainScreen(props: Props) {
           </Switch>
         </section>
       </div>
+      <AppNotice />
     </div>
   );
 }

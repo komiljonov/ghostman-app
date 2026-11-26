@@ -1,0 +1,4 @@
+# JWT: <signed at send time>
+curl 'https://api.example.com/me' \
+  -H 'Authorization: Bearer <signed at send time>' \
+  -L

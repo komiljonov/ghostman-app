@@ -171,26 +171,8 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 	if !a.session.IsLoggedIn() {
 		return SendResult{Error: problemNotLoggedIn, Unresolved: []string{}, Console: console}
 	}
-	// Variables are read fresh from the server for every send (online-only), with
-	// this machine's secret values overlaid.
-	type resolved struct {
-		vars    map[string]string
-		env     string
-		envID   string
-		secrets []string // local secret values, masked in the hop URLs shown to the UI
-	}
-	rv, p := call(a, func(ctx context.Context, c *api.APIClient) (resolved, error) {
-		m, ec, err := a.envs.VarMap(ctx, c, projectID)
-		var secrets []string
-		for _, v := range ec.Variables {
-			if v.Type == api.VarSecret && v.HasValue && v.Value != "" {
-				secrets = append(secrets, v.Value)
-			}
-		}
-		return resolved{m, ec.ActiveName, ec.ActiveID, secrets}, err
-	})
+	rv, p := a.sendVars(projectID)
 	if p != nil {
-		p.Message = "could not load environment variables: " + p.Message
 		return SendResult{Error: p, Unresolved: []string{}, Console: console}
 	}
 
@@ -232,9 +214,7 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 		}
 		sendProxy, proxyWarning = px.proxy, px.warning
 	}
-	template := specFromDraft(draft)
-	template.Auth = engineAuth(opts.Auth)
-	a.attachFiles(requestID, &template) // multipart file fields: local paths (never synced)
+	template := a.sendTemplate(requestID, draft, opts)
 	start := time.Now()
 
 	// Scripts (internal/scripting). ORDER MATTERS: pre-scripts run on a COPY of the
@@ -347,6 +327,44 @@ func (a *App) SendRequest(projectID, requestID string, draft api.RequestDraft, o
 	}
 	resp.Hops = maskSecrets(nonNilHops(resp.Hops), rv.secrets)
 	return SendResult{Data: resp, Unresolved: unresolved, Environment: rv.env, Hops: resp.Hops, Console: console, ProxyWarning: proxyWarning}
+}
+
+// sendVarsResult is a send's variable map: the active environment's values with
+// this machine's secret values overlaid.
+type sendVarsResult struct {
+	vars    map[string]string
+	env     string
+	envID   string
+	secrets []string // local secret values (masked in hop URLs; flagged in snippets)
+}
+
+// sendVars reads the variables fresh from the server (online-only) for a send or
+// a code snippet (codegen.go): the same map either way.
+func (a *App) sendVars(projectID string) (sendVarsResult, *session.Problem) {
+	rv, p := call(a, func(ctx context.Context, c *api.APIClient) (sendVarsResult, error) {
+		m, ec, err := a.envs.VarMap(ctx, c, projectID)
+		var secrets []string
+		for _, v := range ec.Variables {
+			if v.Type == api.VarSecret && v.HasValue && v.Value != "" {
+				secrets = append(secrets, v.Value)
+			}
+		}
+		return sendVarsResult{m, ec.ActiveName, ec.ActiveID, secrets}, err
+	})
+	if p != nil {
+		p.Message = "could not load environment variables: " + p.Message
+	}
+	return rv, p
+}
+
+// sendTemplate is a draft as the engine takes it, in template form: the effective
+// auth (the UI's cascade) and the multipart files' local paths (never synced).
+// Shared by Send and the code generator.
+func (a *App) sendTemplate(requestID string, draft api.RequestDraft, opts SendOptions) engine.RequestSpec {
+	template := specFromDraft(draft)
+	template.Auth = engineAuth(opts.Auth)
+	a.attachFiles(requestID, &template)
+	return template
 }
 
 // CancelRequest cancels the in-flight send of a request, if any.

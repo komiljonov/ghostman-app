@@ -1,0 +1,7 @@
+const response = await fetch("https://api.example.com/me", {
+  method: "GET",
+  headers: {
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYWRtaW4iLCJzdWIiOiI0MiJ9.Co4UbUrPDBO3uJCgxujimje-21e-U80axdTGrFvNE8Y",
+  },
+});
+console.log(response.status, await response.text());

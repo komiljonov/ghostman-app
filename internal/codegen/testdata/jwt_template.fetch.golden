@@ -1,0 +1,8 @@
+// JWT: <signed at send time>
+const response = await fetch("https://api.example.com/me", {
+  method: "GET",
+  headers: {
+    "Authorization": "Bearer <signed at send time>",
+  },
+});
+console.log(response.status, await response.text());

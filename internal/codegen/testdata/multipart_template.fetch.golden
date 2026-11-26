@@ -1,0 +1,12 @@
+import { readFileSync } from "node:fs";
+
+// file paths are placeholders (template values)
+const form = new FormData();
+form.append("title", "@not-a-file <neither");
+form.append("avatar", new Blob([readFileSync("<path to avatar.png>")]), "avatar.png");
+
+const response = await fetch("https://api.example.com/upload", {
+  method: "POST",
+  body: form,
+});
+console.log(response.status, await response.text());

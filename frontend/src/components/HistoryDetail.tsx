@@ -19,6 +19,7 @@ import { filterAvailability, filterDisplay, FilterState, NO_FILTER, saveChoices 
 import ResponseFilterBar from "./ResponseFilterBar";
 import ContextMenu from "./ContextMenu";
 import SaveExampleDialog from "./SaveExampleDialog";
+import { HISTORY_CURL_TITLE } from "../codegenModel";
 import { HistoryChoice, HistorySection, shownHistorySection, shownPart, shownTextView } from "../viewChoice";
 
 interface Props {
@@ -31,6 +32,7 @@ interface Props {
   onRestore: () => void;
   onOpenOriginal: () => void;
   onCopyURL: () => void;
+  onCopyCurl: () => void; // the as-sent request as curl (HistoryCurl)
   onDelete: () => void;
   onSave: () => void; // save the stored response body to a file (any type)
   onSaveFiltered: (query: string) => void; // save the whole filtered result
@@ -118,6 +120,9 @@ export default function HistoryDetail(props: Props) {
           <button type="button" class="small" disabled={!s().url_resolved} onClick={() => props.onCopyURL()}
             title={s().url_resolved ? "Copy the URL as sent" : "No resolved URL for this entry"}>
             Copy resolved URL
+          </button>
+          <button type="button" class="small" title={HISTORY_CURL_TITLE} onClick={() => props.onCopyCurl()}>
+            <Icon name="code" size={14} /> Copy as curl
           </button>
           <button type="button" class="small" disabled={!resp()} aria-haspopup={saveChoices(fstate()) ? "menu" : undefined}
             onClick={(e) => {

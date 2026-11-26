@@ -136,7 +136,7 @@ Postman-style shell, logged in:
   (`active_env_<project_id>`), validated on load.
 - **Main pane**: the **tabs** by default, or Team settings / Project settings / Invitations
   when opened. Empty state without tabs. Tabs are typed (`src/tabModel.ts`):
-  `request` (method | URL (stretches) | Send / Cancel in one fixed slot at the far right;
+  `request` (method | URL (stretches) | `</>` code snippet | Send / Cancel in one fixed slot at the far right;
   Params | Headers | Body | Auth | Scripts | Settings | History with the save status at the row's right end; response below a
   draggable divider), `env` (that environment's variables table), `env_list`
   (create / rename / reorder / delete environments), `history` (see History), `webhook` (see
@@ -394,6 +394,40 @@ Postman-style shell, logged in:
   (`createExampleEditSaver` over `createAutosaver`); `UpdateExample(id, next)` diffs next against the cached
   last server state in Go and PATCHes only the changed fields (the body only when text and edited). Deleting
   the request deletes its examples (server). Teammates see changes on re-fetch as everywhere.
+- **Code generation** (Go: `internal/codegen` — one `Target` per language: curl, fetch, Python requests, Go
+  net/http; adding a language = one new file + one entry in `targets`, nothing else —, glue `codegen.go`; engine
+  `engine.Prepare` / `PrepareTemplate` (`prepare.go`); UI `CodegenPanel`, rules `src/codegenModel.ts`, prefs
+  `src/codegenStore.ts`, preview `src/snippetView.ts` — read-only CM, language support loaded on demand —, all
+  tested). The snippet is the SEND pipeline up to, not including, execution: `sendTemplate` (draft + the UI's
+  cascades via `tabs.sendOptions`: effective auth, follow redirects, scripts' folders, proxy) + `sendVars` (active
+  env + local secrets) + `ResolveSpec` + `SignJWT` + `engine.Prepare` (the wire form with buildRequest's rules:
+  auth row, user-wins, enabled keyed rows, query appended, implied Content-Type; `TestPrepareMatchesSend`).
+  Scripts never run (no side effects): a request or folder with scripts gets the note "pre/post scripts are not
+  represented". **Values**: Resolved (default; real values incl. secrets and a JWT signed now — `secrets` flags a
+  secret / token actually inlined → "includes secret values") or Keep `{{variables}}` (`PrepareTemplate`: the URL
+  as typed — it may not parse yet —, `KeepVarTokens` un-escapes `{{…}}` in the appended query / form body; JWT
+  → `<signed at send time>`; file paths → placeholders). A JWT that can't be signed → placeholder + Send's own
+  abort message as a warning. Timeout = the engine's (`--max-time` / `timeout=` / `AbortSignal.timeout` /
+  `context.WithTimeout`); follow redirects off → `--max-redirs 0` / `allow_redirects=False` / `redirect:
+  "manual"` / `CheckRedirect`; on → curl `-L`. Proxy: curl `-x scheme://host:port` only when the panel's box is
+  ticked (never credentials); otherwise a comment + warning. **Escaping is per target and EXECUTED in tests**
+  (`internal/codegen/roundtrip_test.go`: bash+curl, Python+requests (`GHOSTMAN_TEST_PYTHON`), `go run`, node —
+  a missing tool skips): ', ", $, `, \, CR/LF, tab, unicode arrive byte-identical. curl: bodies in `--data-raw
+  '…'`; a body with non-ASCII or a CR is PIPED (`printf '%s' … | curl --data-binary @-`) — Windows curl.exe
+  reads arguments in the ANSI code page; a CR always takes `$'…'` (Git Bash drops it in single quotes); text
+  form-data in `--form-string`, files `-F 'k=@"path"'`; an empty header `Name;`. One line = no newline character
+  at all (`$'…'`, no comments): bash-compatible shells (Git Bash on Windows); a cmd.exe variant is a future
+  target; non-ASCII header values / form-data text stay arguments (lossy with Windows curl.exe — documented in
+  the panel hint). fetch: JSON string literals, headers as pairs when a name repeats; Python: bodies as UTF-8
+  bytes, every form-data part in `files=`; Go: a complete program, imports computed. **UI**: the `</>` icon in
+  the request's top row (left of Send) opens the panel: language · values · curl Multiline | One line · Proxy
+  (-x) (curl-only controls disabled with the reason for other languages), "includes secret values", the
+  preview, Go's warnings, Copy = exactly the preview. Every choice persists (settings `codegen_prefs`,
+  `GetCodegenPrefs` / `SetCodegenPrefs`). **Copy as curl**: tree request menu + tab menu (an open tab = its
+  current draft; else `GenerateCodeForRequest` = the saved request) with the persisted toggles, target forced
+  to curl; History row menu + detail button = `HistoryCurl` from the AS-SENT record (values toggle n/a; no
+  timeout / redirect flags; a form-data body is not reproduced). Outcome → the app-wide notice
+  (`src/noticeStore.ts` / `AppNotice`).
 - **Save response to file**: toolbar download icon (any view, once a response exists) → bound
   `SaveResponseToFile(tabID)`: native save dialog (`runtime.SaveFileDialog`, behind the
   `saveDialog` field so tests mock it), default name = request name (sanitized) + extension
@@ -815,6 +849,7 @@ examples.go              bound saved response examples: list/detail/edit (Go-sid
 body_format.go           bound FormatJSONBody (raw body Format; rules in internal/jsonfmt)
 auth_memory.go           auth-field memory: capture after auth saves, bound SwitchAuthType (rules in internal/authmemory)
 jwt_preview.go           bound PreviewJWT (Auth tab "Preview token"; signing rules in internal/engine/jwt.go)
+codegen.go               bound code generation: GenerateCode / GenerateCodeForRequest / HistoryCurl, prefs, targets
 redirects.go             follow-redirects: local global value, node setters (server), SaveFolderSettings
                          (folder auth + follow in one PATCH), legacy local→server push
 ui_tokens_test.go        fails on color literals outside frontend/src/tokens.css
@@ -830,6 +865,7 @@ internal/testproxy/      HTTP (forward + CONNECT) + SOCKS5 test proxy with auth 
 internal/scripting/      pre/post scripts: sandboxed goja VM per script, watchdog budgets, gm API, console, API docs
 internal/authmemory/     auth-field memory rules: which fields a type has, Empty, Captures, Switch (prefill)
 internal/jsonfmt/        Format JSON for template bodies: mask {{vars}} outside strings, indent, restore
+internal/codegen/        code snippets: one template per language over engine.Prepared; quoting; golden + round-trip tests
 internal/filter/         jq (gojq) evaluation for the response filter bar: parse once, cap, note
 internal/store/          SQLite open/migrate, sqlc output (*.sql.go, db.go, models.go)
   migrations/            goose SQL migrations (embedded, also the sqlc schema)

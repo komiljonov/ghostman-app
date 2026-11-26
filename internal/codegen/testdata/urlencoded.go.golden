@@ -1,0 +1,33 @@
+package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+)
+
+func main() {
+	form := url.Values{}
+	form.Add("user", "a b&c=d")
+	form.Add("pass", "p'w\"$")
+	form.Add("user", "second")
+	req, err := http.NewRequest("POST", "https://api.example.com/login", strings.NewReader(form.Encode()))
+	if err != nil {
+		panic(err)
+	}
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	out, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(resp.Status)
+	fmt.Println(string(out))
+}

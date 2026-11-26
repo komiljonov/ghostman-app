@@ -34,6 +34,10 @@ export function ClearRequestFile(arg1, arg2) {
   return window['go']['main']['App']['ClearRequestFile'](arg1, arg2);
 }
 
+export function CodegenTargets() {
+  return window['go']['main']['App']['CodegenTargets']();
+}
+
 export function ConfirmQuit() {
   return window['go']['main']['App']['ConfirmQuit']();
 }
@@ -166,12 +170,24 @@ export function FormatJSONBody(arg1) {
   return window['go']['main']['App']['FormatJSONBody'](arg1);
 }
 
+export function GenerateCode(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['GenerateCode'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function GenerateCodeForRequest(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['GenerateCodeForRequest'](arg1, arg2, arg3, arg4);
+}
+
 export function GetAuthState() {
   return window['go']['main']['App']['GetAuthState']();
 }
 
 export function GetCaptureDetail(arg1, arg2) {
   return window['go']['main']['App']['GetCaptureDetail'](arg1, arg2);
+}
+
+export function GetCodegenPrefs() {
+  return window['go']['main']['App']['GetCodegenPrefs']();
 }
 
 export function GetEnvContext(arg1) {
@@ -284,6 +300,10 @@ export function GetWebhook(arg1) {
 
 export function GetWebhookMeta() {
   return window['go']['main']['App']['GetWebhookMeta']();
+}
+
+export function HistoryCurl(arg1, arg2) {
+  return window['go']['main']['App']['HistoryCurl'](arg1, arg2);
 }
 
 export function ImportOpenAPI(arg1, arg2) {
@@ -516,6 +536,10 @@ export function SetActiveEnvironment(arg1, arg2) {
 
 export function SetBulkMode(arg1, arg2) {
   return window['go']['main']['App']['SetBulkMode'](arg1, arg2);
+}
+
+export function SetCodegenPrefs(arg1) {
+  return window['go']['main']['App']['SetCodegenPrefs'](arg1);
 }
 
 export function SetFolderFollowRedirects(arg1, arg2) {

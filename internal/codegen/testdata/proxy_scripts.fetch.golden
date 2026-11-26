@@ -1,0 +1,7 @@
+// pre/post scripts are not represented
+// sent through the proxy Local squid (http://localhost:3128) — not represented in this snippet
+// the proxy needs credentials (stored on this machine only, never in snippets)
+const response = await fetch("https://api.example.com/%7B%7Bunresolved%7D%7D", {
+  method: "GET",
+});
+console.log(response.status, await response.text());

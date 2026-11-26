@@ -2,6 +2,8 @@ import { createEffect, createSignal, For, Match, on, Show, Switch } from "solid-
 import { DismissAuthHint, IsAuthHintDismissed } from "../../wailsjs/go/main/App";
 import { convertToApiKey, convertToBearer, showAuthHint } from "../authHint";
 import AuthHint from "./AuthHint";
+import CodegenPanel from "./CodegenPanel";
+import Icon from "./Icon";
 import { Row } from "../rows";
 import { applyUrlInput, serializeUrl } from "../urlParams";
 import { TabsController, TabState } from "../tabsController";
@@ -46,6 +48,7 @@ export default function RequestEditor(props: Props) {
   // while the request's own auth is inherit / none and nothing resolved adds that
   // header; dismissed per request (local). A conversion is one draft edit — the
   // autosave PATCHes auth + the disabled header row together.
+  const [codeOpen, setCodeOpen] = createSignal(false); // the "</>" panel
   const [hintDismissed, setHintDismissed] = createSignal(false);
   createEffect(on(id, (rid) => {
     setHintDismissed(false);
@@ -132,11 +135,19 @@ export default function RequestEditor(props: Props) {
               onEnter={() => {
                 if (!props.tab.sending) void props.controller.send(id());
               }} />
+            {/* "</>": the request as a code snippet (CodegenPanel). */}
+            <button type="button" class="icon-button codegen-button" title="Code snippet (curl, fetch, Python, Go)"
+              aria-label="Code snippet" aria-haspopup="dialog" onClick={() => setCodeOpen(true)}>
+              <Icon name="code" />
+            </button>
             {/* Send and Cancel share one fixed-width slot, pinned to the right. */}
             <Show when={props.tab.sending} fallback={<button class="send" type="submit">Send</button>}>
               <button class="send cancel" type="button" onClick={() => props.controller.cancel(id())}>Cancel</button>
             </Show>
           </form>
+          <Show when={codeOpen()}>
+            <CodegenPanel requestId={id()} controller={props.controller} onClose={() => setCodeOpen(false)} />
+          </Show>
 
           <div class="editor-split" ref={split}>
             <div class="editor-config" style={{ flex: `${1 - props.tab.responseShare} 1 0` }}>

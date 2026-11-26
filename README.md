@@ -172,6 +172,11 @@ the database file holds secrets in plain text; treat it like any local credentia
 To remove them: Settings → History → Clear (the space is freed on disk right away). Logs never
 contain resolved URLs, headers or secret values.
 
+**Code snippets** ("</>" next to Send, "Copy as curl" in the menus) are built on this machine and only go
+where you paste them. With "Resolved values" (the default) they contain the real values — secret variables and
+a freshly signed JWT included; the panel says "includes secret values". "Keep {{variables}}" shows the
+template form instead.
+
 **Saved response examples are the opposite: they SYNC.** "Save as example" uploads the response as
 received (status, headers, body — up to 1 MB) to the server, where everyone on the project sees it. A
 response can contain real tokens the API returned; the save dialog says so, and nothing is scrubbed

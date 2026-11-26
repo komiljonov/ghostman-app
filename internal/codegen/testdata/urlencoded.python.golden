@@ -1,0 +1,16 @@
+import requests
+
+response = requests.request(
+    "POST",
+    "https://api.example.com/login",
+    headers={
+        "Content-Type": "application/x-www-form-urlencoded",
+    },
+    data=[
+        ("user", "a b&c=d"),
+        ("pass", "p'w\"$"),
+        ("user", "second"),
+    ],
+)
+print(response.status_code)
+print(response.text)
