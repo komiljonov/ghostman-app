@@ -9,6 +9,7 @@ import { handleProblem } from "./authStore";
 import { historyChanged } from "./historyStore";
 import { Autosaver, createAutosaver, SaveState } from "./autosave";
 import { BodyView, defaultView } from "./responseView";
+import type { BodyChoice, HistoryChoice } from "./viewChoice";
 import type { SavedSearch } from "./responseSearch";
 import { afterEval, FilterState, NO_FILTER, shouldAutoApply } from "./responseFilter";
 import { adoptUrlQuery } from "./urlParams";
@@ -86,6 +87,11 @@ export interface TabState {
   // Timing of the last send's hops (also after a failed send); reset by every send.
   hops: engine.Hop[];
   responseShare: number; // fraction of the editor height given to the response
+  // View-mode choices of this tab's detail views (viewChoice.ts): CONTAINER state,
+  // kept across item switches for as long as the tab is open; undefined = defaults.
+  historyView?: HistoryChoice; // the History tab's entry detail
+  captureView?: BodyChoice; // a webhook tab's capture detail
+  exampleView?: BodyChoice; // a request tab's Examples detail
 }
 
 const emptyDraft = (): Draft => ({
@@ -318,13 +324,13 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
     // Opens a request's tab on its Examples sub-tab with one example shown (the
     // tree's example rows). An example open in Edit stays in Edit.
     openExample(requestId: string, exampleId: string) {
+      // The View | Edit mode is the tab's: opening another example keeps it.
       if (!tab(requestId)) {
         addLoadingTab(requestId);
         void load(requestId);
       }
       apply(openTab(state.layout, requestKey(requestId)));
       update(requestId, (t) => {
-        if (t.section !== "examples" || t.exampleId !== exampleId) t.exampleMode = "view";
         t.section = "examples";
         t.exampleId = exampleId;
       });
@@ -462,6 +468,11 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
       update(id, fn);
     },
 
+    // The same for any tab kind, by tab key (History, webhook: their detail view choices).
+    viewByKey(key: string, fn: (t: TabState) => void) {
+      updateKey(key, fn);
+    },
+
     retrySave: (id: string) => savers.get(id)?.retry(),
 
 
@@ -496,6 +507,9 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
         t.sending = false;
         t.response = result.data ?? undefined;
         t.responseFolds = undefined;
+        // DELIBERATE exception to "view choices are container state" (viewChoice.ts):
+        // every new response opens in its own default view (Preview for HTML / media,
+        // Pretty for JSON, else Raw). Body | Headers | Console is NOT reset.
         if (result.data) t.responseView = defaultView(result.data);
         t.responseError = result.error?.message;
         t.unresolved = result.unresolved ?? [];
@@ -503,8 +517,8 @@ export function createTabsController(projectId: string, hooks: TabsHooks) {
         t.hops = result.hops ?? [];
         t.filter = NO_FILTER;
         t.console = result.console ?? undefined;
-        // The Console tab is disabled without output: never leave it selected then.
-        if (t.responseSection === "console" && !(result.console?.entries?.length)) t.responseSection = "body";
+        // A chosen Console stays chosen: without output the pane shows Body
+        // (shownResponseSection) and returns to Console with the next send that has some.
       });
       // A saved filter applies to the new response at once (✕ shows the full body).
       const saved = snapshot.response_filter;

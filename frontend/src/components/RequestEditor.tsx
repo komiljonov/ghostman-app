@@ -20,6 +20,7 @@ import { hasScripts } from "../scriptChain";
 import { examplesTabLabel } from "../examplesModel";
 import { exampleCount } from "../examplesStore";
 import ExamplesPanel from "./ExamplesPanel";
+import { DEFAULT_BODY_CHOICE } from "../viewChoice";
 
 interface Props {
   tab: TabState;
@@ -165,8 +166,10 @@ export default function RequestEditor(props: Props) {
                     <ExamplesPanel requestId={props.tab.id} openId={props.tab.exampleId} mode={props.tab.exampleMode}
                       onOpen={(eid, mode) => view((t) => {
                         t.exampleId = eid;
-                        t.exampleMode = mode ?? "view";
-                      })} />
+                        if (mode) t.exampleMode = mode;
+                      })}
+                      view={props.tab.exampleView ?? DEFAULT_BODY_CHOICE}
+                      onView={(patch) => view((t) => (t.exampleView = { ...(t.exampleView ?? DEFAULT_BODY_CHOICE), ...patch }))} />
                   </Match>
                   <Match when={props.tab.section === "history"}>
                     <RequestHistoryPanel requestId={props.tab.id} requestName={props.tab.name}

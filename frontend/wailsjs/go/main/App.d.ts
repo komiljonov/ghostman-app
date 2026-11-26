@@ -47,6 +47,8 @@ export function CreateTeam(arg1:string):Promise<main.TeamRefResult>;
 
 export function CreateVariable(arg1:string,arg2:string,arg3:string):Promise<main.VariableResult>;
 
+export function CreateVariableWithValue(arg1:string,arg2:string,arg3:string,arg4:string):Promise<main.VariableResult>;
+
 export function CreateWebhook(arg1:string,arg2:string):Promise<main.WebhookResult>;
 
 export function DeleteEnvironment(arg1:string,arg2:string):Promise<main.EmptyResult>;

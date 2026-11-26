@@ -13,11 +13,14 @@ import MediaPreview from "./MediaPreview";
 import MethodBadge from "./MethodBadge";
 import ResponseBody from "./ResponseBody";
 import ResponseFilterBar from "./ResponseFilterBar";
+import { BodyChoice, shownTextView } from "../viewChoice";
 
 interface Props {
   webhookId: string;
   detail: main.CaptureDetail;
   busy: boolean;
+  view: BodyChoice; // the webhook tab's (viewChoice.ts): another capture keeps it
+  onView: (patch: Partial<BodyChoice>) => void;
   onCopyAsRequest: () => void;
   onCopyBody: () => void;
   onSave: () => void; // the stored body, any type
@@ -32,8 +35,11 @@ const NOT_TEXT = "Not a text body — save it to a file";
 // jq filter for JSON). A binary / media body is never shown as text: a file card
 // with Save. Controls that do not apply are disabled, never hidden.
 export default function CaptureDetailView(props: Props) {
-  const [part, setPart] = createSignal<"body" | "headers">("body");
-  const [view, setView] = createSignal<BodyView>("pretty");
+  // Body | Headers and Pretty | Raw are the tab's choices; what is shown falls back
+  // for a capture that can't (no Pretty form) without changing them.
+  const part = () => props.view.part;
+  const setPart = (part: "body" | "headers") => props.onView({ part });
+  const setView = (body: BodyView) => props.onView({ body });
   const [fquery, setFquery] = createSignal("");
   const [fstate, setFstate] = createSignal<FilterState>(NO_FILTER);
   const [saveMenu, setSaveMenu] = createSignal<{ x: number; y: number }>();
@@ -46,7 +52,7 @@ export default function CaptureDetailView(props: Props) {
   const like = () => ({ contentType: s().content_type, formatted: d().formatted, body: d().body, rawBody: d().raw_body, truncated: d().preview_cut });
   const structured = () => hasStructure(like());
   const prettyOK = () => hasBody() && !media() && (structured() || prettyFallback(like()));
-  const effective = (): BodyView => (view() === "pretty" && !prettyOK() ? "raw" : view());
+  const effective = (): BodyView => shownTextView(props.view.body, prettyOK());
   const text = () => (effective() === "raw" && d().formatted ? d().raw_body : d().body);
   const bodyControls = () => part() === "body" && hasBody() && !media();
   const truncatedNote = () => `The server kept the first ${formatBytes(d().stored_bytes)} of ${formatBytes(s().body_size)} received.`;

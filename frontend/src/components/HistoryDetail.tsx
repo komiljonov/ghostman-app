@@ -19,11 +19,14 @@ import { filterAvailability, filterDisplay, FilterState, NO_FILTER, saveChoices 
 import ResponseFilterBar from "./ResponseFilterBar";
 import ContextMenu from "./ContextMenu";
 import SaveExampleDialog from "./SaveExampleDialog";
+import { HistoryChoice, HistorySection, shownHistorySection, shownPart, shownTextView } from "../viewChoice";
 
 interface Props {
   entry: main.HistoryEntry;
   openOriginal: { ok: boolean; why: string };
   saveExample: { ok: boolean; why: string }; // canSaveAsExample
+  view: HistoryChoice; // the History tab's view choices (kept across entries)
+  onView: (patch: Partial<HistoryChoice>) => void;
   busy: boolean;
   onRestore: () => void;
   onOpenOriginal: () => void;
@@ -34,22 +37,25 @@ interface Props {
   onCopyFiltered: (query: string) => void; // copy the whole filtered result
 }
 
-type Section = "request" | "response" | "timing" | "console";
+type Section = HistorySection;
 
 // One history entry in full: the request in template or resolved form (resolved
 // includes secret values — this machine only), the stored response (reusing the
 // response viewer: Pretty/Raw, collapsible JSON, search) and the per-hop timings.
 // Controls that do not apply are disabled, never hidden.
 export default function HistoryDetail(props: Props) {
-  const [form, setForm] = createSignal<RequestForm>("template");
-  const [section, setSection] = createSignal<Section>("response");
+  // The view choices (section, Template | Resolved, Body | Headers, Pretty | Raw) are
+  // the History tab's, not this entry's (viewChoice.ts): another entry keeps them.
+  // What is SHOWN falls back when this entry can't (no response, no script output,
+  // no Pretty form) without touching the choice, so the next entry gets it back.
   const consoleInfo = () => consoleBadge(props.entry.console);
-  // An entry without script output cannot show its (disabled) Console tab.
-  createEffect(() => {
-    if (section() === "console" && consoleInfo().count === 0) setSection("response");
-  });
-  const [respPart, setRespPart] = createSignal<"body" | "headers">("body");
-  const [view, setView] = createSignal<BodyView>("pretty");
+  const form = () => props.view.form;
+  const setForm = (form: RequestForm) => props.onView({ form });
+  const section = () => shownHistorySection(props.view.section, consoleInfo().count);
+  const setSection = (section: Section) => props.onView({ section });
+  const respPart = () => shownPart(props.view.part, !!resp());
+  const setRespPart = (part: "body" | "headers") => props.onView({ part });
+  const setView = (body: BodyView) => props.onView({ body });
   const [confirmDelete, setConfirmDelete] = createSignal(false);
   const [savingExample, setSavingExample] = createSignal(false);
   const [savedExample, setSavedExample] = createSignal<string>(); // inline confirmation
@@ -72,7 +78,7 @@ export default function HistoryDetail(props: Props) {
   // A media / binary body: shown by HistoryMedia, never as text (Pretty/Raw/Wrap disabled).
   const media = () => !!resp()?.media;
   const prettyOK = () => structured() || (!!like() && prettyFallback(like()!));
-  const effective = (): BodyView => (view() === "pretty" && !prettyOK() ? "raw" : view());
+  const effective = (): BodyView => shownTextView(props.view.body, prettyOK());
   const text = () => {
     const r = resp();
     if (!r) return "";

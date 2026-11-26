@@ -7,6 +7,7 @@ import { SaveState } from "../autosave";
 import { handleProblem } from "../authStore";
 import { exampleMeta, moveState } from "../examplesModel";
 import { examplesTick, setExampleList } from "../examplesStore";
+import type { BodyChoice } from "../viewChoice";
 import ConfirmDialog from "./ConfirmDialog";
 import ContextMenu, { MenuEntry } from "./ContextMenu";
 import ExampleEditor from "./ExampleEditor";
@@ -19,8 +20,10 @@ import StatusBadge from "./StatusBadge";
 interface Props {
   requestId: string;
   openId: string | undefined; // the example shown in detail (kept per tab)
-  mode: "view" | "edit";
-  onOpen: (id: string | undefined, mode?: "view" | "edit") => void;
+  mode: "view" | "edit"; // the tab's: opening another example keeps it
+  onOpen: (id: string | undefined, mode?: "view" | "edit") => void; // no mode = keep
+  view: BodyChoice; // the tab's example-view choices (viewChoice.ts)
+  onView: (patch: Partial<BodyChoice>) => void;
 }
 
 // The request editor's Examples sub-tab: the request's saved response examples
@@ -155,7 +158,7 @@ export default function ExamplesPanel(props: Props) {
                       const m = () => exampleMeta(e, now());
                       const mv = () => moveState(i(), l().length);
                       return (
-                        <li class="examples-row" onClick={() => renaming() !== e.id && props.onOpen(e.id, "view")}
+                        <li class="examples-row" onClick={() => renaming() !== e.id && props.onOpen(e.id)}
                           onContextMenu={(ev) => {
                             ev.preventDefault();
                             setMenu({ e, x: ev.clientX, y: ev.clientY });
@@ -230,7 +233,7 @@ export default function ExamplesPanel(props: Props) {
             <FormError message={detailError()} />
             <Show when={detail()} keyed fallback={<Show when={!detailError()}><p class="placeholder small">Loading example…</p></Show>}>
               {(dd) => (
-                <Show when={props.mode === "edit"} fallback={<ExampleView detail={dd} onSave={() => void saveBody(dd.id)} />}>
+                <Show when={props.mode === "edit"} fallback={<ExampleView detail={dd} view={props.view} onView={props.onView} onSave={() => void saveBody(dd.id)} />}>
                   <ExampleEditor detail={dd} onSaved={() => void reload()} onSaver={(s) => (saver = s)}
                     onState={(s, e) => {
                       setSaveState(s);

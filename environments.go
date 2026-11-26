@@ -114,6 +114,21 @@ func (a *App) CreateVariable(envID, key, typ string) VariableResult {
 	return VariableResult{Data: ptr(v, p), Error: p}
 }
 
+// CreateVariableWithValue is the variables table's append row, committed as a whole:
+// create the variable, then set the typed value through envs (a secret's value stays
+// on this machine). A failed value write keeps the created variable and reports the
+// problem with it (Data and Error both set); "" sets nothing.
+func (a *App) CreateVariableWithValue(envID, key, typ, value string) VariableResult {
+	res := a.CreateVariable(envID, key, typ)
+	if res.Error != nil || res.Data == nil || value == "" {
+		return res
+	}
+	if r := a.SetVariableValue(envID, res.Data.ID, value); r.Error != nil {
+		res.Error = r.Error
+	}
+	return res
+}
+
 // SetVariableValue sets a value: on the server for regular variables, only on this
 // machine for secrets.
 func (a *App) SetVariableValue(envID, varID, value string) EmptyResult {

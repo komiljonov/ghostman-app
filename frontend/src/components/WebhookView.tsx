@@ -24,10 +24,13 @@ import KeyValueEditor from "./KeyValueEditor";
 import MethodBadge from "./MethodBadge";
 import PlainEditor from "./PlainEditor";
 import SaveIndicator from "./SaveIndicator";
+import type { BodyChoice } from "../viewChoice";
 
 interface Props {
   webhookId: string;
   onOpenRequest: (id: string) => void;
+  view: BodyChoice; // the tab's capture-detail view choices (kept across captures)
+  onView: (patch: Partial<BodyChoice>) => void;
 }
 
 const SAVE_DELAY_MS = 600;
@@ -402,7 +405,7 @@ export default function WebhookView(props: Props) {
             <p class="placeholder">{selected() === undefined ? "Select a captured request to see its headers and body." : detailError() ? "" : "Loading…"}</p>
           }>
             {(d) => (
-              <CaptureDetailView webhookId={id()} detail={d} busy={busy()}
+              <CaptureDetailView webhookId={id()} detail={d} busy={busy()} view={props.view} onView={props.onView}
                 onCopyAsRequest={() => void copyAsRequest(d.summary.id)}
                 onCopyBody={() => void copyBody(d.summary.id)}
                 onSave={() => void saveBody(d.summary.id)}
