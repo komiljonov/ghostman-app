@@ -24,7 +24,7 @@ import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { json } from "@codemirror/lang-json";
 import { completionPath, javascript, javascriptLanguage } from "@codemirror/lang-javascript";
-import { buildMembers, Member, memberOptions } from "./scriptComplete";
+import { buildMembers, envKeySpot, hoverDoc, insertion, Member, memberAt, memberOptions, Phase } from "./scriptComplete";
 import { scriptDocs } from "./scriptDocs";
 import { classify, createFromTooltip, EnvDisplay, maskRanges, saveFromTooltip, tooltipActions, tooltipModel } from "./vars";
 import { runShortcut } from "./shortcuts";
@@ -395,21 +395,100 @@ function scriptMembers(): Promise<Member> {
   return membersPromise;
 }
 
-const scriptCompletion = javascriptLanguage.data.of({
-  autocomplete: async (ctx: CompletionContext): Promise<CompletionResult | null> => {
-    const at = completionPath(ctx);
+type ScriptCompletion = Completion & { dimmed?: boolean; secret?: boolean };
+
+// The script editors' completion (rules: scriptComplete.ts): gm / console members
+// for this editor's phase (out-of-phase ones dimmed, last, "(post only)"; a
+// function inserts name() with the cursor inside), and — inside the string
+// literal of gm.environment.get / set / unset — the project's env keys, grouped
+// like the {{var}} popup (keys of the active environment first, others dimmed).
+function scriptCompletion(phase: Phase, getEnv: () => EnvDisplay): Extension {
+  const members = javascriptLanguage.data.of({
+    autocomplete: async (ctx: CompletionContext): Promise<CompletionResult | null> => {
+      const at = completionPath(ctx);
+      if (!at) return null;
+      // A bare identifier: offer gm / console once something is typed (or on Ctrl+Space).
+      if (at.path.length === 0 && at.name === "" && !ctx.explicit) return null;
+      const options = memberOptions(await scriptMembers(), at.path, phase);
+      if (!options || options.length === 0) return null;
+      return {
+        from: ctx.pos - at.name.length,
+        filter: false, // memberOptions' order: in-phase first
+        options: options
+          .filter((o) => o.label.toLowerCase().startsWith(at.name.toLowerCase()))
+          .map((o): ScriptCompletion => ({
+            label: o.label, type: o.type, detail: o.detail, info: o.info || undefined, dimmed: o.outOfPhase,
+            apply: (view, _c, from, to) => {
+              const ins = insertion(o.label, o.call, view.state.sliceDoc(to, to + 1));
+              view.dispatch({
+                changes: { from, to, insert: ins.text },
+                selection: { anchor: from + ins.cursor },
+                annotations: pickedCompletion.of(_c),
+              });
+            },
+          })),
+      };
+    },
+  });
+  const envKeys = javascriptLanguage.data.of({
+    autocomplete: (ctx: CompletionContext): CompletionResult | null => {
+      const line = ctx.state.doc.lineAt(ctx.pos);
+      const spot = envKeySpot(line.text.slice(0, ctx.pos - line.from));
+      if (!spot) return null;
+      const env = getEnv();
+      const { options } = varOptions({ env, keys: env.keys ?? [] }, spot.prefix);
+      if (options.length === 0) return null;
+      return {
+        from: line.from + spot.start,
+        filter: false,
+        options: options.map((o): ScriptCompletion => ({
+          label: o.key, detail: o.detail, type: "variable", secret: o.secret, dimmed: o.group === "unavailable",
+          section: { name: groupLabel(o.group, env.envName), rank: o.group === "available" ? 0 : 1 },
+        })),
+      };
+    },
+  });
+  const look = autocompletion({
+    optionClass: (c) => ((c as ScriptCompletion).dimmed ? "cm-var-opt-unavailable" : ""),
+    addToOptions: [{ render: lockIcon, position: 45 }],
+  });
+  return [members, envKeys, look];
+}
+
+// Hover docs on gm / console members: the registry entry (call form, returns,
+// summary, example, where it applies — flagged when out of this editor's phase).
+function scriptHover(phase: Phase): Extension {
+  return hoverTooltip(async (view, pos) => {
+    const line = view.state.doc.lineAt(pos);
+    const at = memberAt(line.text, pos - line.from);
     if (!at) return null;
-    // A bare identifier: offer gm / console once something is typed (or on Ctrl+Space).
-    if (at.path.length === 0 && at.name === "" && !ctx.explicit) return null;
-    const options = memberOptions(await scriptMembers(), at.path);
-    if (!options || options.length === 0) return null;
+    const doc = hoverDoc(await scriptMembers(), at.path, phase);
+    if (!doc) return null;
     return {
-      from: ctx.pos - at.name.length,
-      options: options.map((o) => ({ label: o.label, type: o.type, detail: o.detail, info: o.info || undefined })),
-      validFor: /^[\w$]*$/,
+      pos: line.from + at.from, end: line.from + at.to, above: true,
+      create: () => {
+        const dom = document.createElement("div");
+        dom.className = "cm-gm-hover";
+        const title = dom.appendChild(document.createElement("code"));
+        title.className = "cm-gm-hover-title";
+        title.textContent = doc.title + (doc.returns ? ` → ${doc.returns}` : "");
+        const p = dom.appendChild(document.createElement("p"));
+        p.textContent = doc.summary;
+        if (doc.example) {
+          const ex = dom.appendChild(document.createElement("code"));
+          ex.className = "cm-gm-hover-example";
+          ex.textContent = doc.example;
+        }
+        if (doc.where) {
+          const w = dom.appendChild(document.createElement("p"));
+          w.className = doc.outOfPhase ? "cm-gm-hover-where off" : "cm-gm-hover-where";
+          w.textContent = doc.outOfPhase ? `${doc.where} — not available in this script` : doc.where;
+        }
+        return { dom };
+      },
     };
-  },
-});
+  });
+}
 
 export interface ScriptEditorHandle {
   // Replaces the text programmatically: not reported to onChange, not in undo history.
@@ -422,7 +501,7 @@ export function createScriptEditor(
   parent: HTMLElement,
   doc: string,
   onChange: (text: string) => void,
-  opts: { ariaLabel: string; placeholder: string },
+  opts: { ariaLabel: string; placeholder: string; phase: Phase; getEnv: () => EnvDisplay },
 ): ScriptEditorHandle {
   const view = new EditorView({
     parent,
@@ -433,7 +512,8 @@ export function createScriptEditor(
         basicSetup,
         theme,
         javascript(),
-        scriptCompletion,
+        scriptCompletion(opts.phase, opts.getEnv),
+        scriptHover(opts.phase),
         placeholderExt(opts.placeholder),
         EditorView.contentAttributes.of({ "aria-label": opts.ariaLabel, spellcheck: "false" }),
         EditorView.updateListener.of((u) => {

@@ -4465,7 +4465,7 @@ body.tab-dragging * {
 }
 
 .script-editor-host {
-  height: 150px;
+  height: 150px; /* the default; ScriptEditor applies the saved / dragged height */
   overflow: hidden;
   background: var(--cm-bg);
   border: 1px solid var(--field-border);
@@ -4478,6 +4478,75 @@ body.tab-dragging * {
 
 .script-editor-host:focus-within {
   border-color: var(--accent);
+}
+
+/* The resize handle under a script editor (scriptResize.ts). */
+.script-resize {
+  position: relative;
+  height: 8px;
+  margin-top: -2px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.script-resize::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 3px;
+  width: 36px;
+  height: 3px;
+  margin-left: -18px;
+  border-radius: 2px;
+  background: var(--field-border);
+}
+
+.script-resize:hover::after,
+.script-resize.dragging::after {
+  background: var(--accent);
+}
+
+/* gm API hover docs (scriptHover in codemirror.ts). */
+/* A card like .var-tooltip: the CodeMirror tooltip itself is transparent. */
+.cm-gm-hover {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 200px;
+  max-width: 440px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px var(--shadow);
+  color: var(--text);
+  font: 12px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+}
+
+.cm-gm-hover code {
+  font: 12px var(--mono);
+  white-space: pre-wrap;
+}
+
+.cm-gm-hover p {
+  margin: 0;
+}
+
+.cm-gm-hover-title {
+  font-weight: 600;
+}
+
+.cm-gm-hover-example {
+  color: var(--muted);
+}
+
+.cm-gm-hover-where {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.cm-gm-hover-where.off {
+  color: var(--client);
 }
 
 .scripts-note {

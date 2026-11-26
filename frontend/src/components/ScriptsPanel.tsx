@@ -24,10 +24,10 @@ export default function ScriptsPanel(props: Props) {
         <ScriptHelp />
       </div>
       <div class="script-label">Pre-request</div>
-      <ScriptEditor value={props.pre} onChange={props.onPre} ariaLabel={`Pre-request script of this ${props.noun}`}
+      <ScriptEditor kind="pre" value={props.pre} onChange={props.onPre} ariaLabel={`Pre-request script of this ${props.noun}`}
         placeholder={'gm.request.headers.set("X-Request-Id", gm.crypto.uuid())'} />
       <div class="script-label">Post-response</div>
-      <ScriptEditor value={props.post} onChange={props.onPost} ariaLabel={`Post-response script of this ${props.noun}`}
+      <ScriptEditor kind="post" value={props.post} onChange={props.onPost} ariaLabel={`Post-response script of this ${props.noun}`}
         placeholder={'gm.environment.set("token", gm.response.json().token)'} />
       <p class="muted small scripts-note">
         Scripts read variables with gm.environment.get("KEY"), not {"{{KEY}}"}. They are saved on the server and run for

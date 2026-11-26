@@ -101,3 +101,25 @@ func TestWebhookOrderIsLocal(t *testing.T) {
 		t.Fatalf("local order = %v", got)
 	}
 }
+
+func TestScriptEditorHeights(t *testing.T) {
+	a := newTestApp(t, false, nil)
+	if p := a.GetUIPrefs(); p.ScriptHeightPre != 0 || p.ScriptHeightPost != 0 {
+		t.Fatalf("defaults = %+v", p)
+	}
+	if r := a.SetScriptEditorHeight("pre", 260); r.Error != nil {
+		t.Fatal(r.Error.Message)
+	}
+	if r := a.SetScriptEditorHeight("post", 40); r.Error == nil {
+		t.Fatal("below the minimum is refused")
+	}
+	if r := a.SetScriptEditorHeight("mid", 200); r.Error == nil {
+		t.Fatal("unknown kind is refused")
+	}
+	if p := a.GetUIPrefs(); p.ScriptHeightPre != 260 || p.ScriptHeightPost != 0 {
+		t.Fatalf("saved = %+v", p)
+	}
+	if r := a.SetScriptEditorHeight("pre", 0); r.Error != nil || a.GetUIPrefs().ScriptHeightPre != 0 {
+		t.Fatal("0 resets to the default")
+	}
+}

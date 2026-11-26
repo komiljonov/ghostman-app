@@ -721,9 +721,21 @@ Postman-style shell, logged in:
   PATCH with everything changed, `SaveFolderSettings(id, saved, next FolderSettingsInput)`). The editors are
   `createScriptEditor`: JS (@codemirror/lang-javascript), the shared theme + app shortcuts, NO `{{var}}`
   highlighting / completion; Ctrl+/ toggles JS comments there (code, unlike the raw body). They DO complete the
-  sandbox globals: `gm.…` / `console.…` members (signature as detail; summary, example and pre/post-only in the
-  info) from the SAME gm API docs (`src/scriptComplete.ts`, tested; glue `scriptCompletion` + JS `completionPath`,
-  so strings and comments stay quiet); a bare identifier gets gm / console once something is typed. Response pane
+  sandbox globals from the ONE registry (Go `scripting.APIDocs`: group · name · usage · summary · example · where
+  · returns — `TestDocsHaveReturnShapes`; the ? popover renders the same list): `gm.…` / `console.…` members
+  (`src/scriptComplete.ts` + `src/scriptEditor.test.ts`; glue `scriptCompletion(phase, getEnv)` + JS
+  `completionPath`, so strings and comments stay quiet), detail = signature → return shape; a function inserts
+  `name()` with the cursor inside (`insertion`). **Phase rule** (each editor knows pre | post): out-of-phase members
+  — `gm.response` (a namespace is pre / post when ALL its members are) in a pre-script, the `gm.request` mutators in
+  a post-script — are OFFERED but marked "· post only" / "· pre only", dimmed and ranked last (CodeMirror can't
+  disable an option; accepted anyway, the VM throws its own error). Inside the string literal of
+  `gm.environment.get / set / unset("` (`envKeySpot`) the project's env keys, with the `{{var}}` popup's rules and
+  grouping (`varOptions`: the active environment's first, others dimmed). **Hover** (`scriptHover`, `memberAt` /
+  `hoverDoc`): a gm / console member shows its entry (call form → returns, summary, example, where — flagged when
+  out of phase) in a `.cm-gm-hover` card. **Resizable** (`ScriptEditor` + `src/scriptResize.ts`): a handle under
+  each editor drags its height between 80 px and 60 % of the pane it scrolls in (the sub-tab section / the folder
+  modal — the pane still scrolls, nothing is trapped), live while dragging, saved on release per KIND (global:
+  `ui_script_height_pre|post`, `SetScriptEditorHeight`, `GetUIPrefs`; 0 = default 150 px); double-click resets. Response pane
   **Console** tab (Body | Headers | Console): enabled whenever the send produced output (also after an abort),
   count badge, red with an error; per send, never persisted, cleared by every send. **History**: `console_json`
   (migration 00010) stores the output; the detail has a Console tab; the summary method / resolved copy are AS

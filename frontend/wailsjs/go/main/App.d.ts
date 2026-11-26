@@ -300,6 +300,8 @@ export function SetRequestProxy(arg1:string,arg2:string,arg3:string):Promise<mai
 
 export function SetResponseWrap(arg1:boolean):Promise<main.EmptyResult>;
 
+export function SetScriptEditorHeight(arg1:string,arg2:number):Promise<main.EmptyResult>;
+
 export function SetSecretValue(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
 
 export function SetServerURL(arg1:string):Promise<session.Result>;
