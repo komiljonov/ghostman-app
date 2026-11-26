@@ -90,7 +90,7 @@ Postman-style shell, logged in:
   gone or have no examples), its examples follow as leaf rows: example icon · name · status chip. Summaries are
   LAZY: one ListExamples on the first expand, cached; dropped when a newer count disagrees (every tree load
   seeds the counts), re-fetched after a change here (`examplesChangedFor`: save dialog, tree rename / delete;
-  the sub-tab's own list fetches update it too) and on ↻ / window focus (`invalidateExampleLists`). Click /
+  the sub-tab's own list fetches update it too) and on ↻ / window focus (`refreshExampleLists`: re-fetched while the old rows stay shown). Click /
   Enter → the request's tab on Examples with that example open (`tabs.openExample`); menu Open · Rename
   (inline, Ctrl+E) · Delete (confirm, Del). Example rows are `li.tree-example`, NOT `li.tree-item`: DnD reads
   only tree-items, and a press starts a drag only on a node's OWN row (`dragSourceOf`), so examples are never
@@ -116,7 +116,7 @@ Postman-style shell, logged in:
   700 ms of hovering, the sidebar auto-scrolls near its edges, Escape cancels. A drop is one
   bound Go call, `PlaceNode` (`api.Place`: move if the parent changes, then reorder the
   target's full sibling list if an insert position was chosen), then the usual re-fetch.
-  Keyboard/menu moves stay.
+  The tree's menu keeps "Move to…" (a parent change); there are no Move up / down entries any more.
 - **Duplicate request** is one bound Go call, `DuplicateRequest` (`api.DuplicateRequest`):
   get → create "<name> copy" in the same folder → patch method/url/headers/params/body; if a
   step after the create fails, the half-made copy is deleted and one error is returned. The UI
@@ -379,8 +379,8 @@ Postman-style shell, logged in:
   and the request History sub-tab's rows (menu + hover button), all through `canSaveAsExample`
   (`historyModel.ts`): needs a response and the original request in the current project's tree, else
   disabled with the reason ("original request no longer exists"); the example attaches to that request. **Examples sub-tab** (after History; label "Examples (N)": `example_count`
-  from GetRequest, then every list fetch): list name · status badge · type · size · updated, ↑ / ↓
-  (`MoveExample`: the server's full order with two swapped), ⋯ / right-click Open · Edit · Rename (inline) ·
+  from GetRequest, then every list fetch): list name · status badge · type · size · updated, rows
+  drag to reorder (`ReorderExamples`: the full new order), ⋯ / right-click Open · Edit · Rename (inline) ·
   Delete (confirm); re-fetched on mount, window focus and after a save elsewhere (`examplesTick`). Detail
   (open example + mode per tab: `TabState.exampleId/exampleMode`; sticky header ← Examples · status · name ·
   SaveIndicator · View | Edit): **View** = the response pane's rules (`responseView.ts`) over Go's preview of
@@ -414,6 +414,37 @@ Postman-style shell, logged in:
   heads, drop overlay, toasts) < `.modal-backdrop` 40 < dropdowns 50 < context menu 60. Checked at
   700 px with overflowing content (env, env list, proxy, webhook, history, examples, request
   Settings, folder Settings…, Settings).
+- **Row drag and drop is the ONE reorder mechanism** for flat lists (no ↑ / ↓ buttons or Move up / down
+  menu entries anywhere): `src/rowDrag.ts` (pointer wiring) + `src/rowOrder.ts` (order math, `saveOrder`,
+  `reorderByIndex`; both unit tested) + `RowDragLayer.tsx` (ghost + insertion line, a portal). Same feel as
+  the tree / tab drags: 5 px threshold (clicks and menus unaffected; the click after a drag is swallowed —
+  `consumeClick`), insertion line (none for a no-op), Escape cancels, the scroll container auto-scrolls near
+  its edges (below a sticky header: `stickyTop`; the pointer is clamped there, so a sticky head never
+  swallows a target). Rows carry `data-drag-id`; rows with editable cells drag by their grip only
+  (`handle`: env variables, Params / Headers / Form / Form-data rows — text selection in a cell never
+  starts a drag), the rest by the row (minus buttons / inputs). Persistence = the surface's EXISTING order
+  endpoint with the full new order, then the usual re-fetch; a failed save shows its message and the
+  re-fetch restores the server's order (`saveOrder`): environments (`ReorderEnvironments`; the env switcher
+  follows the same sort_order), variables (`ReorderVariables`), proxies (`ReorderProxies`), examples sub-tab
+  (`ReorderExamples`), projects — switcher dropdown and Project settings — (`ReorderProjects`, only for the
+  team owner / all-projects members: the endpoint needs every team project). Webhook endpoints have no
+  server order: their sidebar order is LOCAL (`SetWebhookOrder`, settings `ui_webhook_order_<project>`;
+  `ListWebhooks` applies it, unknown ids last). Key/value and form-data rows are draft rows: a drop is an
+  ordinary edit (autosave). Tree example rows stay non-draggable.
+- **Header editing helpers** (headers table — request editor and webhook response headers, one component;
+  rules `src/headerComplete.ts`, CodeMirror sources `src/headerSources.ts` — no CM runtime imports, so the
+  table doesn't load the editor bundle —, both tested): KEY cells complete header names outside an unclosed
+  `{{` (that stays the `{{var}}` completion's: the sources use `completionSpot`), prefix then substring,
+  case-insensitive, inserted in canonical casing; "Recently used" (local per project: `GetRecentHeaderKeys` /
+  `AddRecentHeaderKey`, ≤ 30, newest first, recorded when a key cell is left with a key —
+  `src/headerKeysStore.ts`) above "Common headers" (~40, each name once). VALUE cells: mime types only when the
+  row's key is Content-Type. **"Use the Auth tab" hint** (`src/authHint.ts` rules + tests, `AuthHint.tsx`): a key
+  icon on an ENABLED Authorization row while the request's own auth is inherit / none AND the auth it
+  resolves to doesn't add that header itself (`managesAuthorization`: bearer / basic, or an API key / JWT
+  sent as Authorization — the user-written header deliberately wins there); its menu: Convert to Bearer
+  (value "Bearer <token>") / Convert to API key header / Dismiss for this request (local:
+  `IsAuthHintDismissed` / `DismissAuthHint`). A conversion is ONE draft edit — auth set, the row DISABLED
+  (not deleted: the undo) — so the autosave PATCHes both. Never automatic.
 - **View-mode choices (sub-views, template/resolved, Pretty/Raw) are container state, not item state:
   changing the selected item never resets them; fall back only when the item can't support the mode,
   return when it can. Deliberate exceptions (response view auto-default on a new send) must be
@@ -832,8 +863,10 @@ frontend/                Vite + Solid + TS
 - More cascading settings through the same resolver (timeout, TLS / insecure);
   the Settings sub-tab and the folder Settings… modal are their home. Auth: OAuth 2.0, digest;
   JWT: RS* / ES* (key files), custom header claims, Postman jwt auth import (still → inherit).
-- Examples: jq filter in the example view, examples as mock responses / in docs, examples on folders,
-  drag-and-drop reorder.
+- Examples: jq filter in the example view, examples as mock responses / in docs, examples on folders.
+- Keyboard reorder (accessibility): rows reorder by drag and drop only since the ↑ / ↓ buttons are gone —
+  add Alt+Up / Alt+Down on a focused row (same `saveOrder` path). Webhook order on the server (needs an
+  order endpoint; local for now).
 - Response search: regex mode.
 - Comments in the raw (JSON) body via Ctrl+/: deliberately NOT supported — comments would be
   sent verbatim and break APIs. Revisit only with an opt-in strip-on-send.
@@ -842,6 +875,3 @@ frontend/                Vite + Solid + TS
 - Scripts: gm.sendRequest, async / timers, require, collection / global variable scopes, script import
   translation (Postman pm.* → gm.*).
 - Import: curl paste (next); external $refs, callbacks / webhooks / links, XML body builders, multipart; export.
-- **Drag-and-drop for the project list**: for now projects use ↑/↓ in Project settings. Reorder
-  endpoints need the full sibling set (every team project, so only the team owner and
-  all-projects members get ↑/↓).

@@ -75,9 +75,13 @@ export default function Dropdown(props: Props) {
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.key === "Escape") close();
   };
-  // A fixed menu would drift away from its trigger when something scrolls.
+  // A fixed menu would drift away from its trigger when something scrolls — but only
+  // a scroll of something CONTAINING the trigger moves it. Other scrolls (the tree
+  // re-laying out after the refresh an open triggers) must not close the menu.
   const onScroll = (e: Event) => {
-    if (!menu?.contains(e.target as Node)) close();
+    const t = e.target;
+    if (menu?.contains(t as Node)) return;
+    if (t === document || (t instanceof Node && t.contains(trigger))) close();
   };
 
   // Listen only while open: every tree row has a menu, so always-on listeners would scale with the tree.

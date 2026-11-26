@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildTree, flattenFolders, folderAndDescendantIds, reorderedSiblingIds, TreeNode } from "./tree";
+import { buildTree, flattenFolders, folderAndDescendantIds, TreeNode } from "./tree";
 
 const f = (id: string, parent_id: string | null, sort_order = 0, name = id) => ({ id, parent_id, name, sort_order });
 const r = (id: string, folder_id: string | null, sort_order = 0, method = "GET") =>
@@ -59,14 +59,6 @@ describe("tree helpers", () => {
     [f("A", null, 0), f("B", "A", 0), f("C", "B", 0), f("D", null, 1)],
     [r("R1", "B", 0), r("R2", "B", 1), r("R3", null, 0)],
   );
-
-  it("computes the full sibling list for move up/down (same kind only)", () => {
-    expect(reorderedSiblingIds(tree, tree.requests.get("R2")!, -1)).toEqual(["R2", "R1"]);
-    expect(reorderedSiblingIds(tree, tree.requests.get("R1")!, -1)).toBeNull();
-    expect(reorderedSiblingIds(tree, tree.folders.get("A")!, 1)).toEqual(["D", "A"]);
-    // R3 is the only root request: folders at root are not its siblings.
-    expect(reorderedSiblingIds(tree, tree.requests.get("R3")!, -1)).toBeNull();
-  });
 
   it("lists a folder with its descendants (invalid move targets)", () => {
     expect([...folderAndDescendantIds(tree.folders.get("A")!)].sort()).toEqual(["A", "B", "C"]);

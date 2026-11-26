@@ -389,25 +389,3 @@ func TestDeleteEnvironmentRemovesLocalSecrets(t *testing.T) {
 		t.Fatal("deleted env still active")
 	}
 }
-
-func TestMove(t *testing.T) {
-	ids := []string{"a", "b", "c"}
-	tests := []struct {
-		id     string
-		offset int
-		want   string
-		ok     bool
-	}{
-		{"b", -1, "b,a,c", true}, {"b", 1, "a,c,b", true}, {"a", -1, "a,b,c", false},
-		{"c", 1, "a,b,c", false}, {"zz", 1, "a,b,c", false},
-	}
-	for _, tt := range tests {
-		got, ok := Move(ids, tt.id, tt.offset)
-		if strings.Join(got, ",") != tt.want || ok != tt.ok {
-			t.Errorf("Move(%s,%d) = %v %v", tt.id, tt.offset, got, ok)
-		}
-	}
-	if strings.Join(ids, ",") != "a,b,c" {
-		t.Error("input mutated")
-	}
-}

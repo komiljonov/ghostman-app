@@ -1,5 +1,5 @@
 import { createSignal, Show } from "solid-js";
-import { DeleteEnvironment, MoveEnvironment, RenameEnvironment } from "../../wailsjs/go/main/App";
+import { DeleteEnvironment, RenameEnvironment } from "../../wailsjs/go/main/App";
 import { api } from "../../wailsjs/go/models";
 import { createAction } from "../action";
 import ConfirmDialog from "./ConfirmDialog";
@@ -10,19 +10,18 @@ interface Props {
   env: api.Environment;
   selected: boolean;
   active: boolean;
-  first: boolean;
-  last: boolean;
+  dragging: boolean; // being dragged (EnvListView's row drag)
   onSelect: () => void;
   onChanged: () => void;
 }
 
-// One environment in the manage view's list: select, rename inline, reorder, delete.
+// One environment in the manage view's list: select, rename inline, delete; the row
+// itself drags to reorder (EnvListView).
 export default function EnvironmentItem(props: Props) {
   const [editing, setEditing] = createSignal(false);
   const [name, setName] = createSignal("");
   const [confirmDelete, setConfirmDelete] = createSignal(false);
   const rename = createAction(RenameEnvironment);
-  const move = createAction(MoveEnvironment);
 
   const submit = async () => {
     const next = name().trim();
@@ -37,13 +36,8 @@ export default function EnvironmentItem(props: Props) {
     }
   };
 
-  const doMove = async (offset: number) => {
-    const result = await move.run(props.projectId, props.env.id, offset);
-    if (result && !result.error) props.onChanged();
-  };
-
   return (
-    <li classList={{ "env-item": true, selected: props.selected }}>
+    <li classList={{ "env-item": true, selected: props.selected, "drag-source": props.dragging }} data-drag-id={props.env.id}>
       <Show when={editing()} fallback={
         <button type="button" class="env-name" onClick={() => props.onSelect()}>
           {props.env.name}
@@ -64,14 +58,10 @@ export default function EnvironmentItem(props: Props) {
           rename.setError(undefined);
           setEditing(true);
         }}><Icon name="pencil" size={14} /></button>
-        <button type="button" class="small-button" title="Move up" aria-label="Move up" disabled={props.first || move.pending()}
-          onClick={() => void doMove(-1)}>↑</button>
-        <button type="button" class="small-button" title="Move down" aria-label="Move down" disabled={props.last || move.pending()}
-          onClick={() => void doMove(1)}>↓</button>
         <button type="button" class="icon-button" title="Delete" aria-label={`Delete ${props.env.name}`}
           onClick={() => setConfirmDelete(true)}><Icon name="trash" size={14} /></button>
       </div>
-      <Show when={rename.error() || move.error()}><p class="inline-error">{rename.error() || move.error()}</p></Show>
+      <Show when={rename.error()}><p class="inline-error">{rename.error()}</p></Show>
       <Show when={confirmDelete()}>
         <ConfirmDialog
           title="Delete environment"

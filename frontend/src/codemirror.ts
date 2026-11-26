@@ -13,7 +13,8 @@ import {
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, isolateHistory } from "@codemirror/commands";
 import {
-  acceptCompletion, autocompletion, Completion, CompletionContext, CompletionResult, completionStatus, pickedCompletion,
+  acceptCompletion, autocompletion, Completion, CompletionContext, CompletionResult, CompletionSource, completionStatus,
+  pickedCompletion,
 } from "@codemirror/autocomplete";
 import {
   applyCompletion, completionSpot, EMPTY_LINE, enterAction, groupLabel, OptionGroup, tabAction, varOptions,
@@ -603,10 +604,13 @@ const completionTab = Prec.highest(keymap.of([{
   },
 }]));
 
-export function varCompletion(getEnv: () => EnvDisplay): Extension {
+// The completion popup: {{var}} keys, plus extra sources where a field has more
+// to offer (header names / mime types in the headers table, headerComplete.ts);
+// the extra sources stay quiet inside an unclosed "{{", which is the var source's.
+export function varCompletion(getEnv: () => EnvDisplay, extra: CompletionSource[] = []): Extension {
   return [
     autocompletion({
-      override: [varSource(getEnv)],
+      override: [varSource(getEnv), ...extra],
       activateOnTyping: true,
       activateOnTypingDelay: 0, // "{{" opens the popup at once
       interactionDelay: 0, // Enter right after it opens accepts (never falls through to Send)
@@ -812,6 +816,7 @@ export interface LineEditorOptions {
   getEnv: () => EnvDisplay;
   masked?: boolean; // password-style: literal text as bullets ({{vars}} stay visible)
   disabled?: boolean;
+  completions?: CompletionSource[]; // beside {{var}} completion (table cells: headerKeySource …)
 }
 
 // One factory for every single-line field: newlines are stripped (a pasted multi-line
@@ -866,7 +871,7 @@ export function createLineEditor(parent: HTMLElement, doc: string, opts: LineEdi
         off.of(opts.disabled ? disabledExt : []),
         theme,
         varHighlighting(opts.getEnv, opts.onPin),
-        varCompletion(opts.getEnv),
+        varCompletion(opts.getEnv, opts.completions),
         lineToggleKeymap, // Ctrl+/: a no-op here (not a bulk editor)
         mask.of(opts.masked ? maskPlugin : []),
         EditorView.updateListener.of((u) => {

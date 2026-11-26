@@ -1,3 +1,4 @@
+import type { CompletionSource } from "@codemirror/autocomplete";
 import { batch, createEffect, createSignal, For, onCleanup, Show } from "solid-js";
 import type { LineEditorHandle } from "../codemirror";
 import { cellNeedsEditor } from "../cellMode";
@@ -9,6 +10,7 @@ interface Props {
   placeholder: string;
   ariaLabel: string;
   onChange: (text: string) => void;
+  completions?: CompletionSource[]; // beside {{var}} completion (header names, mime types)
 }
 
 // Preloaded as soon as any table renders, so the first focus mounts instantly.
@@ -39,6 +41,7 @@ export default function VarCell(props: Props) {
       onFocusChange: setFocused,
       onPin: setTooltipOpen,
       getEnv: envDisplay,
+      completions: props.completions,
     });
     const focusNow = wantFocus();
     // One batch: removing the display div and dropping wantFocus must not leave a

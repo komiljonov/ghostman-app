@@ -80,21 +80,11 @@ func (a *App) DeleteEnvironment(projectID, envID string) EmptyResult {
 	})
 }
 
-// MoveEnvironment moves an environment one place up (-1) or down (+1).
-func (a *App) MoveEnvironment(projectID, envID string, offset int) EmptyResult {
+// ReorderEnvironments sets the project's environment order (the env list's drag and
+// drop; the server wants every environment id, in the new order).
+func (a *App) ReorderEnvironments(projectID string, ids []string) EmptyResult {
 	return callEmpty(a, func(ctx context.Context, c *api.APIClient) error {
-		list, err := c.ListEnvironments(ctx, projectID)
-		if err != nil {
-			return err
-		}
-		ids := make([]string, len(list))
-		for i, e := range list {
-			ids[i] = e.ID
-		}
-		if moved, ok := envs.Move(ids, envID, offset); ok {
-			return c.ReorderEnvironments(ctx, projectID, moved)
-		}
-		return nil
+		return c.ReorderEnvironments(ctx, projectID, ids)
 	})
 }
 
@@ -159,21 +149,11 @@ func (a *App) DeleteVariable(varID string) EmptyResult {
 	})
 }
 
-// MoveVariable moves a variable one place up (-1) or down (+1).
-func (a *App) MoveVariable(envID, varID string, offset int) EmptyResult {
+// ReorderVariables sets an environment's variable order (the variables table's drag
+// and drop; every variable id, in the new order).
+func (a *App) ReorderVariables(envID string, ids []string) EmptyResult {
 	return callEmpty(a, func(ctx context.Context, c *api.APIClient) error {
-		list, err := c.ListVariables(ctx, envID)
-		if err != nil {
-			return err
-		}
-		ids := make([]string, len(list))
-		for i, v := range list {
-			ids[i] = v.ID
-		}
-		if moved, ok := envs.Move(ids, varID, offset); ok {
-			return c.ReorderVariables(ctx, envID, moved)
-		}
-		return nil
+		return c.ReorderVariables(ctx, envID, ids)
 	})
 }
 

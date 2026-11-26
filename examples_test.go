@@ -293,17 +293,12 @@ func TestExampleDetailEditAndOrder(t *testing.T) {
 		}
 	}
 
-	// Reorder: one place, from the server's current order; edges are no-ops.
-	if r := a.MoveExample("r1", img.ID, -1); r.Error != nil {
+	// Reorder: the full new order, as the list's drag and drop sends it.
+	if r := a.ReorderExamples("r1", []string{img.ID, j.ID}); r.Error != nil {
 		t.Fatal(r.Error.Message)
 	}
 	if strings.Join(f.order["r1"], ",") != img.ID+","+j.ID {
 		t.Fatalf("order = %v", f.order["r1"])
-	}
-	n := len(f.writes)
-	a.MoveExample("r1", img.ID, -1)
-	if len(f.writes) != n {
-		t.Fatal("moving the first one up must not call the server")
 	}
 	if r := a.DeleteExample(j.ID); r.Error != nil {
 		t.Fatal(r.Error.Message)

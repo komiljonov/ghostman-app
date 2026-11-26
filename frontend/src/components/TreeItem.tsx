@@ -1,11 +1,9 @@
 import { createEffect, createSignal, For, on, Show } from "solid-js";
-import {
-  RenameFolder, ReorderFolders, ReorderRequests, UpdateRequest,
-} from "../../wailsjs/go/main/App";
-import { api, session } from "../../wailsjs/go/models";
+import { RenameFolder, UpdateRequest } from "../../wailsjs/go/main/App";
+import { api } from "../../wailsjs/go/models";
 import { createAction } from "../action";
 import { ensureExamples, exampleCount, exampleList } from "../examplesStore";
-import { canMove, reorderedSiblingIds, TreeNode } from "../tree";
+import { TreeNode } from "../tree";
 import { useTree } from "../treeContext";
 import ContextMenu, { MenuEntry } from "./ContextMenu";
 import Icon from "./Icon";
@@ -53,23 +51,8 @@ export default function TreeItem(props: Props) {
       ? RenameFolder(props.node.id, name)
       : UpdateRequest(props.node.id, api.RequestPatch.createFrom({ name })),
   );
-  const move = createAction(async (offset: -1 | 1): Promise<{ error?: session.Problem }> => {
-    // Look the node up in the plain tree: the reorder endpoints need the full sibling list.
-    const node = isFolder() ? tree.tree().folders.get(props.node.id) : tree.tree().requests.get(props.node.id);
-    const ids = node ? reorderedSiblingIds(tree.tree(), node, offset) : null;
-    if (!node || !ids) return {};
-    return node.kind === "folder"
-      ? ReorderFolders(tree.projectId(), node.parentId ?? "", ids)
-      : ReorderRequests(tree.projectId(), node.folderId ?? "", ids);
-  });
   const [createError, setCreateError] = createSignal<string>();
-  const error = () => rename.error() || move.error() || createError();
-
-  const lookup = () => (isFolder() ? tree.tree().folders.get(props.node.id) : tree.tree().requests.get(props.node.id));
-  const movable = (offset: -1 | 1) => {
-    const node = lookup();
-    return node ? canMove(tree.tree(), node, offset) : false;
-  };
+  const error = () => rename.error() || createError();
 
   // However renaming starts (menu, Ctrl+E, a freshly created node), begin from the name.
   createEffect(on(renaming, (r) => {
@@ -92,10 +75,7 @@ export default function TreeItem(props: Props) {
       await tree.reload();
     }
   };
-  const doMove = async (offset: -1 | 1) => {
-    const result = await move.run(offset);
-    if (result && !result.error) await tree.reload();
-  };
+
   const createInside = async (kind: "folder" | "request") => {
     setCreateError((await tree.create(kind, props.node.id))?.message);
   };
@@ -125,8 +105,6 @@ export default function TreeItem(props: Props) {
     items.push(
       "separator",
       { label: "Move to…", onSelect: () => tree.askMove(node) },
-      { label: "Move up", disabled: !movable(-1), onSelect: () => void doMove(-1) },
-      { label: "Move down", disabled: !movable(1), onSelect: () => void doMove(1) },
       "separator",
       { label: "Delete", icon: "trash", hint: "Del", danger: true, onSelect: () => tree.askDelete(node) },
     );

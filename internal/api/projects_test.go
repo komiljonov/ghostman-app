@@ -2,10 +2,7 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"net/http"
-	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -197,50 +194,5 @@ func TestLoadMemberAccess(t *testing.T) {
 
 	if _, err := c.LoadMemberAccess(context.Background(), "t1", "u9"); err == nil || err.Error() != "team member not found" {
 		t.Fatalf("unknown member: err = %v", err)
-	}
-}
-
-func TestMoveProject(t *testing.T) {
-	var sent []string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method + " " + r.URL.Path {
-		case "GET /api/v1/teams/t1/projects":
-			_, _ = w.Write([]byte(`[{"id":"p1"},{"id":"p2"},{"id":"p3"}]`))
-		case "PUT /api/v1/teams/t1/projects/order":
-			var body struct {
-				ProjectIDs []string `json:"project_ids"`
-			}
-			_ = json.NewDecoder(r.Body).Decode(&body)
-			sent = body.ProjectIDs
-			w.WriteHeader(http.StatusNoContent)
-		default:
-			w.WriteHeader(http.StatusNotFound)
-		}
-	}))
-	defer srv.Close()
-	c := New(srv.URL)
-	ctx := context.Background()
-
-	tests := []struct {
-		id     string
-		offset int
-		want   []string // nil = no request sent
-	}{
-		{"p3", -1, []string{"p1", "p3", "p2"}},
-		{"p1", +1, []string{"p2", "p1", "p3"}},
-		{"p1", -1, nil}, // already first
-		{"p3", +1, nil}, // already last
-	}
-	for _, tt := range tests {
-		sent = nil
-		if err := c.MoveProject(ctx, "t1", tt.id, tt.offset); err != nil {
-			t.Fatalf("move %s %+d: %v", tt.id, tt.offset, err)
-		}
-		if !reflect.DeepEqual(sent, tt.want) {
-			t.Errorf("move %s %+d sent %v, want %v", tt.id, tt.offset, sent, tt.want)
-		}
-	}
-	if err := c.MoveProject(ctx, "t1", "p9", 1); err == nil || err.Error() != "project not found" {
-		t.Errorf("unknown project: err = %v", err)
 	}
 }

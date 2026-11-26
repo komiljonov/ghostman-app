@@ -6,6 +6,10 @@ export function AcceptInvitation(arg1) {
   return window['go']['main']['App']['AcceptInvitation'](arg1);
 }
 
+export function AddRecentHeaderKey(arg1, arg2) {
+  return window['go']['main']['App']['AddRecentHeaderKey'](arg1, arg2);
+}
+
 export function CancelRequest(arg1) {
   return window['go']['main']['App']['CancelRequest'](arg1);
 }
@@ -138,6 +142,10 @@ export function DeleteWebhook(arg1) {
   return window['go']['main']['App']['DeleteWebhook'](arg1);
 }
 
+export function DismissAuthHint(arg1) {
+  return window['go']['main']['App']['DismissAuthHint'](arg1);
+}
+
 export function DuplicateRequest(arg1) {
   return window['go']['main']['App']['DuplicateRequest'](arg1);
 }
@@ -222,6 +230,10 @@ export function GetProxyPassword(arg1) {
   return window['go']['main']['App']['GetProxyPassword'](arg1);
 }
 
+export function GetRecentHeaderKeys(arg1) {
+  return window['go']['main']['App']['GetRecentHeaderKeys'](arg1);
+}
+
 export function GetRequest(arg1) {
   return window['go']['main']['App']['GetRequest'](arg1);
 }
@@ -284,6 +296,10 @@ export function ImportPostmanCollection(arg1, arg2) {
 
 export function ImportPostmanEnvironment(arg1, arg2) {
   return window['go']['main']['App']['ImportPostmanEnvironment'](arg1, arg2);
+}
+
+export function IsAuthHintDismissed(arg1) {
+  return window['go']['main']['App']['IsAuthHintDismissed'](arg1);
 }
 
 export function ListExamples(arg1) {
@@ -350,28 +366,12 @@ export function MigrateLegacyRequestSettings() {
   return window['go']['main']['App']['MigrateLegacyRequestSettings']();
 }
 
-export function MoveEnvironment(arg1, arg2, arg3) {
-  return window['go']['main']['App']['MoveEnvironment'](arg1, arg2, arg3);
-}
-
-export function MoveExample(arg1, arg2, arg3) {
-  return window['go']['main']['App']['MoveExample'](arg1, arg2, arg3);
-}
-
 export function MoveFolder(arg1, arg2) {
   return window['go']['main']['App']['MoveFolder'](arg1, arg2);
 }
 
-export function MoveProject(arg1, arg2, arg3) {
-  return window['go']['main']['App']['MoveProject'](arg1, arg2, arg3);
-}
-
 export function MoveRequest(arg1, arg2) {
   return window['go']['main']['App']['MoveRequest'](arg1, arg2);
-}
-
-export function MoveVariable(arg1, arg2, arg3) {
-  return window['go']['main']['App']['MoveVariable'](arg1, arg2, arg3);
 }
 
 export function PlaceNode(arg1, arg2, arg3, arg4, arg5, arg6) {
@@ -422,6 +422,14 @@ export function RenameRequestFileKey(arg1, arg2, arg3) {
   return window['go']['main']['App']['RenameRequestFileKey'](arg1, arg2, arg3);
 }
 
+export function ReorderEnvironments(arg1, arg2) {
+  return window['go']['main']['App']['ReorderEnvironments'](arg1, arg2);
+}
+
+export function ReorderExamples(arg1, arg2) {
+  return window['go']['main']['App']['ReorderExamples'](arg1, arg2);
+}
+
 export function ReorderFolders(arg1, arg2, arg3) {
   return window['go']['main']['App']['ReorderFolders'](arg1, arg2, arg3);
 }
@@ -436,6 +444,10 @@ export function ReorderProxies(arg1, arg2) {
 
 export function ReorderRequests(arg1, arg2, arg3) {
   return window['go']['main']['App']['ReorderRequests'](arg1, arg2, arg3);
+}
+
+export function ReorderVariables(arg1, arg2) {
+  return window['go']['main']['App']['ReorderVariables'](arg1, arg2);
 }
 
 export function RestoreHistoryEntry(arg1, arg2) {
@@ -592,6 +604,10 @@ export function SetVariableType(arg1, arg2, arg3) {
 
 export function SetVariableValue(arg1, arg2, arg3) {
   return window['go']['main']['App']['SetVariableValue'](arg1, arg2, arg3);
+}
+
+export function SetWebhookOrder(arg1, arg2) {
+  return window['go']['main']['App']['SetWebhookOrder'](arg1, arg2);
 }
 
 export function SwitchAuthType(arg1, arg2, arg3) {

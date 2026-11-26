@@ -7,6 +7,8 @@ import {api} from '../models';
 
 export function AcceptInvitation(arg1:string):Promise<main.AcceptedInvitationResult>;
 
+export function AddRecentHeaderKey(arg1:string,arg2:string):Promise<Array<string>>;
+
 export function CancelRequest(arg1:string):Promise<void>;
 
 export function ChooseImportFile():Promise<main.ImportFileResult>;
@@ -73,6 +75,8 @@ export function DeleteVariable(arg1:string):Promise<main.EmptyResult>;
 
 export function DeleteWebhook(arg1:string):Promise<main.EmptyResult>;
 
+export function DismissAuthHint(arg1:string):Promise<main.EmptyResult>;
+
 export function DuplicateRequest(arg1:string):Promise<main.RequestSummaryResult>;
 
 export function EvalCaptureFilter(arg1:string,arg2:number,arg3:string):Promise<main.FilterResult>;
@@ -115,6 +119,8 @@ export function GetProxyGlobal(arg1:string):Promise<string>;
 
 export function GetProxyPassword(arg1:string):Promise<main.ProxyPasswordResult>;
 
+export function GetRecentHeaderKeys(arg1:string):Promise<Array<string>>;
+
 export function GetRequest(arg1:string):Promise<main.RequestResult>;
 
 export function GetScriptAPIDocs():Promise<Array<scripting.Doc>>;
@@ -146,6 +152,8 @@ export function ImportOpenAPI(arg1:string,arg2:string):Promise<main.ImportReport
 export function ImportPostmanCollection(arg1:string,arg2:string):Promise<main.ImportReportResult>;
 
 export function ImportPostmanEnvironment(arg1:string,arg2:string):Promise<main.ImportReportResult>;
+
+export function IsAuthHintDismissed(arg1:string):Promise<boolean>;
 
 export function ListExamples(arg1:string):Promise<main.ExampleListResult>;
 
@@ -179,17 +187,9 @@ export function Logout():Promise<session.AuthState>;
 
 export function MigrateLegacyRequestSettings():Promise<main.LegacyMigrationResult>;
 
-export function MoveEnvironment(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
-
-export function MoveExample(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
-
 export function MoveFolder(arg1:string,arg2:string):Promise<main.FolderResult>;
 
-export function MoveProject(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
-
 export function MoveRequest(arg1:string,arg2:string):Promise<main.RequestSummaryResult>;
-
-export function MoveVariable(arg1:string,arg2:string,arg3:number):Promise<main.EmptyResult>;
 
 export function PlaceNode(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string,arg6:Array<string>):Promise<main.EmptyResult>;
 
@@ -215,6 +215,10 @@ export function RenameFolder(arg1:string,arg2:string):Promise<main.FolderResult>
 
 export function RenameRequestFileKey(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
 
+export function ReorderEnvironments(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
+
+export function ReorderExamples(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
+
 export function ReorderFolders(arg1:string,arg2:string,arg3:Array<string>):Promise<main.EmptyResult>;
 
 export function ReorderProjects(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
@@ -222,6 +226,8 @@ export function ReorderProjects(arg1:string,arg2:Array<string>):Promise<main.Emp
 export function ReorderProxies(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
 
 export function ReorderRequests(arg1:string,arg2:string,arg3:Array<string>):Promise<main.EmptyResult>;
+
+export function ReorderVariables(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
 
 export function RestoreHistoryEntry(arg1:number,arg2:string):Promise<main.RequestSummaryResult>;
 
@@ -300,6 +306,8 @@ export function SetVariableKey(arg1:string,arg2:string,arg3:string):Promise<main
 export function SetVariableType(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
 
 export function SetVariableValue(arg1:string,arg2:string,arg3:string):Promise<main.EmptyResult>;
+
+export function SetWebhookOrder(arg1:string,arg2:Array<string>):Promise<main.EmptyResult>;
 
 export function SwitchAuthType(arg1:string,arg2:api.Auth,arg3:string):Promise<main.AuthSwitchResult>;
 

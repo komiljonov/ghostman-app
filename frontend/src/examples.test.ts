@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  createExampleEditSaver, createSaveFlow, exampleMeta, examplesTabLabel, ExampleForm, ExampleInputWire, formStatus, moveState,
+  createExampleEditSaver, createSaveFlow, exampleMeta, examplesTabLabel, ExampleForm, ExampleInputWire, formStatus,
   SaveDialogState,
 } from "./examplesModel";
 import { exampleCount, examplesChanged, examplesTick, setExampleCount } from "./examplesStore";
@@ -126,16 +126,13 @@ describe("edit mode: the autosave wiring", () => {
 });
 
 describe("list and badge", () => {
-  it("tab label, row meta, move availability", () => {
+  it("tab label, row meta", () => {
     expect(examplesTabLabel(undefined)).toBe("Examples");
     expect(examplesTabLabel(0)).toBe("Examples (0)");
     expect(examplesTabLabel(2)).toBe("Examples (2)");
     const now = Date.parse("2026-10-28T10:00:00Z");
     expect(exampleMeta({ id: "e", name: "n", status: 200, content_type: "", body_size: 2048, updated_at: "2026-10-28T09:55:00Z" }, now))
       .toEqual({ contentType: "no Content-Type", size: "2.0 KB", updated: "5m ago" });
-    expect(moveState(0, 3)).toEqual({ up: false, down: true });
-    expect(moveState(2, 3)).toEqual({ up: true, down: false });
-    expect(moveState(0, 1)).toEqual({ up: false, down: false });
   });
 
   it("the badge count follows GetRequest and every list fetch; a save ticks open panels", () => {
