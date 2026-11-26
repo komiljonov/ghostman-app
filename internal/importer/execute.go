@@ -248,7 +248,13 @@ func (r *run) settings(id string, f *FolderPlan) error {
 	if f.Follow != "" {
 		patch.FollowRedirects = &f.Follow
 	}
-	if patch.Auth == nil && patch.FollowRedirects == nil {
+	if f.PreScript != "" {
+		patch.PreScript = &f.PreScript
+	}
+	if f.PostScript != "" {
+		patch.PostScript = &f.PostScript
+	}
+	if patch.Auth == nil && patch.FollowRedirects == nil && patch.PreScript == nil && patch.PostScript == nil {
 		return nil
 	}
 	if _, err := r.c.UpdateFolderSettings(r.ctx, id, patch); err != nil {
@@ -329,6 +335,12 @@ func contentsPatch(p *RequestPlan) (api.RequestPatch, bool) {
 	}
 	if p.Follow != "" {
 		patch.FollowRedirects, set = &p.Follow, true
+	}
+	if d.PreScript != "" {
+		patch.PreScript, set = &d.PreScript, true
+	}
+	if d.PostScript != "" {
+		patch.PostScript, set = &d.PostScript, true
 	}
 	return patch, set
 }

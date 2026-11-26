@@ -148,3 +148,18 @@ func (c *APIClient) ReorderVariables(ctx context.Context, envID string, ids []st
 	body := map[string]any{"environment_id": envID, "variable_ids": nonNil(ids)}
 	return c.do(ctx, http.MethodPut, "/api/v1/variables/order", body, nil)
 }
+
+// ListVariableKeys returns the distinct {{variable}} keys the project's requests
+// and folders refer to (urls, rows, bodies, auth fields, gm.environment.* literals
+// in scripts; {{$…}} left out), sorted — the server scans so the client need not
+// fetch every request.
+func (c *APIClient) ListVariableKeys(ctx context.Context, projectID string) ([]string, error) {
+	var out struct {
+		Keys []string `json:"keys"`
+	}
+	err := c.do(ctx, http.MethodGet, projectPath(projectID)+"/variable-keys", nil, &out)
+	if out.Keys == nil {
+		out.Keys = []string{}
+	}
+	return out.Keys, err
+}

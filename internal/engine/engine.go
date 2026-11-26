@@ -64,9 +64,7 @@ type RequestSpec struct {
 	URL         string   `json:"url"`
 	Headers     []Header `json:"headers"`
 	QueryParams []Header `json:"queryParams"`
-	// PathParams are the values of the URL's :key segments (pathvars.go).
-	PathParams []PathParam `json:"pathParams,omitempty"`
-	Body       Body        `json:"body"`
+	Body        Body     `json:"body"`
 	// Auth is the effective auth config (resolved by the UI's cascade), applied
 	// as a derived header / query row at send time (auth.go). nil = no auth.
 	Auth *Auth `json:"auth,omitempty"`

@@ -98,8 +98,8 @@ func TestFolderAndRequestEndpoints(t *testing.T) {
 					URL: "https://x.io", CreatedAt: "x", UpdatedAt: "y",
 					Auth: defAuth, Proxy: defProxy}, // absent (older server) -> defaults
 				Headers:     []KeyValue{{Key: "A", Value: "1", Enabled: true}},
-				QueryParams: []KeyValue{}, PathParams: []PathParam{},
-				Body: RequestBody{Type: BodyNone, Fields: []KeyValue{}},
+				QueryParams: []KeyValue{},
+				Body:        RequestBody{Type: BodyNone, Fields: []KeyValue{}},
 			},
 		},
 		{

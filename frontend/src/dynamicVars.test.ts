@@ -67,8 +67,8 @@ describe("the {{ popup's Generated group", () => {
 
 describe("the response banner", () => {
   it("names each kind", () => {
-    expect(unresolvedBanner(["API", "$nope", ":id", ":post"])).toBe(
-      "Unresolved variables: {{API}} · Unknown generated variable: {{$nope}} · Path variables without a value: :id, :post");
-    expect(unresolvedBanner([":id"])).toBe("Path variable without a value: :id");
+    expect(unresolvedBanner(["API", "$nope", "$x"])).toBe(
+      "Unresolved variables: {{API}} · Unknown generated variables: {{$nope}}, {{$x}}");
+    expect(unresolvedBanner(["API"])).toBe("Unresolved variables: {{API}}");
   });
 });

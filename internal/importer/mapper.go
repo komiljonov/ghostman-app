@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -21,19 +22,22 @@ import (
 
 // FolderPlan is a folder to create, with its contents in file order.
 type FolderPlan struct {
-	Path     string // full path in the Postman file, for the report
-	Name     string
-	Auth     api.Auth // Type inherit = nothing to set
-	Follow   string   // "" | "on" | "off" (Postman's followRedirects)
-	Folders  []*FolderPlan
-	Requests []*RequestPlan
+	Path   string // full path in the Postman file, for the report
+	Name   string
+	Auth   api.Auth // Type inherit = nothing to set
+	Follow string   // "" | "on" | "off" (Postman's followRedirects)
+	// PreScript / PostScript: the folder's Postman scripts translated to gm
+	// (pmscript.go); "" = none.
+	PreScript, PostScript string
+	Folders               []*FolderPlan
+	Requests              []*RequestPlan
 }
 
 // RequestPlan is a request to create.
 type RequestPlan struct {
 	Path   string
 	Name   string
-	Draft  api.RequestDraft // method, url (base), headers, query rows, body, auth
+	Draft  api.RequestDraft // method, url (base), headers, query rows, body, auth, scripts
 	Follow string
 }
 
@@ -66,13 +70,19 @@ func PlanCollection(data []byte, source string, existingRoots []string) (*Collec
 	var authNotes []Entry
 	root.Auth, authNotes = mapAuth(collName, "the collection", c.Auth)
 	rep.add(authNotes...)
-	rep.add(mapScripts(collName, c.Event)...)
+	var scriptNotes []Entry
+	root.PreScript, root.PostScript, scriptNotes = mapScripts(collName, c.Event)
+	rep.add(scriptNotes...)
 	if text(c.Info.Description) != "" {
 		m.descriptions++
 	}
 	rep.add(mapVariables(CodeCollectionVars, collName, "collection", c.Variable)...)
 
 	m.items(root, c.Item)
+	if m.pathVarsNoValue > 0 {
+		rep.Notes = append(rep.Notes, fmt.Sprintf("%s became {{variables}} — create them via Add missing variables in an environment tab.",
+			plural(m.pathVarsNoValue, "path variable without a value", "path variables without a value")))
+	}
 
 	if m.descriptions > 0 {
 		rep.add(drop(CodeDescriptions, "", plural(m.descriptions, "description", "item descriptions")+
@@ -98,6 +108,9 @@ type mapper struct {
 	descriptions int
 	examples     int
 	interleaved  []string
+	// pathVarsNoValue counts ":key" segments that became {{key}} with no value
+	// to carry over (one info line for all).
+	pathVarsNoValue int
 }
 
 func (m *mapper) items(into *FolderPlan, items []pmItem) {
@@ -125,7 +138,8 @@ func (m *mapper) folder(into *FolderPlan, it pmItem) {
 	m.rep.add(more...)
 	f.Follow, more = mapBehavior(path, it.ProtocolProfileBehavior)
 	m.rep.add(more...)
-	m.rep.add(mapScripts(path, it.Event)...)
+	f.PreScript, f.PostScript, more = mapScripts(path, it.Event)
+	m.rep.add(more...)
 	m.rep.add(mapVariables(CodeFolderVars, path, fmt.Sprintf("folder '%s'", name), it.Variable)...)
 	if text(it.Description) != "" {
 		m.descriptions++
@@ -157,7 +171,9 @@ func (m *mapper) request(into *FolderPlan, it pmItem) {
 	var more []Entry
 	d.Method, more = mapMethod(path, req.Method)
 	m.rep.add(more...)
-	d.URL, d.QueryParams, more = mapURL(path, req.URL)
+	var noValue int
+	d.URL, d.QueryParams, noValue, more = mapURL(path, req.URL)
+	m.pathVarsNoValue += noValue
 	m.rep.add(more...)
 	d.Headers, more = mapHeaders(path, req.Header)
 	m.rep.add(more...)
@@ -167,7 +183,8 @@ func (m *mapper) request(into *FolderPlan, it pmItem) {
 	m.rep.add(more...)
 	rp.Follow, more = mapBehavior(path, it.ProtocolProfileBehavior)
 	m.rep.add(more...)
-	m.rep.add(mapScripts(path, it.Event)...)
+	d.PreScript, d.PostScript, more = mapScripts(path, it.Event)
+	m.rep.add(more...)
 	if text(req.Description) != "" || text(it.Description) != "" {
 		m.descriptions++
 	}
@@ -223,17 +240,17 @@ func mapMethod(path, method string) (string, []Entry) {
 // mapURL turns Postman's url (a string, or an object with raw and/or parts) into
 // our base url + query rows. raw wins when present, {{vars}} byte-verbatim; the
 // query rows come from url.query (which knows disabled rows), else from raw.
-func mapURL(path string, raw json.RawMessage) (string, []api.KeyValue, []Entry) {
+func mapURL(path string, raw json.RawMessage) (string, []api.KeyValue, int, []Entry) {
 	var notes []Entry
 	var u pmURL
 	var s string
 	if len(raw) == 0 || string(raw) == "null" {
-		return "", []api.KeyValue{}, nil
+		return "", []api.KeyValue{}, 0, nil
 	}
 	if json.Unmarshal(raw, &s) == nil {
 		u.Raw = s
 	} else if json.Unmarshal(raw, &u) != nil {
-		return "", []api.KeyValue{}, nil
+		return "", []api.KeyValue{}, 0, nil
 	}
 	full := u.Raw
 	if full == "" {
@@ -257,8 +274,9 @@ func mapURL(path string, raw json.RawMessage) (string, []api.KeyValue, []Entry) 
 		rows, rowNotes = mapRows(path, "query parameter", splitQuery(query))
 	}
 	notes = append(notes, rowNotes...)
-	notes = append(notes, pathVariables(path, base, u.Variable)...)
-	return base, rows, notes
+	base, noValue, pathNotes := pathVariables(path, base, u.Variable)
+	notes = append(notes, pathNotes...)
+	return base, rows, noValue, notes
 }
 
 func assembleURL(u pmURL) string {
@@ -292,27 +310,55 @@ func splitQuery(q string) []pmKV {
 	return out
 }
 
-func pathVariables(path, base string, vars []pmKV) []Entry {
-	rest := base
+// pathVariables turns Postman's ":key" path segments into {{variables}} (path
+// variables are not a Ghostman feature; {{vars}} are the one variable system):
+//   - url.variable value that is ONE {{reference}} (the common case) → that
+//     reference, silently ({{product_id}} stays {{product_id}});
+//   - a literal value → {{key}} + a warning naming the value (it belongs in an
+//     environment now);
+//   - no value / no entry → {{key}}, counted for one info line.
+//
+// The host segment (and its ":port") is never a variable.
+func pathVariables(path, base string, vars []pmKV) (string, int, []Entry) {
+	prefix, rest := "", base
 	if i := strings.Index(rest, "://"); i >= 0 {
-		rest = rest[i+3:]
+		prefix, rest = rest[:i+3], rest[i+3:]
 	}
 	var notes []Entry
+	noValue := 0
 	segs := strings.Split(rest, "/")
-	for _, seg := range segs[1:] { // segs[0] is the host (its ":port" is not a variable)
-		if len(seg) < 2 || seg[0] != ':' {
+	for i := 1; i < len(segs); i++ { // segs[0] is the host
+		seg := segs[i]
+		if !pathKey.MatchString(seg) {
 			continue
 		}
-		msg := fmt.Sprintf("URL contains path variable '%s'; kept literally.", seg)
+		key := seg[1:]
+		value := ""
 		for _, v := range vars {
-			if string(v.Key) == seg[1:] && v.Value != "" {
-				msg = fmt.Sprintf("URL contains path variable '%s' (Postman's value: '%s'); kept literally.", seg, v.Value)
+			if string(v.Key) == key {
+				value = strings.TrimSpace(string(v.Value))
 			}
 		}
-		notes = append(notes, warn(CodeURLPathVariable, path, msg, "Replace it with a {{variable}} or a real value."))
+		switch {
+		case singleRef.MatchString(value):
+			segs[i] = value
+		case value != "":
+			segs[i] = "{{" + key + "}}"
+			notes = append(notes, warn(CodeURLPathVariable, path,
+				fmt.Sprintf("path variable '%s' had value '%s'; URL now uses {{%s}} — set it in an environment (Add missing variables helps).",
+					key, value, key), ""))
+		default:
+			segs[i] = "{{" + key + "}}"
+			noValue++
+		}
 	}
-	return notes
+	return prefix + strings.Join(segs, "/"), noValue, notes
 }
+
+var (
+	pathKey   = regexp.MustCompile(`^:[A-Za-z_][A-Za-z0-9_]*$`)
+	singleRef = regexp.MustCompile(`^\{\{[^{}]+\}\}$`)
+)
 
 // mapRows maps header / query / form rows: disabled → enabled false; rows without
 // a key are dropped (the server requires one) — reported, with their values.
@@ -573,10 +619,15 @@ func quoteList(xs []string) string {
 	return strings.Join(q, ", ")
 }
 
-// mapScripts reports every non-empty script WITH its full text: Ghostman does not
-// run scripts, and the user's code must not be swallowed.
-func mapScripts(path string, events []pmEvent) []Entry {
-	var notes []Entry
+// mapScripts imports a node's Postman scripts, translated to gm (pmscript.go):
+// "prerequest" → the pre-script, "test" → the post-script (several of one kind
+// are joined in order). Each gets a report line with the ORIGINAL text as its
+// detail: imported (fully translated) or imported with changes (some lines kept
+// as [postman] comments). Not imported, with the full text (the old path): a
+// script disabled in Postman, an unknown event, or one that would not fit the
+// server's limit (32768 characters) after translation.
+func mapScripts(path string, events []pmEvent) (pre, post string, notes []Entry) {
+	var pres, posts []string
 	for _, ev := range events {
 		src := text(ev.Script.Exec)
 		if strings.TrimSpace(src) == "" {
@@ -584,22 +635,49 @@ func mapScripts(path string, events []pmEvent) []Entry {
 		}
 		lines := len(strings.Split(strings.TrimRight(src, "\n"), "\n"))
 		kind, code, label := ev.Listen+" script", CodeScriptOther, "Script"
+		into := (*[]string)(nil)
 		switch ev.Listen {
 		case "prerequest":
-			kind, code, label = "pre-request script", CodeScriptPreRequest, "Pre-request script"
+			kind, code, label, into = "pre-request script", CodeScriptPreRequest, "Pre-request script", &pres
 		case "test":
-			kind, code, label = "test script", CodeScriptTest, "Test script"
+			kind, code, label, into = "post-response script", CodeScriptTest, "Test script", &posts
 		}
-		if ev.Disabled {
-			kind += ", disabled in Postman"
+		why := "Ghostman runs only pre-request and post-response (test) scripts."
+		var tr ScriptTranslation
+		if into != nil {
+			tr = TranslateScript(src)
+			why = ""
+			switch {
+			case ev.Disabled:
+				why = "it is disabled in Postman."
+			case len(tr.Text) > maxScriptChars:
+				why = fmt.Sprintf("translated, it is longer than the %d-character limit.", maxScriptChars)
+			}
 		}
-		e := drop(code, path, fmt.Sprintf("%s (%s): Ghostman doesn't run scripts. Script text preserved below.",
-			kind, plural(lines, "line", "lines")), "")
-		e.Detail, e.DetailLabel = src, label
+		if why != "" {
+			e := drop(code, path, fmt.Sprintf("%s (%s) not imported: %s Script text preserved below.",
+				kind, plural(lines, "line", "lines"), why), "")
+			e.Detail, e.DetailLabel = src, label
+			notes = append(notes, e)
+			continue
+		}
+		*into = append(*into, tr.Text)
+		var e Entry
+		if tr.Commented == 0 {
+			e = Entry{Severity: Imported, Code: CodeScriptImported, Path: path,
+				Message: fmt.Sprintf("%s imported: %s translated to gm.*", kind, plural(tr.Translated, "line", "lines"))}
+		} else {
+			e = warn(CodeScriptPartial, path, fmt.Sprintf("%s imported: %d translated, %d as [postman] comments",
+				kind, tr.Translated, tr.Commented), "Open its Scripts tab and rewrite the [postman] lines with gm.* (or delete them).")
+		}
+		e.Detail, e.DetailLabel = src, "Original "+strings.ToLower(label)
 		notes = append(notes, e)
 	}
-	return notes
+	return strings.Join(pres, "\n\n"), strings.Join(posts, "\n\n"), notes
 }
+
+// maxScriptChars is the server's limit for one script.
+const maxScriptChars = 32768
 
 // mapVariables reports collection / folder variables (with their values): Ghostman
 // has variables only in environments.
@@ -617,7 +695,7 @@ func mapVariables(code, path, owner string, vars []pmKV) []Entry {
 		msg = fmt.Sprintf("%s on %s not imported: Ghostman has no folder variables.",
 			plural(len(vars), "variable", "variables"), owner)
 	}
-	e := drop(code, path, msg, "Create them in an environment (Manage environments) so the {{variables}} resolve.")
+	e := drop(code, path, msg, "Open an environment tab and use Add missing variables to create them, then fill in the values below.")
 	e.Detail, e.DetailLabel = strings.Join(lines, "\n"), "Variables"
 	return []Entry{e}
 }

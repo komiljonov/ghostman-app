@@ -16,8 +16,16 @@ type WorkspaceResult struct {
 	Error *session.Problem     `json:"error,omitempty"`
 }
 
+// Every selection result passes the current project through the one-time path
+// variable sweep (path_sweep.go) before the UI loads its tree and tabs.
 func (a *App) workspaceCall(fn func(context.Context, *api.APIClient) (workspace.Workspace, error)) WorkspaceResult {
-	v, p := call(a, fn)
+	v, p := call(a, func(ctx context.Context, c *api.APIClient) (workspace.Workspace, error) {
+		ws, err := fn(ctx, c)
+		if err == nil {
+			a.sweepPathVariables(ctx, c, ws.ProjectID)
+		}
+		return ws, err
+	})
 	return WorkspaceResult{Data: ptr(v, p), Error: p}
 }
 

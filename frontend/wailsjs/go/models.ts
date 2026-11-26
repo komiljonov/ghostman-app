@@ -526,20 +526,6 @@ export namespace api {
 		}
 	}
 	
-	export class PathParam {
-	    key: string;
-	    value: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new PathParam(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.key = source["key"];
-	        this.value = source["value"];
-	    }
-	}
 	export class Project {
 	    id: string;
 	    team_id: string;
@@ -695,7 +681,6 @@ export namespace api {
 	    updated_at: string;
 	    headers: KeyValue[];
 	    query_params: KeyValue[];
-	    path_params: PathParam[];
 	    body: RequestBody;
 	    pre_script: string;
 	    post_script: string;
@@ -722,7 +707,6 @@ export namespace api {
 	        this.updated_at = source["updated_at"];
 	        this.headers = this.convertValues(source["headers"], KeyValue);
 	        this.query_params = this.convertValues(source["query_params"], KeyValue);
-	        this.path_params = this.convertValues(source["path_params"], PathParam);
 	        this.body = this.convertValues(source["body"], RequestBody);
 	        this.pre_script = source["pre_script"];
 	        this.post_script = source["post_script"];
@@ -752,7 +736,6 @@ export namespace api {
 	    url: string;
 	    headers: KeyValue[];
 	    query_params: KeyValue[];
-	    path_params: PathParam[];
 	    body: RequestBody;
 	    auth: Auth;
 	    response_filter: string;
@@ -769,7 +752,6 @@ export namespace api {
 	        this.url = source["url"];
 	        this.headers = this.convertValues(source["headers"], KeyValue);
 	        this.query_params = this.convertValues(source["query_params"], KeyValue);
-	        this.path_params = this.convertValues(source["path_params"], PathParam);
 	        this.body = this.convertValues(source["body"], RequestBody);
 	        this.auth = this.convertValues(source["auth"], Auth);
 	        this.response_filter = source["response_filter"];
@@ -801,7 +783,6 @@ export namespace api {
 	    url?: string;
 	    headers?: KeyValue[];
 	    query_params?: KeyValue[];
-	    path_params?: PathParam[];
 	    body?: RequestBody;
 	    follow_redirects?: string;
 	    auth?: AuthPatch;
@@ -820,7 +801,6 @@ export namespace api {
 	        this.url = source["url"];
 	        this.headers = this.convertValues(source["headers"], KeyValue);
 	        this.query_params = this.convertValues(source["query_params"], KeyValue);
-	        this.path_params = this.convertValues(source["path_params"], PathParam);
 	        this.body = this.convertValues(source["body"], RequestBody);
 	        this.follow_redirects = source["follow_redirects"];
 	        this.auth = this.convertValues(source["auth"], AuthPatch);
@@ -1703,6 +1683,85 @@ export namespace main {
 	        this.proxy = source["proxy"];
 	    }
 	}
+	export class MissingFailure {
+	    key: string;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MissingFailure(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.message = source["message"];
+	    }
+	}
+	export class CreatedMissing {
+	    created: string[];
+	    failed: MissingFailure[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CreatedMissing(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.created = source["created"];
+	        this.failed = this.convertValues(source["failed"], MissingFailure);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CreateMissingResult {
+	    data?: CreatedMissing;
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateMissingResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = this.convertValues(source["data"], CreatedMissing);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class DeletedResult {
 	    data: number;
 	    error?: session.Problem;
@@ -2359,7 +2418,6 @@ export namespace main {
 	    url: string;
 	    headers: api.KeyValue[];
 	    params: api.KeyValue[];
-	    path_params: api.PathParam[];
 	    body: string;
 	    body_type: string;
 	    content_type: string;
@@ -2373,7 +2431,6 @@ export namespace main {
 	        this.url = source["url"];
 	        this.headers = this.convertValues(source["headers"], api.KeyValue);
 	        this.params = this.convertValues(source["params"], api.KeyValue);
-	        this.path_params = this.convertValues(source["path_params"], api.PathParam);
 	        this.body = source["body"];
 	        this.body_type = source["body_type"];
 	        this.content_type = source["content_type"];
@@ -2969,6 +3026,39 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.data = this.convertValues(source["data"], api.Meta);
+	        this.error = this.convertValues(source["error"], session.Problem);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class MissingVariablesResult {
+	    data: string[];
+	    error?: session.Problem;
+	
+	    static createFrom(source: any = {}) {
+	        return new MissingVariablesResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.data = source["data"];
 	        this.error = this.convertValues(source["error"], session.Problem);
 	    }
 	

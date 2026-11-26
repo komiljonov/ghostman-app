@@ -97,27 +97,27 @@ func TestGenerateCodeResolvedVsTemplate(t *testing.T) {
 	}
 }
 
-// Path variables and generated values: template mode keeps ":id" and the
-// {{$…}} tokens; resolved mode substitutes (escaped) and generates.
-func TestGenerateCodePathAndDynamic(t *testing.T) {
+// Generated values: template mode keeps the {{$…}} tokens; resolved mode
+// generates ONE value per token per snippet. ":id" is plain text (path
+// variables are retired: nothing substitutes it).
+func TestGenerateCodeDynamicAndPlainColon(t *testing.T) {
 	a := codegenApp(t)
-	draft := api.RequestDraft{Method: "GET", URL: "{{BASE_URL}}/users/:id/files/:name/:empty",
-		PathParams: []api.PathParam{{Key: "id", Value: "{{$uuid}}"}, {Key: "name", Value: "a/b"}, {Key: "empty"}},
-		Headers:    []api.KeyValue{{Key: "X-Id", Value: "{{$uuid}}", Enabled: true}}}
+	draft := api.RequestDraft{Method: "GET", URL: "{{BASE_URL}}/users/:id/{{$uuid}}",
+		Headers: []api.KeyValue{{Key: "X-Id", Value: "{{$uuid}}", Enabled: true}}}
 	opts := SendOptions{FollowRedirects: true}
 	tr := a.GenerateCode("p1", "r1", draft, opts, CodegenOptions{Target: "curl", Resolved: false})
-	if tr.Error != nil || !strings.Contains(tr.Data.Snippet, "'{{BASE_URL}}/users/:id/files/:name/:empty'") || !strings.Contains(tr.Data.Snippet, "X-Id: {{$uuid}}") {
+	if tr.Error != nil || !strings.Contains(tr.Data.Snippet, "'{{BASE_URL}}/users/:id/{{$uuid}}'") || !strings.Contains(tr.Data.Snippet, "X-Id: {{$uuid}}") {
 		t.Fatalf("template: %v\n%s", tr.Error, tr.Data.Snippet)
 	}
 	r := a.GenerateCode("p1", "r1", draft, opts, CodegenOptions{Target: "curl", Resolved: true})
 	if r.Error != nil {
 		t.Fatal(r.Error.Message)
 	}
-	m := regexp.MustCompile(`https://api\.example\.com/users/([0-9a-f-]{36})/files/a%2Fb/:empty`).FindStringSubmatch(r.Data.Snippet)
+	m := regexp.MustCompile(`https://api\.example\.com/users/:id/([0-9a-f-]{36})`).FindStringSubmatch(r.Data.Snippet)
 	if m == nil || !strings.Contains(r.Data.Snippet, "X-Id: "+m[1]) {
-		t.Fatalf("resolved (one $uuid per snippet):\n%s", r.Data.Snippet)
+		t.Fatalf("resolved (one $uuid per snippet, :id as typed):\n%s", r.Data.Snippet)
 	}
-	if !hasWarning(r.Data.Warnings, "path variable :empty has no value") {
+	if len(r.Data.Warnings) != 0 {
 		t.Errorf("warnings = %v", r.Data.Warnings)
 	}
 }

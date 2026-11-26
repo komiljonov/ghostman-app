@@ -211,7 +211,7 @@ func TestImportCollectionEndToEnd(t *testing.T) {
 	if rep.Summary != (Summary{Folders: 7, Requests: 21}) || rep.Target != "P1 / Shop API" || rep.Stopped != "" {
 		t.Fatalf("summary %+v target %q stopped %q", rep.Summary, rep.Target, rep.Stopped)
 	}
-	if len(rep.Imported) != 28 || len(rep.Failed) != 0 {
+	if len(rep.Imported) != 29 || len(rep.Failed) != 0 { // 28 created + the collection's translated pre-script
 		t.Fatalf("imported %d failed %d", len(rep.Imported), len(rep.Failed))
 	}
 	if progress[0] != "0/27" || progress[len(progress)-1] != "27/27" {

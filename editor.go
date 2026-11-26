@@ -398,7 +398,6 @@ func specFromDraft(d api.RequestDraft) engine.RequestSpec {
 		URL:         d.URL,
 		Headers:     rows(d.Headers),
 		QueryParams: rows(d.QueryParams),
-		PathParams:  pathParams(d.PathParams),
 		Body: engine.Body{
 			Type:        d.Body.Type,
 			ContentType: d.Body.ContentType,
@@ -407,14 +406,6 @@ func specFromDraft(d api.RequestDraft) engine.RequestSpec {
 			Parts:       parts(d.Body.Parts),
 		},
 	}
-}
-
-func pathParams(in []api.PathParam) []engine.PathParam {
-	out := make([]engine.PathParam, 0, len(in))
-	for _, p := range in {
-		out = append(out, engine.PathParam{Key: p.Key, Value: p.Value})
-	}
-	return out
 }
 
 func tabsKey(projectID string) string { return "ui_tabs_" + projectID }

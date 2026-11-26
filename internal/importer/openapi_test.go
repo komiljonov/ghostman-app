@@ -176,13 +176,10 @@ func TestOpenAPIReportEntries(t *testing.T) {
 		"Pet Store / Admin / Statistics|" + CodeOAOpSecurity,
 		"Pet Store / Admin / This report operation has an extraordinarily long summary that keeps going well past the one hundre…|" + CodeOANameLong,
 		"Pet Store / Pets / Delete a pet|" + CodeOADeprecated,
-		"Pet Store / Pets / Delete a pet|" + CodeOAPathParams,
-		"Pet Store / Pets / GET /pets/{petId}|" + CodeOAPathParams,
 		"Pet Store / Pets / List pets|" + CodeOACookieParams,
 		"Pet Store / Pets / Trace a pet|" + CodeOATrace,
 		"Pet Store / Pets / Upload a photo|" + CodeBodyFormFile,
 		"Pet Store / Pets / Upload a photo|" + CodeBodyMultipart,
-		"Pet Store / Pets / Upload a photo|" + CodeOAPathParams,
 		"Pet Store / Store / Place an order|" + CodeOAAuthSet,
 		"Pet Store / Store / Replace the inventory list|" + CodeOABodyOther,
 		"Pet Store|" + CodeOAAuthSet,
@@ -202,18 +199,16 @@ func TestOpenAPIReportEntries(t *testing.T) {
 	if e := byCode["|"+CodeOARefCycle]; !strings.Contains(e.Message, "'#/components/schemas/Pet' refers to itself") {
 		t.Fatalf("cycle: %+v", e)
 	}
-	if e := byCode["Pet Store / Pets / GET /pets/{petId}|"+CodeOAPathParams]; e.Message !=
-		"path parameter '{petId}' converted to the Ghostman variable {{petId}}." || e.Action != "Define it in an environment or replace it inline." {
-		t.Fatalf("path params: %+v", e)
-	}
 	if e := byCode["Pet Store / Admin / Statistics|"+CodeAuthUnsupported]; !strings.Contains(e.Message, "OAuth 2.0 (clientCredentials flow)") {
 		t.Fatalf("oauth: %+v", e)
 	}
 	if e := byCode["Pet Store|"+CodeOAAuthSet]; !strings.Contains(e.Action, "Set your token") {
 		t.Fatalf("token: %+v", e)
 	}
-	if len(r.Notes) != 1 || !strings.Contains(r.Notes[0], "imported disabled") {
-		t.Fatalf("notes %q (the optional-parameters rule appears ONCE)", r.Notes)
+	// {petId} → {{petId}}: ONE info line for all path parameters (no per-request entries).
+	if len(r.Notes) != 2 || r.Notes[0] != "3 path parameters became {{variables}} — create them via Add missing variables in an environment tab." ||
+		!strings.Contains(r.Notes[1], "imported disabled") {
+		t.Fatalf("notes %q (the path-parameter line and the optional-parameters rule appear ONCE)", r.Notes)
 	}
 }
 
@@ -241,7 +236,7 @@ func TestServersToEnvironments(t *testing.T) {
 	}
 	// No servers: no environment, one entry telling the user to create BASE_URL.
 	m, _ := PlanOpenAPI(fixture(t, "minimal.openapi.json"), "m.json", nil, nil)
-	if len(m.Environments) != 0 || len(m.Report.Changed) != 2 || m.Report.Changed[1].Code != CodeOANoServers {
+	if len(m.Environments) != 0 || len(m.Report.Changed) != 1 || m.Report.Changed[0].Code != CodeOANoServers {
 		t.Fatalf("%+v", m.Report.Changed)
 	}
 	// Name fallback: summary → operationId → "METHOD /path"; examples via $ref.

@@ -254,22 +254,16 @@ Postman-style shell, logged in:
   to onChange, not in undo history), and only when its text does not already mean the same
   (`sameMeaning`), so typing is never rewritten. A legacy `url` with a query has its pairs
   moved into the rows on load (persisted with the next edit, never on open).
-  **Path variables** (Postman-style; derivation `pathVarKeys` in `src/urlParams.ts` ↔ Go `engine.PathVarKeys` in
-  `internal/engine/pathvars.go`, the SAME test table in `pathVars.test.ts` / `pathvars_test.go`): the URL text
-  before "?" split on "/"; a segment that is exactly `:` + `[A-Za-z_][A-Za-z0-9_]*` is one. Rows = the request's
-  `path_params` [{key, value}] on the server (GET single only; PATCH full replacement — `BuildRequestPatch`
-  diffs them; duplicate / restore carry them). `reconcilePathParams` (URL edits and on load): values persist BY
-  KEY, a key that left the URL drops its row, a new key appends empty; nothing changed → the same array. Params
-  tab: a "Path variables" section (`PathVarsTable`) above "Query params", only while the URL has any: read-only
-  key · VarCell value; no checkbox / add / remove / reorder (the keys never write back into the URL — no loop).
-  URL bar: `:id` in its own token style (`--path-var*`; an empty value is marked like an unresolved var), hover =
-  the value (+ "→ resolved preview" via `previewResolved` when it has {{vars}}) or "no value — sent as :id";
-  not editable there. **Send** (`ResolveSpec`, so codegen's resolved mode too): after {{vars}} resolve in the URL
-  and the values, each `:key` segment of the RESOLVED URL becomes `url.PathEscape(value)` — one segment: "/" →
-  %2F (deliberate; `parseSendURL` keeps RawPath). Empty value / no row → the segment stays literal and `:key`
-  joins the unresolved list (banner "Path variable without a value: :id", codegen warning). History: resolved
-  URL substituted; the template keeps `:id` + the rows (`req_path_params_json`, migration 00014). Codegen
-  template mode keeps `:id`.
+  **Path variables are retired** (`{{vars}}` are the one variable system): a `:id` segment is plain text. Values
+  are inserted as typed, in the path too — no path-escaping (README: URL-encode path values yourself or in the
+  variable value). **One-time sweep** (`path_sweep.go`, rules `internal/pathsweep`, both tested): inside every
+  workspace load / project switch (`workspaceCall`, BEFORE the UI fetches the tree or restores tabs), once per
+  project (settings `path_vars_swept_<project_id>`), each request URL with `:key` segments (exact
+  `:[A-Za-z_][A-Za-z0-9_]*`, path only) is PATCHed (url only): the segment becomes its cached row value when
+  non-empty (`{{product_id}}` → `{{product_id}}`, `123` → `123`), else `{{key}}`. The server dropped
+  `path_params`; the cache is this machine's history (`req_path_params_json`, migration 00014 — no longer
+  written; `CachedPathParams`, newest per request). 404 / 403 → skipped; any other failure leaves the project
+  unmarked (retried next load; the rewrite is idempotent).
 - **Autosave is the save model** (no dirty tabs, no Save button): 600 ms debounce per tab,
   one PATCH with only the changed fields (built in Go: `api.BuildRequestPatch`, which drops
   keyless rows), one save in flight per tab with last write winning, flushed on tab
@@ -504,6 +498,14 @@ Postman-style shell, logged in:
   `controller.view` / `viewByKey`; details only COMPUTE what they show (`shownHistorySection`,
   `shownPart`, `shownTextView`, `effectiveView`, `shownResponseSection`) and never write a fallback
   back. The live pane keeps Body | Headers | Console across sends (Console without output shows Body).
+- **Add missing variables** (env tab header button; `MissingVariablesModal`, rules `src/missingVars.ts`; Go
+  `missing_variables.go` + `envs.MissingKeys` / `envs.CreateEmpty`, all tested): `MissingVariables(project, env)` =
+  the server's `GET /projects/{id}/variable-keys` (every `{{key}}` the project's urls / rows / bodies / auth fields
+  use + `gm.environment.get/set/unset` literals in scripts; `{{$…}}` excluded) minus the env's keys (a secret
+  counts as present; case-insensitive, like the server's unique keys). Modal: checkbox list, all checked, Select
+  all; "No missing variables — …" empty state. `CreateMissingVariables(env, keys)` creates each as a REGULAR
+  variable with "" through `internal/envs` (the "$" rule applies), one failure doesn't stop the rest (listed by
+  key, the dialog stays open); then the table + env context re-fetch. A general drift fixer, not an import step.
 - **Env variables table rows** (`VariableRow`, `NewVariableRow`, rules `src/envRows.ts`, tested): rows
   are reconciled BY ID (`EnvVariablesView` store), so a re-fetch never remounts a row and focus
   survives a key commit. Tab order per row: key → type → value → next row's key (row actions are
@@ -677,7 +679,9 @@ Postman-style shell, logged in:
   "<name> (2)" against root folders), collection-level auth on it (the cascade reproduces Postman's);
   an environment = ONE new environment (deduped, never merged), variable writes through `internal/envs`.
   Mapping rules are the package doc + mapper.go: raw url verbatim ({{vars}} byte-for-byte) split into base
-  + query rows (url.query wins, else parsed like the URL bar), `:id` path variables kept literally,
+  + query rows (url.query wins, else parsed like the URL bar), `:key` path segments → `{{variables}}`
+  (`pathVariables`: a url.variable value that is ONE `{{reference}}` → that reference, silently — the common
+  case; a literal value → `{{key}}` + a warning naming the value; no value → `{{key}}`, ONE info note for all),
   methods outside the 7 → GET, raw content type from options.raw.language → Content-Type header →
   text/plain, urlencoded → form, formdata → form (text fields; file fields dropped; multipart noted),
   graphql → raw JSON {query, variables}, file / unknown / disabled bodies → none, auth bearer / basic /
@@ -686,19 +690,33 @@ Postman-style shell, logged in:
   vars import enabled. **Complete accounting by construction**: every mapping helper returns
   `(value, []Entry)`; every deviation has a code in `FallbackCodes`, and a test fails unless every code is
   produced by a fixture (`internal/postman/testdata`). Entries: severity imported | warning | dropped |
-  failed, the FULL Postman path, plain-words message, action; scripts (full text), dropped variables,
+  failed, the FULL Postman path, plain-words message, action; original script text, dropped variables,
   keyless rows keep their text in `Detail`. No server limits are pre-checked: the server's own message
   lands in Failed. First server error → stop (no rollback; the banner says "delete that folder to undo"),
   plus "N more items were not imported". Report dialog: banner, then Imported (summary + created items
   with their new location, collapsed) / Imported with changes / Dropped / Failed, empty ones hidden;
   "Copy full report" copies Go's plain-text rendering (`Report.Text`, details included). After an
-  import the tree and env context are re-fetched. Out of scope (backlog): curl paste, OpenAPI, export,
-  scripts, file bodies.
+  import the tree and env context are re-fetched. Out of scope (backlog): curl paste, export, file bodies.
+  **Scripts → gm** (`pmscript.go` `TranslateScript`, tested; `mapScripts`): "prerequest" → the node's
+  pre_script, "test" → post_script (request, folder, collection = the root folder; several of a kind joined).
+  Conservative, line-based: mechanical renames only where the meaning is the same (pm.environment /
+  collectionVariables / globals / variables .get/.set/.unset → gm.environment.* — a header comment notes the
+  one scope; pm.environment.name; pm.response.json() / text() / code → status / responseTime → durationMs /
+  headers.get; pm.request.headers.get / remove / add({key, value}) / upsert({key, value}) → set; pm.request.method,
+  url.toString(); CryptoJS.Hmac*/SHA256/MD5(…).toString() or .toString(CryptoJS.enc.Hex) → gm.crypto.* hex;
+  console.* as is). Every other Postman line → `// [postman] <line>` (+ every line of a block it opens until
+  its brackets close; a header comment explains the marker). Commenting part of an expression (a continuation
+  line, a line closing brackets it did not open) or a result goja can't compile → the WHOLE script is kept
+  commented. Report: fully translated → imported "… imported: N lines translated to gm.*"; with markers →
+  warning "… imported: N translated, M as [postman] comments"; original text as the detail. Dropped with the
+  text (old path): disabled in Postman, an unknown event, > 32768 chars after translation. Collection / folder
+  variables stay DROPPED (values in the detail); the action points at Add missing variables.
   **OpenAPI** (`openapi.go`, `swagger.go`; same plan → execute → report): the spec → ONE root folder
   (info.title, deduped) with auth from the global security requirement; ONE level of tag folders by each
   operation's FIRST tag (declared order, then appearance; untagged → root); one request per path × method
   in spec order (name = summary → operationId → "METHOD /path", shortened past 100 chars + entry); URL =
-  `{{BASE_URL}}` + path with `{p}` → `{{p}}` (one entry per request); parameters path-level + operation-level
+  `{{BASE_URL}}` + path with `{p}` → `{{p}}` (ONE info note "N path parameters became {{variables}} — create
+  them via Add missing variables …"); parameters path-level + operation-level
   (operation wins on name+in) → query / header rows, value = example / default / enum[0] / "", enabled =
   required (the rule is ONE report note); Accept / Content-Type / Authorization header params ignored (as
   the spec says); cookie params, TRACE, file fields dropped + entries. Bodies: JSON first (the media example,
@@ -881,6 +899,8 @@ request_files.go         multipart file fields: local paths (Choose/Clear/Rename
 dialog_dev.go            devdialog build tag only: scripted open dialog for UI verification
 webhooks.go              bound webhook capture: endpoints, PollCaptures, capture detail / jq / save / copy,
                          CopyCaptureAsRequest
+path_sweep.go            one-time sweep of retired ":id" path variables into {{vars}} (internal/pathsweep)
+missing_variables.go     bound Add missing variables: MissingVariables / CreateMissingVariables
 import_files.go          bound import: ChooseImportFile, ImportPostmanCollection/Environment, ImportOpenAPI (internal/importer)
 scripts.go               send scripts: gatherScripts (run order), cloneSpec, flushEnv (env writes via envs), GetScriptAPIDocs
 examples.go              bound saved response examples: list/detail/edit (Go-side cache, diffed PATCH), save from
@@ -897,6 +917,7 @@ internal/api/            typed client for the Ghostman server API (/api/v1)
 internal/session/        server URL resolution, auth state machine, login/logout/settings
 internal/workspace/      current team/project selection: persist, validate, fall back
 internal/envs/           environments: active env, variables with local-only secrets, var map
+internal/pathsweep/      rules of the path-variable sweep (":key" → cached value or {{key}})
 internal/importer/       import: sniff, ordered tree, pure planners (Postman mapper/env, OpenAPI + Swagger conversion),
                          executor, report (+ testdata fixtures)
 internal/testproxy/      HTTP (forward + CONNECT) + SOCKS5 test proxy with auth and a request log
@@ -947,6 +968,6 @@ frontend/                Vite + Solid + TS
   sent verbatim and break APIs. Revisit only with an opt-in strip-on-send.
 - Cookies; history export / sync. Form-data: duplicate file keys (path storage is per key), files in
   Postman import (still dropped), drag-and-drop of files onto the table.
-- Scripts: gm.sendRequest, async / timers, require, collection / global variable scopes, script import
-  translation (Postman pm.* → gm.*).
+- Scripts: gm.sendRequest, async / timers, require, collection / global variable scopes; import translation of
+  pm.test / pm.expect (kept as [postman] comments for now).
 - Import: curl paste (next); external $refs, callbacks / webhooks / links, XML body builders, multipart; export.

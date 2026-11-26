@@ -57,14 +57,12 @@ export const isGeneratedKey = (key: string) => key.startsWith("$");
 export const GENERATED_NOTE = "generated at send time · one value per send";
 
 // The response banner for Go's unresolved list (engine.ResolveSpec): {{KEY}}
-// without a value, an unknown {{$name}}, a ":key" path variable without a value.
+// without a value, an unknown {{$name}}.
 export function unresolvedBanner(keys: string[]): string {
-  const vars = keys.filter((k) => !k.startsWith(":") && !isGeneratedKey(k)).map((k) => `{{${k}}}`);
+  const vars = keys.filter((k) => !isGeneratedKey(k)).map((k) => `{{${k}}}`);
   const unknown = keys.filter(isGeneratedKey).map((k) => `{{${k}}}`);
-  const path = keys.filter((k) => k.startsWith(":"));
   const parts: string[] = [];
   if (vars.length) parts.push(`Unresolved variables: ${vars.join(", ")}`);
   if (unknown.length) parts.push(`Unknown generated ${unknown.length === 1 ? "variable" : "variables"}: ${unknown.join(", ")}`);
-  if (path.length) parts.push(`Path ${path.length === 1 ? "variable" : "variables"} without a value: ${path.join(", ")}`);
   return parts.join(" · ");
 }

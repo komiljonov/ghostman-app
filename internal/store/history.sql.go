@@ -10,6 +10,43 @@ import (
 	"database/sql"
 )
 
+const cachedPathParams = `-- name: CachedPathParams :many
+SELECT request_id, req_path_params_json
+FROM history
+WHERE project_id = ? AND request_id IS NOT NULL AND req_path_params_json IS NOT NULL
+ORDER BY created_at DESC, id DESC
+`
+
+type CachedPathParamsRow struct {
+	RequestID         sql.NullString `json:"requestId"`
+	ReqPathParamsJson sql.NullString `json:"reqPathParamsJson"`
+}
+
+// Retired path variables: the rows cached in history (migration 00014, no
+// longer written), newest first, for the one-time URL sweep (path_sweep.go).
+func (q *Queries) CachedPathParams(ctx context.Context, projectID sql.NullString) ([]CachedPathParamsRow, error) {
+	rows, err := q.db.QueryContext(ctx, cachedPathParams, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []CachedPathParamsRow
+	for rows.Next() {
+		var i CachedPathParamsRow
+		if err := rows.Scan(&i.RequestID, &i.ReqPathParamsJson); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const countHistory = `-- name: CountHistory :one
 SELECT count(*) FROM history
 `
@@ -114,8 +151,8 @@ INSERT INTO history (
     env_id, env_name, req_headers_json, req_params_json, req_body_json,
     req_headers_resolved_json, req_body_resolved, status, duration_ms, error,
     resp_headers_json, resp_body, resp_body_size, resp_truncated, timings_json, req_auth_json, console_json,
-    proxy_label, req_path_params_json
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    proxy_label
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 RETURNING id
 `
 
@@ -145,7 +182,6 @@ type InsertHistoryParams struct {
 	ReqAuthJson            sql.NullString `json:"reqAuthJson"`
 	ConsoleJson            sql.NullString `json:"consoleJson"`
 	ProxyLabel             sql.NullString `json:"proxyLabel"`
-	ReqPathParamsJson      sql.NullString `json:"reqPathParamsJson"`
 }
 
 func (q *Queries) InsertHistory(ctx context.Context, arg InsertHistoryParams) (int64, error) {
@@ -175,7 +211,6 @@ func (q *Queries) InsertHistory(ctx context.Context, arg InsertHistoryParams) (i
 		arg.ReqAuthJson,
 		arg.ConsoleJson,
 		arg.ProxyLabel,
-		arg.ReqPathParamsJson,
 	)
 	var id int64
 	err := row.Scan(&id)

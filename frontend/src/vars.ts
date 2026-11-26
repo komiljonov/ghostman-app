@@ -185,20 +185,3 @@ export function maskRanges(text: string): [number, number][] {
   return out;
 }
 
-// A value as it would be sent, for previews (the path-variable hover): regular
-// values inserted, secrets masked, generated variables as <$name>, unresolved
-// tokens kept. Display only — Go resolves at send time.
-export function previewResolved(text: string, env: EnvDisplay): string {
-  let out = "";
-  let last = 0;
-  for (const t of findTokens(text)) {
-    out += text.slice(last, t.from);
-    const v = env.vars.get(t.key);
-    if (isGeneratedKey(t.key)) out += generatedInfo(t.key) ? `<${t.key}>` : text.slice(t.from, t.to);
-    else if (env.envName !== null && v && !v.secret) out += v.value;
-    else if (env.envName !== null && v?.secret && v.hasValue) out += MASK;
-    else out += text.slice(t.from, t.to);
-    last = t.to;
-  }
-  return out + text.slice(last);
-}

@@ -178,7 +178,7 @@ func TestRequestMapping(t *testing.T) {
 	eq("assembled url", old.URL, "https://api.example.com:8443/orders/old")
 	eq("assembled query", old.QueryParams, []api.KeyValue{row("page", "{{page}}", true), row("all", "", true)})
 
-	eq("path var kept", get("Users / Get user").URL, "{{baseUrl}}/users/:id/posts")
+	eq("path var → {{var}}", get("Users / Get user").URL, "{{baseUrl}}/users/{{id}}/posts") // literal value 42: reported
 	login := get("Users / Login")
 	eq("basic", [3]string{login.Auth.Type, login.Auth.BasicUsername, login.Auth.BasicPassword},
 		[3]string{api.AuthBasic, "{{user}}", "{{pass}}"})
@@ -251,8 +251,8 @@ func TestCollectionReportEntries(t *testing.T) {
 		"Shop API / Bodies / Upload avatar|" + CodeBodyFormFile,
 		"Shop API / Bodies / Upload avatar|" + CodeBodyMultipart,
 		"Shop API / Orders / Create order|" + CodeRowKeyless,
-		"Shop API / Orders / Create order|" + CodeScriptPreRequest,
-		"Shop API / Orders / Create order|" + CodeScriptTest,
+		"Shop API / Orders / Create order|" + CodeScriptPartial,
+		"Shop API / Orders / Create order|" + CodeScriptPartial,
 		"Shop API / Orders / Export|" + CodeMethodUnsupported,
 		"Shop API / Ping|" + CodeURLFragment,
 		"Shop API / Placeholder|" + CodeItemEmpty,
@@ -261,7 +261,7 @@ func TestCollectionReportEntries(t *testing.T) {
 		"Shop API / Users / Key in cookie|" + CodeAuthAPIKeyIn,
 		"Shop API / Users / Signed|" + CodeAuthUnsupported,
 		"Shop API|" + CodeCollectionVars,
-		"Shop API|" + CodeScriptPreRequest,
+		"Shop API|" + CodeScriptImported,
 	}
 	sort.Strings(want)
 	if got := codesByPath(r); !reflect.DeepEqual(got, want) {
@@ -284,11 +284,17 @@ func TestCollectionReportEntries(t *testing.T) {
 	if e := find("Shop API / Admin", CodeAuthUnsupported); e.Message != "Auth on folder 'Admin' was OAuth 2.0, which is not supported yet; set to Inherit." {
 		t.Fatalf("oauth2: %+v", e)
 	}
-	if e := find("Shop API / Users / Get user", CodeURLPathVariable); !strings.Contains(e.Message, "':id'") || !strings.Contains(e.Message, "'42'") {
+	if e := find("Shop API / Users / Get user", CodeURLPathVariable); e.Message !=
+		"path variable 'id' had value '42'; URL now uses {{id}} — set it in an environment (Add missing variables helps)." {
 		t.Fatalf("path var: %+v", e)
 	}
-	pre := find("Shop API / Orders / Create order", CodeScriptPreRequest)
-	if pre.Severity != Dropped || !strings.HasPrefix(pre.Message, "pre-request script (3 lines)") ||
+	var pre Entry
+	for _, e := range r.Changed {
+		if e.Code == CodeScriptPartial && strings.HasPrefix(e.Message, "pre-request") {
+			pre = e
+		}
+	}
+	if pre.Message != "pre-request script imported: 1 translated, 1 as [postman] comments" ||
 		pre.Detail != "const id = pm.variables.replaceIn('{{$guid}}');\npm.variables.set('orderId', id);\nconsole.log(id);" {
 		t.Fatalf("script: %+v", pre)
 	}
@@ -409,7 +415,7 @@ func TestEnvironmentPlan(t *testing.T) {
 // deviate without a report entry going untested.
 func TestEveryFallbackEmitsAnEntry(t *testing.T) {
 	seen := map[string]bool{}
-	for _, f := range []string{"shop.postman_collection.json", "legacy_v20.postman_collection.json"} {
+	for _, f := range []string{"shop.postman_collection.json", "legacy_v20.postman_collection.json", "analytics.postman_collection.json"} {
 		p, err := PlanCollection(fixture(t, f), f, nil)
 		if err != nil {
 			t.Fatal(err)

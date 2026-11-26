@@ -74,6 +74,10 @@ export function CreateInvitation(arg1, arg2) {
   return window['go']['main']['App']['CreateInvitation'](arg1, arg2);
 }
 
+export function CreateMissingVariables(arg1, arg2) {
+  return window['go']['main']['App']['CreateMissingVariables'](arg1, arg2);
+}
+
 export function CreateProject(arg1, arg2) {
   return window['go']['main']['App']['CreateProject'](arg1, arg2);
 }
@@ -384,6 +388,10 @@ export function Logout() {
 
 export function MigrateLegacyRequestSettings() {
   return window['go']['main']['App']['MigrateLegacyRequestSettings']();
+}
+
+export function MissingVariables(arg1, arg2) {
+  return window['go']['main']['App']['MissingVariables'](arg1, arg2);
 }
 
 export function MoveFolder(arg1, arg2) {

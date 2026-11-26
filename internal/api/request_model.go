@@ -112,7 +112,6 @@ type RequestDraft struct {
 	URL         string      `json:"url"`
 	Headers     []KeyValue  `json:"headers"`
 	QueryParams []KeyValue  `json:"query_params"`
-	PathParams  []PathParam `json:"path_params"`
 	Body        RequestBody `json:"body"`
 	Auth        Auth        `json:"auth"`
 	// ResponseFilter is the jq query for the response view ("" = none).
@@ -121,24 +120,6 @@ type RequestDraft struct {
 	// run around them, outer first: internal/scripting).
 	PreScript  string `json:"pre_script"`
 	PostScript string `json:"post_script"`
-}
-
-// PathParam is the value of one :key URL path segment ({key, value}; the keys are
-// derived from the URL by the client — frontend/src/urlParams.ts, engine/pathvars.go).
-type PathParam struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
-}
-
-// NormalizePathParams drops keyless rows and returns a non-nil slice.
-func NormalizePathParams(rows []PathParam) []PathParam {
-	out := []PathParam{}
-	for _, r := range rows {
-		if strings.TrimSpace(r.Key) != "" {
-			out = append(out, r)
-		}
-	}
-	return out
 }
 
 // NormalizeRows drops rows without a key (the editor's trailing empty row, or a
@@ -234,9 +215,6 @@ func BuildRequestPatch(base, draft RequestDraft) (RequestPatch, bool) {
 	}
 	if q := NormalizeRows(draft.QueryParams); !slices.Equal(q, NormalizeRows(base.QueryParams)) {
 		p.QueryParams, changed = &q, true
-	}
-	if pp := NormalizePathParams(draft.PathParams); !slices.Equal(pp, NormalizePathParams(base.PathParams)) {
-		p.PathParams, changed = &pp, true
 	}
 	if b := NormalizeBody(draft.Body); !bodiesEqual(b, NormalizeBody(base.Body)) {
 		p.Body, changed = &b, true
